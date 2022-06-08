@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DataGeneratorEmbeddedWidget</class>
+ <widget class="QWidget" name="DataGeneratorEmbeddedWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>221</width>
+    <height>228</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QLabel" name="mpLabel">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>10</y>
+     <width>61</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Data Type :</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="mpComboBox">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>10</y>
+     <width>111</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>int</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>float</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>double</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>bool</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>std::string</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>cv::Rect</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>cv::Point</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>cv::Scalar</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QPlainTextEdit" name="mpPlainTextEdit">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>50</y>
+     <width>181</width>
+     <height>161</height>
+    </rect>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

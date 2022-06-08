@@ -1,0 +1,12 @@
+#ifndef CVDEVLIBRARY_HPP
+#define CVDEVLIBRARY_HPP
+
+#include <QtCore/QtGlobal>
+
+#if defined(CVDEV_LIBRARY)
+#  define CVDEVSHAREDLIB_EXPORT Q_DECL_EXPORT
+#else
+#  define CVDEVSHAREDLIB_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // CVDEVLIBRARY_HPP

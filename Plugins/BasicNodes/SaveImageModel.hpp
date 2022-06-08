@@ -1,0 +1,113 @@
+#ifndef SAVEIMAGEMODEL_HPP
+#define SAVEIMAGEMODEL_HPP
+
+#pragma once
+
+#include <QtCore/QObject>
+#include <QtCore/QThread>
+#include <QtCore/QSemaphore>
+#include <QtCore/QQueue>
+#include <QDir>
+#include <nodes/DataModelRegistry>
+#include "PBNodeDataModel.hpp"
+#include "InformationData.hpp"
+
+#include <opencv2/videoio.hpp>
+
+using QtNodes::PortType;
+using QtNodes::PortIndex;
+using QtNodes::NodeData;
+using QtNodes::NodeDataType;
+using QtNodes::NodeValidationState;
+
+class SavingImageThread : public QThread
+{
+    Q_OBJECT
+public:
+    explicit
+    SavingImageThread( QObject *parent = nullptr );
+
+    ~SavingImageThread() override;
+
+    void
+    add_new_image( cv::Mat & image, QString filename );
+
+    void
+    set_saving_directory( QString dirname );
+
+protected:
+    void
+    run() override;
+
+private:
+    bool mbAbort{false};
+    QSemaphore mNoImageSemaphore;
+    QQueue<cv::Mat> mImageQueue;
+    QQueue<QString> mFilenameQueue;
+
+    QDir mqDirname;
+};
+
+class SaveImageModel : public PBNodeDataModel
+{
+    Q_OBJECT
+
+public:
+    SaveImageModel();
+
+    virtual
+    ~SaveImageModel() override
+    {
+        if( mpSavingImageThread )
+            delete mpSavingImageThread;
+    }
+
+    QJsonObject
+    save() const override;
+
+    void
+    restore(QJsonObject const &p) override;
+
+    unsigned int
+    nPorts( PortType portType ) const override;
+
+    NodeDataType
+    dataType( PortType portType, PortIndex portIndex ) const override;
+
+    void
+    setInData( std::shared_ptr< NodeData > nodeData, PortIndex port ) override;
+
+    QWidget *
+    embeddedWidget() override { return nullptr; }
+
+    void
+    late_constructor() override;
+
+//    bool
+//    resizable() const override { return true; }
+    void
+    setModelProperty( QString &, const QVariant & ) override;
+
+    static const QString _category;
+
+    static const QString _model_name;
+
+private Q_SLOTS:
+    void
+    inputConnectionCreated(QtNodes::Connection const& ) override;
+
+    void
+    inputConnectionDeleted(QtNodes::Connection const& ) override;
+
+private:
+    SavingImageThread * mpSavingImageThread { nullptr };
+
+    std::shared_ptr< NodeData > mpNodeData { nullptr };
+    std::shared_ptr< NodeData > mpFilenameData { nullptr };
+
+    QString msDirname{"C:\\"};
+    bool mbUseProvidedFilename{false};
+    int miCounter{1000};
+};
+
+#endif // SAVEIMAGEMODEL_HPP

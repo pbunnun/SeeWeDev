@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FaceDetectionEmbeddedWidget</class>
+ <widget class="QWidget" name="FaceDetectionEmbeddedWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>121</width>
+    <height>65</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>47</width>
+     <height>13</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Detector:</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="mpComboBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>30</y>
+     <width>101</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>Face (Fast)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Face (Medium)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Face (Slow)</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Eyes</string>
+    </property>
+   </item>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

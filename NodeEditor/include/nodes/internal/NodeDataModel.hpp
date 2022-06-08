@@ -59,10 +59,16 @@ public:
   virtual QString
   name() const = 0;
 
+  void
+  setToolTipText(const QString& toolTopText);
+
 public:
 
   QJsonObject
   save() const override;
+
+  void
+  restore(QJsonObject const &p) override;
 
 public:
 
@@ -100,6 +106,40 @@ public:
   void
   setNodeStyle(NodeStyle const& style);
 
+  virtual
+  void
+  setMinimize(bool minimize);
+
+  bool
+  isMinimize() const { return _minimize; };
+
+  virtual 
+  void
+  setEnable(bool enable);
+
+  bool
+  isEnable() const { return _enable; };
+
+  virtual
+  void
+  setDrawConnectionPoints(bool);
+
+  bool
+  isDrawConnectionPoints() const { return _draw_connection_point; };
+
+  virtual
+  void
+  setDrawEntries(bool draw);
+
+  bool
+  isDrawEntries() const { return _draw_entries; };
+
+  virtual
+  void
+  setLockPosition(bool lock_position);
+
+  bool
+  isLockPosition() const { return _lock_position; };
 public:
 
   /// Triggers the algorithm
@@ -128,6 +168,15 @@ public:
   embeddedWidget() = 0;
 
   virtual
+  QPixmap
+  minPixmap() const { return _minPixmap; }
+
+  /// Call this function when a node want to initilise somethings, eg. hardware interface, after it was added to the scene.
+  virtual
+  void
+  late_constructor() {}
+
+  virtual
   bool
   resizable() const { return false; }
 
@@ -141,6 +190,9 @@ public:
 
   virtual
   NodePainterDelegate* painterDelegate() const { return nullptr; }
+
+  QString
+  toolTipText() const { return _toolTipText; }
 
 public Q_SLOTS:
 
@@ -178,10 +230,30 @@ Q_SIGNALS:
   void
   computingFinished();
 
-  void embeddedWidgetSizeUpdated();
+  void
+  embeddedWidgetSizeUpdated();
+
+  void
+  embeddedWidgetStatusUpdated();
+
+  void
+  setToolTipTextSignal(const QString& text);
 
 private:
+  bool _minimize;
+
+  bool _enable;
+
+  bool _draw_entries;
+
+  bool _lock_position;
+
+  bool _draw_connection_point;
 
   NodeStyle _nodeStyle;
+
+  QPixmap _minPixmap;
+
+  QString _toolTipText;
 };
 }

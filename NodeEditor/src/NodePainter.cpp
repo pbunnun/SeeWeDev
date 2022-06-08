@@ -21,6 +21,12 @@ using QtNodes::NodeState;
 using QtNodes::NodeDataModel;
 using QtNodes::FlowScene;
 
+static const QPointF _cTriangle[3] = {
+    QPointF(-0.75, -1.5),
+    QPointF(1.0, 0.0),
+    QPointF(-0.75, 1.5)
+};
+
 void
 NodePainter::
 paint(QPainter* painter,
@@ -40,15 +46,38 @@ paint(QPainter* painter,
 
   drawNodeRect(painter, geom, model, graphicsObject);
 
-  drawConnectionPoints(painter, geom, state, model, scene);
+  if( model->isDrawConnectionPoints() )
+  {
+    drawConnectionPoints(painter, geom, state, model, scene);
 
-  drawFilledConnectionPoints(painter, geom, state, model);
+    drawFilledConnectionPoints(painter, geom, state, model);
+  }
 
-  drawModelName(painter, geom, state, model);
+  if( model->isMinimize() )
+  {
+    if( auto w = node.nodeDataModel()->embeddedWidget() )
+      w->hide();
+    drawMinimizePixmap(painter, geom, model);
+  }
+  else
+  {
+    drawModelName(painter, geom, state, model);
+    if( model->isDrawEntries() )
+    	drawEntryLabels(painter, geom, state, model);
 
-  drawEntryLabels(painter, geom, state, model);
+    drawResizeRect(painter, geom, model);
 
-  drawResizeRect(painter, geom, model);
+    if( auto w = node.nodeDataModel()->embeddedWidget() )
+    {
+      w->show();
+    }
+  }
+
+  drawMinimizeRect(painter, geom, model);
+
+  drawEnableRect(painter, geom, model);
+
+  drawLock_PositionRect(painter, geom, model);
 
   drawValidationRect(painter, geom, model, graphicsObject);
 
@@ -179,11 +208,20 @@ drawConnectionPoints(QPainter* painter,
         painter->setBrush(nodeStyle.ConnectionPointColor);
       }
 
-      painter->drawEllipse(p,
+      if( portType == PortType::Out )
+      {
+        QPointF triangle[3];
+        triangle[0] = p + _cTriangle[0]*reducedDiameter*r;
+        triangle[1] = p + _cTriangle[1]*reducedDiameter*r;
+        triangle[2] = p + _cTriangle[2]*reducedDiameter*r;
+        painter->drawPolygon(triangle, 3);
+      }
+      else
+        painter->drawEllipse(p,
                            reducedDiameter * r,
                            reducedDiameter * r);
     }
-  };
+  }
 }
 
 
@@ -226,7 +264,16 @@ drawFilledConnectionPoints(QPainter * painter,
           painter->setBrush(nodeStyle.FilledConnectionPointColor);
         }
 
-        painter->drawEllipse(p,
+        if( portType == PortType::Out )
+        {
+          QPointF triangle[3];
+          triangle[0] = p + _cTriangle[0]*diameter * 0.4;
+          triangle[1] = p + _cTriangle[1]*diameter * 0.4;
+          triangle[2] = p + _cTriangle[2]*diameter * 0.4;
+          painter->drawPolygon(triangle, 3);
+        }
+        else
+          painter->drawEllipse(p,
                              diameter * 0.4,
                              diameter * 0.4);
       }
@@ -345,6 +392,60 @@ drawResizeRect(QPainter * painter,
 
     painter->drawEllipse(geom.resizeRect());
   }
+}
+
+void
+NodePainter::
+drawMinimizeRect(QPainter * painter,
+               NodeGeometry const & geom,
+               NodeDataModel const * model)
+{
+  if( model->isMinimize() )
+      painter->setBrush(Qt::blue);
+  else
+      painter->setBrush(Qt::gray);
+
+  painter->drawRect(geom.minimizeRect());
+}
+
+void
+NodePainter::
+drawEnableRect(QPainter * painter,
+               NodeGeometry const & geom,
+               NodeDataModel const * model)
+{
+  if( model->isEnable() )
+      painter->setBrush(Qt::green);
+  else
+      painter->setBrush(Qt::red);
+
+  painter->drawRect(geom.enableRect());
+}
+
+void
+NodePainter::
+drawLock_PositionRect(QPainter * painter,
+               NodeGeometry const & geom,
+               NodeDataModel const * model)
+{
+  if( model->isLockPosition() )
+      painter->setBrush(Qt::yellow);
+  else
+      painter->setBrush(Qt::blue);
+
+  painter->drawRect(geom.lock_positionRect());
+}
+
+void
+NodePainter::
+drawMinimizePixmap(QPainter * painter,
+              NodeGeometry const & geom,
+              NodeDataModel const * model)
+{
+  auto pixmap = model->minPixmap();
+
+  QRectF boundary( 0, 0, geom.width(), geom.height());
+  painter->drawPixmap(boundary , pixmap, pixmap.rect());
 }
 
 

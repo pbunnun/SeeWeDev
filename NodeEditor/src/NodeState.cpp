@@ -17,7 +17,7 @@ NodeState(std::unique_ptr<NodeDataModel> const &model)
   , _outConnections(model->nPorts(PortType::Out))
   , _reaction(NOT_REACTING)
   , _reactingPortType(PortType::None)
-  , _resizing(false)
+  , _resizing(NodeState::NOT_RESIZING)
 {}
 
 
@@ -124,13 +124,13 @@ isReacting() const
 
 void
 NodeState::
-setResizing(bool resizing)
+setResizing(NodeState::ResizingState resizing)
 {
   _resizing = resizing;
 }
 
 
-bool
+NodeState::ResizingState
 NodeState::
 resizing() const
 {

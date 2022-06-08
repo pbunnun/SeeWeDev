@@ -31,6 +31,8 @@ FlowView(QWidget *parent)
   : QGraphicsView(parent)
   , _clearSelectionAction(Q_NULLPTR)
   , _deleteSelectionAction(Q_NULLPTR)
+  , _undoAction(Q_NULLPTR)
+  , _redoAction(Q_NULLPTR)
   , _scene(Q_NULLPTR)
 {
   setDragMode(QGraphicsView::ScrollHandDrag);
@@ -40,6 +42,8 @@ FlowView(QWidget *parent)
 
   setBackgroundBrush(flowViewStyle.BackgroundColor);
 
+  //setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
+  //setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
   setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
@@ -77,7 +81,37 @@ deleteSelectionAction() const
 
 
 void
-FlowView::setScene(FlowScene *scene)
+FlowView::
+addAnchor(int index)
+{
+  qreal x1, y1, x2, y2;
+  sceneRect().getCoords(&x1, &y1, &x2, &y2);
+
+  Anchor a;
+  a.position = QPointF((x2+x1)*0.5, (y1+y2)*0.5);
+  a.scale = 10;
+
+  _scene->_anchors[index] = a;
+}
+
+
+void
+FlowView::
+goToAnchor(int index)
+{
+  qreal x1, y1, x2, y2;
+  sceneRect().getCoords(&x1, &y1, &x2, &y2);
+  QPointF currentPosition = QPointF((x2+x1)*0.5, (y1+y2)*0.5);
+
+  QPointF diff = _scene->_anchors[index].position - currentPosition;
+
+  setSceneRect(sceneRect().translated(diff.x(), diff.y()));
+}
+
+
+void
+FlowView::
+setScene(FlowScene *scene)
 {
   _scene = scene;
   QGraphicsView::setScene(_scene);
@@ -92,8 +126,45 @@ FlowView::setScene(FlowScene *scene)
   delete _deleteSelectionAction;
   _deleteSelectionAction = new QAction(QStringLiteral("Delete Selection"), this);
   _deleteSelectionAction->setShortcut(Qt::Key_Delete);
+  //_deleteSelectionAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
   connect(_deleteSelectionAction, &QAction::triggered, this, &FlowView::deleteSelectedNodes);
   addAction(_deleteSelectionAction);
+
+  delete _undoAction;
+  _undoAction = new QAction(QStringLiteral("Undo"), this);
+  //_undoAction->setShortcut(QKeySequence(tr("Ctrl+Z")));
+  //_undoAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+  connect(_undoAction, &QAction::triggered, _scene, &FlowScene::Undo);
+  addAction(_undoAction);
+
+  delete _redoAction;
+  _redoAction = new QAction(QStringLiteral("Redo"), this);
+  //_redoAction->setShortcut(QKeySequence(tr("Ctrl+Y")));
+  //_redoAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+  connect(_redoAction, &QAction::triggered, _scene, &FlowScene::Redo);
+  addAction(_redoAction);
+
+  for( int i = 0; i < 10; i++ )
+  {
+      QAction * anchorAct = new QAction(QStringLiteral("Add Anchor"), this);
+      QString sequenceString = QString("Ctrl+") + QString::number(i);
+      anchorAct->setShortcut(QKeySequence(sequenceString));
+      anchorAct->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+      connect(anchorAct, &QAction::triggered, _scene, [this, i]() {
+          addAnchor(i);
+      });
+      addAction(anchorAct);
+      _anchorActions.push_back(anchorAct);
+
+      QAction * gotoanchorAct = new QAction(QStringLiteral("Go to Anchor"), this);
+      gotoanchorAct->setShortcut(QKeySequence(tr(std::to_string(i).c_str())));
+      gotoanchorAct->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+      connect(gotoanchorAct, &QAction::triggered, _scene, [this, i]() {
+          goToAnchor(i);
+      });
+      addAction(gotoanchorAct);
+      _anchorActions.push_back(gotoanchorAct);
+  }
 }
 
 
@@ -150,7 +221,7 @@ contextMenuEvent(QContextMenuEvent *event)
 
   treeView->expandAll();
 
-  connect(treeView, &QTreeWidget::itemClicked, [&](QTreeWidgetItem *item, int)
+  connect(treeView, &QTreeWidget::itemClicked, &modelMenu, [&](QTreeWidgetItem *item, int)
   {
     QString modelName = item->data(0, Qt::UserRole).toString();
 
@@ -165,6 +236,8 @@ contextMenuEvent(QContextMenuEvent *event)
     {
       auto& node = _scene->createNode(std::move(type));
 
+      node.nodeDataModel()->late_constructor();
+
       QPoint pos = event->pos();
 
       QPointF posView = this->mapToScene(pos);
@@ -172,6 +245,8 @@ contextMenuEvent(QContextMenuEvent *event)
       node.nodeGraphicsObject().setPos(posView);
 
       _scene->nodePlaced(node);
+
+      _scene->UpdateHistory();
     }
     else
     {
@@ -186,13 +261,17 @@ contextMenuEvent(QContextMenuEvent *event)
   {
     for (auto& topLvlItem : topLevelItems)
     {
+      bool shouldHideCategory = true;
       for (int i = 0; i < topLvlItem->childCount(); ++i)
       {
         auto child = topLvlItem->child(i);
         auto modelName = child->data(0, Qt::UserRole).toString();
         const bool match = (modelName.contains(text, Qt::CaseInsensitive));
+        if( match )
+            shouldHideCategory = false;
         child->setHidden(!match);
       }
+      topLvlItem->setHidden(shouldHideCategory);
     }
   });
 
@@ -247,6 +326,10 @@ scaleDown()
   double const step   = 1.2;
   double const factor = std::pow(step, -1.0);
 
+  QTransform t = transform();
+  if (t.m11() < 0.2 )
+      return;
+
   scale(factor, factor);
 }
 
@@ -273,6 +356,26 @@ deleteSelectedNodes()
     if (auto n = qgraphicsitem_cast<NodeGraphicsObject*>(item))
       _scene->removeNode(n->node());
   }
+
+  _scene->UpdateHistory();
+}
+
+
+void
+FlowView::
+copySelectedNodes()
+{
+  if( !_scene->selectedNodes().empty() )
+    copy();
+}
+
+
+void
+FlowView::
+cutSelectedNodes()
+{
+  if( !_scene->selectedNodes().empty() )
+    cut();
 }
 
 
@@ -284,6 +387,27 @@ keyPressEvent(QKeyEvent *event)
   {
     case Qt::Key_Shift:
       setDragMode(QGraphicsView::RubberBandDrag);
+      break;
+
+    case Qt::Key_C:
+      if (event->modifiers() & Qt::ControlModifier) {
+          copy();
+          return;
+      }
+      break;
+
+    case Qt::Key_X:
+      if (event->modifiers() & Qt::ControlModifier) {
+          cut();
+          return;
+      }
+      break;
+
+    case Qt::Key_V:
+      if (event->modifiers() & Qt::ControlModifier) {
+          paste();
+          return;
+      }
       break;
 
     default:
@@ -378,8 +502,6 @@ drawBackground(QPainter* painter, const QRectF& r)
 
   auto const &flowViewStyle = StyleCollection::flowViewStyle();
 
-  QBrush bBrush = backgroundBrush();
-
   QPen pfine(flowViewStyle.FineGridColor, 1.0);
 
   painter->setPen(pfine);
@@ -406,4 +528,63 @@ FlowView::
 scene()
 {
   return _scene;
+}
+
+
+QString
+FlowView::
+nodeMimeType() const
+{
+  return "application/x-nodeeditor-nodes";
+}
+
+
+void
+FlowView::
+copy()
+{
+  QClipboard *clipboard = QApplication::clipboard();
+  QMimeData *mimeData = new QMimeData();
+
+  QByteArray data = scene()->copyNodes(scene()->selectedNodes());
+  mimeData->setData(nodeMimeType(), data);
+  mimeData->setText(data);
+
+  clipboard->setMimeData(mimeData);
+  _bPaste = true;
+}
+
+
+void
+FlowView::
+cut()
+{
+  copy();
+  deleteSelectedNodes();
+}
+
+
+void
+FlowView::
+pasteNodes()
+{
+  paste();
+}
+
+
+void
+FlowView::
+paste()
+{
+  const QClipboard *clipboard = QApplication::clipboard();
+  const QMimeData *mimeData = clipboard->mimeData();
+
+  if (mimeData->hasFormat(nodeMimeType()))
+  {
+     scene()->pasteNodes(mimeData->data(nodeMimeType()), mapToScene(QWidget::mapFromGlobal(QCursor::pos())));
+  }
+  else if (mimeData->hasText())
+  {
+     scene()->pasteNodes(mimeData->text().toUtf8(), mapToScene(QWidget::mapFromGlobal(QCursor::pos())));
+  }
 }

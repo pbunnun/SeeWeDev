@@ -18,7 +18,7 @@ class FlowItemEntry;
 
 /// Class reacts on GUI events, mouse clicks and
 /// forwards painting operation.
-class NodeGraphicsObject : public QGraphicsObject
+class NODE_EDITOR_PUBLIC NodeGraphicsObject : public QGraphicsObject
 {
   Q_OBJECT
 
@@ -53,6 +53,15 @@ public:
 
   void
   lock(bool locked);
+
+  void
+  lock_position(bool locked_position);
+
+  void
+  set_embeddedWidgetSize(QSize widgetSize);
+
+  void
+  move_embeddedWidget();
 
 protected:
   void
@@ -98,7 +107,11 @@ private:
   Node& _node;
 
   bool _locked;
+  bool _locked_position;
 
+  QPointF _pressMousePos;
+  QSize _pressEmbeddedWidgetSize;
+  QSize _boundingSize;
   // either nullptr or owned by parent QGraphicsItem
   QGraphicsProxyWidget * _proxyWidget;
 };

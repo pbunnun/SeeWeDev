@@ -5,6 +5,7 @@
 #include "NodeDataModel.hpp"
 #include "Node.hpp"
 #include "NodeGraphicsObject.hpp"
+
 #include "StyleCollection.hpp"
 
 #include <QtGlobal>
@@ -25,7 +26,7 @@ NodeGeometry(std::unique_ptr<NodeDataModel> const &dataModel)
   , _inputPortWidth(70)
   , _outputPortWidth(70)
   , _entryHeight(20)
-  , _spacing(20)
+  , _spacing(5)
   , _hovered(false)
   , _nSources(dataModel->nPorts(PortType::Out))
   , _nSinks(dataModel->nPorts(PortType::In))
@@ -37,6 +38,20 @@ NodeGeometry(std::unique_ptr<NodeDataModel> const &dataModel)
   QFont f; f.setBold(true);
 
   _boldFontMetrics = QFontMetrics(f);
+
+  unsigned int width = portWidth(PortType::In) + portWidth(PortType::Out) + 2*_spacing;
+  if( width > captionWidth() )
+  {
+      _minEmbeddedWidgetSize.setX(0);
+  }
+  else
+  {
+      _minEmbeddedWidgetSize.setX(static_cast<int>(captionWidth()) - static_cast<int>(width));
+  }
+
+  int maxMumOfEntries = static_cast<int>(std::max(_nSinks, _nSources));
+  int step = _fontMetrics.height() + static_cast<int>(_spacing);
+  _minEmbeddedWidgetSize.setY(step * maxMumOfEntries);
 }
 
 unsigned int
@@ -91,26 +106,31 @@ recalculateSize() const
     _height = step * maxNumOfEntries;
   }
 
-  if (auto w = _dataModel->embeddedWidget())
-  {
-    _height = std::max(_height, static_cast<unsigned>(w->height()));
-  }
-
-  _height += captionHeight();
-
   _inputPortWidth  = portWidth(PortType::In);
   _outputPortWidth = portWidth(PortType::Out);
 
-  _width = _inputPortWidth +
+  if( !_dataModel->isMinimize() )
+  {
+    _width = _inputPortWidth +
            _outputPortWidth +
            2 * _spacing;
 
-  if (auto w = _dataModel->embeddedWidget())
-  {
-    _width += w->width();
-  }
+    if (auto w = _dataModel->embeddedWidget())
+    {
+      _height = std::max(_height, static_cast<unsigned>(w->height()));
+    }
 
-  _width = std::max(_width, captionWidth());
+    _height += captionHeight();
+
+    if (auto w = _dataModel->embeddedWidget())
+    {
+      _width += static_cast<unsigned>(w->width());
+    }
+
+    _width = std::max(_width, captionWidth());
+  }
+  else
+      _width = _height;
 
   if (_dataModel->validationState() != NodeValidationState::Valid)
   {
@@ -141,6 +161,40 @@ recalculateSize(QFont const & font) const
 }
 
 
+QSize
+NodeGeometry::
+minimumEmbeddedSize() const
+{
+    const unsigned int maxNumOfEntries = std::max( _nSinks, _nSources );
+    const unsigned int step = _fontMetrics.height() + _spacing;
+    unsigned int height = step * maxNumOfEntries;
+    unsigned int width = 0;
+
+    if( auto w = _dataModel->embeddedWidget() )
+    {
+        height = std::max(height, static_cast<unsigned>(w->minimumHeight()));
+        width = std::max(width, static_cast<unsigned>(w->minimumWidth()));
+    }
+
+    width = std::max( width, captionWidth() );
+
+    if( _dataModel->validationState() != NodeValidationState::Valid )
+        width = std::max( width, validationWidth() );
+
+    return QSize( width, height );
+}
+
+
+QSize
+NodeGeometry::
+maximumEmbeddedSize() const
+{
+    if( auto w = _dataModel->embeddedWidget() )
+        return w->maximumSize();
+    return QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+}
+
+
 QPointF
 NodeGeometry::
 portScenePosition(PortIndex index,
@@ -155,7 +209,8 @@ portScenePosition(PortIndex index,
 
   double totalHeight = 0.0;
 
-  totalHeight += captionHeight();
+  if( !_dataModel->isMinimize() )
+      totalHeight += captionHeight();
 
   totalHeight += step * index;
 
@@ -227,14 +282,52 @@ QRect
 NodeGeometry::
 resizeRect() const
 {
-  unsigned int rectSize = 7;
+  int rectSize = 6;
 
-  return QRect(_width - rectSize,
-               _height - rectSize,
+  return QRect(_width,
+               _height,
                rectSize,
                rectSize);
 }
 
+QRect
+NodeGeometry::
+minimizeRect() const
+{
+    int org = -6;
+    int rectSize = 6;
+
+    return QRect(org,
+                 org,
+                 rectSize,
+                 rectSize);
+}
+
+QRect
+NodeGeometry::
+lock_positionRect() const
+{
+  int org = -6;
+  int rectSize = 6;
+
+  return QRect(_width,
+               org,
+               rectSize,
+               rectSize);
+}
+
+QRect
+NodeGeometry::
+enableRect() const
+{
+    int org = -6;
+    int rectSize = 6;
+
+    return QRect(org,
+                 _height,
+                 rectSize,
+                 rectSize);
+}
 
 QPointF
 NodeGeometry::
@@ -343,6 +436,8 @@ NodeGeometry::
 portWidth(PortType portType) const
 {
   unsigned width = 0;
+  if( !_dataModel->isDrawEntries() )
+      return width;
 
   for (auto i = 0ul; i < _dataModel->nPorts(portType); ++i)
   {

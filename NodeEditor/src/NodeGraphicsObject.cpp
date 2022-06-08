@@ -28,6 +28,7 @@ NodeGraphicsObject(FlowScene &scene,
   : _scene(scene)
   , _node(node)
   , _locked(false)
+  , _locked_position(false)
   , _proxyWidget(nullptr)
 {
   _scene.addItem(this);
@@ -51,7 +52,7 @@ NodeGraphicsObject(FlowScene &scene,
     setGraphicsEffect(effect);
   }
 
-  setOpacity(nodeStyle.Opacity);
+  setOpacity(static_cast<qreal>(nodeStyle.Opacity));
 
   setAcceptHoverEvents(true);
 
@@ -65,6 +66,9 @@ NodeGraphicsObject(FlowScene &scene,
   };
   connect(this, &QGraphicsObject::xChanged, this, onMoveSlot);
   connect(this, &QGraphicsObject::yChanged, this, onMoveSlot);
+  connect(_node.nodeDataModel(), &NodeDataModel::setToolTipTextSignal, this, [this](const QString toolTipText ) {
+      setToolTip(toolTipText);
+  });
 }
 
 
@@ -105,14 +109,26 @@ embedQWidget()
 
     _proxyWidget->setPreferredWidth(5);
 
+    QSize size = w->size();
+    QSize correct = size;
+    correct = correct.expandedTo(geom.minimumEmbeddedSize());
+    correct = correct.boundedTo(geom.maximumEmbeddedSize());
+    if (size != correct )
+    {
+        size = correct;
+        w->resize(size);
+    }
+
     geom.recalculateSize();
 
-    if (w->sizePolicy().verticalPolicy() & QSizePolicy::ExpandFlag)
+/*    if (w->sizePolicy().verticalPolicy() & QSizePolicy::ExpandFlag)
     {
       // If the widget wants to use as much vertical space as possible, set it to have the geom's equivalentWidgetHeight.
       _proxyWidget->setMinimumHeight(geom.equivalentWidgetHeight());
-    }
+    } */
 
+    _proxyWidget->setMinimumSize(size);
+    _proxyWidget->setMaximumSize(size);
     _proxyWidget->setPos(geom.widgetPosition());
 
     update();
@@ -122,6 +138,25 @@ embedQWidget()
   }
 }
 
+void
+NodeGraphicsObject::
+set_embeddedWidgetSize(QSize widgetSize)
+{
+  auto & geom = _node.nodeGeometry();
+
+  if( auto w = _node.nodeDataModel()->embeddedWidget() )
+  {
+     prepareGeometryChange();
+
+     w->resize(widgetSize);
+     geom.recalculateSize();
+
+     _proxyWidget->setMinimumSize(widgetSize);
+     _proxyWidget->setMaximumSize(widgetSize);
+
+     update();
+  }
+}
 
 QRectF
 NodeGraphicsObject::
@@ -170,6 +205,15 @@ lock(bool locked)
   setFlag(QGraphicsItem::ItemIsSelectable, !locked);
 }
 
+void
+NodeGraphicsObject::
+lock_position(bool locked_position)
+{
+  _locked_position = locked_position;
+
+  setFlag(QGraphicsItem::ItemIsMovable, !locked_position);
+}
+
 
 void
 NodeGraphicsObject::
@@ -189,10 +233,36 @@ itemChange(GraphicsItemChange change, const QVariant &value)
 {
   if (change == ItemPositionChange && scene())
   {
-    moveConnections();
-  }
+    QPointF newPos = value.toPointF();
 
-  return QGraphicsItem::itemChange(change, value);
+    if (QApplication::mouseButtons() == Qt::LeftButton && _scene.IsSnap2Grid())
+    {
+      auto diam = _node.nodeDataModel()->nodeStyle().ConnectionPointDiameter - 1;
+      qreal xV = std::floor(newPos.x()/15)*15 - diam;
+      qreal yV = std::floor(newPos.y()/15)*15 - diam;
+
+      moveConnections();
+      return QPointF(xV, yV);
+    }
+    else
+    {
+      moveConnections();
+      return newPos;
+    }
+  }
+  else if(change == ItemSelectedChange && scene() )
+  {
+    if( value.toBool() )
+        setZValue(10);
+    else
+        setZValue(0);
+
+    return QGraphicsItem::itemChange(change, value);
+  }
+  else
+  {
+    return QGraphicsItem::itemChange(change, value);
+  }
 }
 
 
@@ -266,11 +336,42 @@ mousePressEvent(QGraphicsSceneMouseEvent * event)
   auto & state = _node.nodeState();
 
   if (_node.nodeDataModel()->resizable() &&
-      geom.resizeRect().contains(QPoint(pos.x(),
-                                        pos.y())))
+      geom.resizeRect().contains(QPoint(static_cast<int>(pos.x()),
+                                        static_cast<int>(pos.y()))))
   {
-    state.setResizing(true);
+    state.setResizing(NodeState::RESIZING);
+    if( auto w = _node.nodeDataModel()->embeddedWidget() )
+    {
+      _pressMousePos = event->pos();
+      _pressEmbeddedWidgetSize = w->size();
+
+      if( _scene.IsSnap2Grid() )
+      {
+        auto diam = _node.nodeDataModel()->nodeStyle().ConnectionPointDiameter;
+        _boundingSize.setWidth(2*diam+geom.width() - w->width());
+        _boundingSize.setHeight(2*diam+geom.height() - w->height());
+      }
+    }
   }
+  else if(geom.minimizeRect().contains(QPoint(static_cast<int>(pos.x()), static_cast<int>(pos.y()))))
+  {
+    _node.nodeDataModel()->setMinimize(!_node.nodeDataModel()->isMinimize());
+    if( !_node.nodeDataModel()->isMinimize() )
+        geom.recalculateSize();
+    update();
+  }
+  else if(geom.enableRect().contains(QPoint(static_cast<int>(pos.x()), static_cast<int>(pos.y()))))
+  {
+    _node.nodeDataModel()->setEnable(!_node.nodeDataModel()->isEnable());
+    update();
+  }
+  else if(geom.lock_positionRect().contains(QPoint(static_cast<int>(pos.x()), static_cast<int>(pos.y()))))
+  {
+    _node.nodeDataModel()->setLockPosition(!_node.nodeDataModel()->isLockPosition());
+    lock_position(_node.nodeDataModel()->isLockPosition());
+    update();
+  }
+
 }
 
 
@@ -281,25 +382,70 @@ mouseMoveEvent(QGraphicsSceneMouseEvent * event)
   auto & geom  = _node.nodeGeometry();
   auto & state = _node.nodeState();
 
-  if (state.resizing())
+  if (state.resizing() == NodeState::RESIZING)
   {
-    auto diff = event->pos() - event->lastPos();
+    auto diff = event->pos() - _pressMousePos;
 
     if (auto w = _node.nodeDataModel()->embeddedWidget())
     {
+      auto pos = event->pos().toPoint();
       prepareGeometryChange();
 
-      auto oldSize = w->size();
+      const QSize size = _pressEmbeddedWidgetSize;
+      QSize newSize = size + QSize(diff.x(), diff.y());
 
-      oldSize += QSize(diff.x(), diff.y());
+      if( _scene.IsSnap2Grid() )
+      {
+        auto newWidth = std::floor((_boundingSize.width() + newSize.width())/15)*15;
+        auto newHeight = std::floor((_boundingSize.height() + newSize.height())/15)*15;
 
-      w->setFixedSize(oldSize);
+        newSize.setWidth(newWidth - _boundingSize.width());
+        newSize.setHeight(newHeight - _boundingSize.height());
+      }
 
-      _proxyWidget->setMinimumSize(oldSize);
-      _proxyWidget->setMaximumSize(oldSize);
+      const QSize minSize = geom.minimumEmbeddedSize();
+      const QSize maxSize = geom.maximumEmbeddedSize();
+      if ((newSize.width() < minSize.width() && newSize.height() < minSize.height()) ||
+          (newSize.width() > maxSize.width() && newSize.height() > maxSize.height()))
+      {
+        event->ignore();
+        if( !geom.resizeRect().contains(pos) )
+        {
+          auto cur_pos = mapToScene(geom.resizeRect().center()).toPoint();
+          cur_pos = _scene.views().first()->mapFromScene(cur_pos);
+          cur_pos = _scene.views().first()->mapToGlobal(cur_pos);
+          QCursor::setPos( cur_pos );
+        }
+        return;
+      }
+/*
+      qDebug() << event->screenPos() << event->pos()
+               << mapToScene(event->pos().toPoint())
+               << _scene.views().first()->mapToGlobal(event->pos().toPoint())
+               << _scene.views().first()->mapToGlobal(mapToScene(event->pos().toPoint()).toPoint())
+               << _scene.views().first()->mapFromScene(mapToScene(event->pos().toPoint()))
+               << _scene.views().first()->mapToGlobal(_scene.views().first()->mapFromScene(mapToScene(event->pos().toPoint())));
+*/
+      newSize = newSize.expandedTo(minSize);
+      newSize = newSize.boundedTo(maxSize);
+
+      w->resize(newSize);
+      geom.recalculateSize();
+
+      _proxyWidget->setMinimumSize(newSize);
+      _proxyWidget->setMaximumSize(newSize);
       _proxyWidget->setPos(geom.widgetPosition());
 
-      geom.recalculateSize();
+      /*
+      if( !geom.resizeRect().contains(pos) )
+      {
+          auto cur_pos = mapToScene(geom.resizeRect().center()).toPoint();
+          cur_pos = _scene.views().first()->mapFromScene(cur_pos);
+          cur_pos = _scene.views().first()->mapToGlobal(cur_pos);
+          QCursor::setPos( cur_pos );
+      }
+      */
+
       update();
 
       moveConnections();
@@ -307,7 +453,7 @@ mouseMoveEvent(QGraphicsSceneMouseEvent * event)
       event->accept();
     }
   }
-  else
+  else if(state.resizing() ==  NodeState::NOT_RESIZING)
   {
     QGraphicsObject::mouseMoveEvent(event);
 
@@ -331,10 +477,11 @@ mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
 {
   auto & state = _node.nodeState();
 
-  state.setResizing(false);
+  state.setResizing(NodeState::NOT_RESIZING);
 
   QGraphicsObject::mouseReleaseEvent(event);
 
+  _scene.nodeMoveFinished(_node, pos());
   // position connections precisely after fast node move
   moveConnections();
 
@@ -351,14 +498,15 @@ hoverEnterEvent(QGraphicsSceneHoverEvent * event)
 
   for (QGraphicsItem *item : overlapItems)
   {
-    if (item->zValue() > 0.0)
+    if (item->zValue() > 0.0 && !item->isSelected())
     {
       item->setZValue(0.0);
     }
   }
 
   // bring this node forward
-  setZValue(1.0);
+  if( !isSelected() )
+    setZValue(1.0);
 
   _node.nodeGeometry().setHovered(true);
   update();
@@ -414,4 +562,13 @@ NodeGraphicsObject::
 contextMenuEvent(QGraphicsSceneContextMenuEvent* event)
 {
   _scene.nodeContextMenu(node(), mapToScene(event->pos()));
+}
+
+
+void
+NodeGraphicsObject::
+move_embeddedWidget()
+{
+  if( _proxyWidget )
+    _proxyWidget->setPos(_node.nodeGeometry().widgetPosition());
 }

@@ -39,6 +39,9 @@ Node(std::unique_ptr<NodeDataModel> && dataModel)
 
   connect(_nodeDataModel.get(), &NodeDataModel::embeddedWidgetSizeUpdated,
           this, &Node::onNodeSizeUpdated );
+
+  connect(_nodeDataModel.get(), &NodeDataModel::embeddedWidgetStatusUpdated,
+          this, &Node::onNodeStatusUpdated );
 }
 
 
@@ -60,6 +63,13 @@ save() const
   obj["y"] = _nodeGraphicsObject->pos().y();
   nodeJson["position"] = obj;
 
+  if( auto w = _nodeDataModel->embeddedWidget() )
+  {
+    QJsonObject wSize;
+    wSize["width"] = w->width();
+    wSize["height"] = w->height();
+    nodeJson["size"] = wSize;
+  }
   return nodeJson;
 }
 
@@ -76,6 +86,14 @@ restore(QJsonObject const& json)
   _nodeGraphicsObject->setPos(point);
 
   _nodeDataModel->restore(json["model"].toObject());
+
+  QJsonValue embedQWidgetSize = json["size"];
+  if( !embedQWidgetSize.isUndefined() )
+  {
+    auto obj = embedQWidgetSize.toObject();
+    QSize widgetSize = QSize(obj["width"].toInt(), obj["height"].toInt());
+    _nodeGraphicsObject->set_embeddedWidgetSize(widgetSize);
+  }
 }
 
 
@@ -139,6 +157,8 @@ setGraphicsObject(std::unique_ptr<NodeGraphicsObject>&& graphics)
   _nodeGraphicsObject = std::move(graphics);
 
   _nodeGeometry.recalculateSize();
+
+  nodeGraphicsObject().setToolTip(_nodeDataModel->toolTipText());
 }
 
 
@@ -231,4 +251,11 @@ onNodeSizeUpdated()
             }
         }
     }
+}
+
+void
+Node::
+onNodeStatusUpdated()
+{
+    _nodeGraphicsObject->update();
 }

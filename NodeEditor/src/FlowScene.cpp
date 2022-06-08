@@ -5,6 +5,7 @@
 
 #include <QtWidgets/QGraphicsSceneMoveEvent>
 #include <QtWidgets/QFileDialog>
+#include <QtWidgets/QMessageBox>
 #include <QtCore/QByteArray>
 #include <QtCore/QBuffer>
 #include <QtCore/QDataStream>
@@ -45,6 +46,17 @@ FlowScene(std::shared_ptr<DataModelRegistry> registry,
   , _registry(std::move(registry))
 {
   setItemIndexMethod(QGraphicsScene::NoIndex);
+
+  ResetHistory();
+  UpdateHistory();
+
+  auto UpdateLamda = [this](Node&, const QPointF&)
+  {
+      UpdateHistory();
+  };
+  connect(this, &FlowScene::nodeMoveFinished, this, UpdateLamda);
+
+  _anchors.resize(11);
 
   // This connection should come first
   connect(this, &FlowScene::connectionCreated, this, &FlowScene::setupConnectionSignals);
@@ -210,30 +222,41 @@ createNode(std::unique_ptr<NodeDataModel> && dataModel)
 }
 
 
-Node&
+bool
 FlowScene::
 restoreNode(QJsonObject const& nodeJson)
 {
   QString modelName = nodeJson["model"].toObject()["name"].toString();
 
   auto dataModel = registry().create(modelName);
+  if( dataModel )
+//  if (!dataModel)
+//    throw std::logic_error(std::string("No registered model with name ") +
+//                           modelName.toLocal8Bit().data());
+  {
+    auto node = detail::make_unique<Node>(std::move(dataModel));
+    auto ngo  = detail::make_unique<NodeGraphicsObject>(*this, *node);
+    node->setGraphicsObject(std::move(ngo));
 
-  if (!dataModel)
-    throw std::logic_error(std::string("No registered model with name ") +
-                           modelName.toLocal8Bit().data());
+    node->restore(nodeJson);
 
-  auto node = detail::make_unique<Node>(std::move(dataModel));
-  auto ngo  = detail::make_unique<NodeGraphicsObject>(*this, *node);
-  node->setGraphicsObject(std::move(ngo));
+    auto nodePtr = node.get();
+    _nodes[node->id()] = std::move(node);
 
-  node->restore(nodeJson);
-
-  auto nodePtr = node.get();
-  _nodes[node->id()] = std::move(node);
-
-  nodePlaced(*nodePtr);
-  nodeCreated(*nodePtr);
-  return *nodePtr;
+    nodePlaced(*nodePtr);
+    nodeCreated(*nodePtr);
+    return true;
+  }
+  else
+  {
+    QMessageBox msg;
+    msg.setText("There is no \"" + modelName + "\" node available!");
+    msg.setInformativeText( "Abort loading ........ " );
+    msg.setStandardButtons( QMessageBox::Ok);
+    msg.setIcon( QMessageBox::Critical);
+    msg.exec();
+    return false;
+  }
 }
 
 
@@ -553,13 +576,25 @@ saveToMemory() const
 
   sceneJson["connections"] = connectionJsonArray;
 
+  QJsonArray anchorsJsonArray;
+  for( unsigned long i = 0; i < _anchors.size(); i++ )
+  {
+    QJsonObject anchor;
+    anchor["position_x"] = _anchors[i].position.x();
+    anchor["position_y"] = _anchors[i].position.y();
+    anchor["scale"] = _anchors[i].scale;
+    anchorsJsonArray.append(anchor);
+  }
+
+  sceneJson["anchors"] = anchorsJsonArray;
+
   QJsonDocument document(sceneJson);
 
   return document.toJson();
 }
 
 
-void
+bool
 FlowScene::
 loadFromMemory(const QByteArray& data)
 {
@@ -569,7 +604,8 @@ loadFromMemory(const QByteArray& data)
 
   for (QJsonValueRef node : nodesJsonArray)
   {
-    restoreNode(node.toObject());
+    if( !restoreNode(node.toObject()) )
+      return false; // Abort !!!!!
   }
 
   QJsonArray connectionJsonArray = jsonDocument["connections"].toArray();
@@ -578,6 +614,214 @@ loadFromMemory(const QByteArray& data)
   {
     restoreConnection(connection.toObject());
   }
+
+  if(jsonDocument.contains("anchors"))
+  {
+    QJsonArray anchorsJsonArray = jsonDocument["anchors"].toArray();
+    for(int i = 0; i < anchorsJsonArray.size(); i++ )
+    {
+      Anchor a;
+      QJsonObject anchorObject = anchorsJsonArray[i].toObject();
+      auto x = anchorObject["position_x"].toDouble();
+      auto y = anchorObject["position_y"].toDouble();
+      auto scale = anchorObject["scale"].toDouble();
+      a.position = QPointF(x, y);
+      a.scale = scale;
+      _anchors[i] = a;
+    }
+  }
+  return true;
+}
+
+
+void
+FlowScene::
+Undo()
+{
+  //qDebug() << "Undo : " << _historyIndex;
+  if( _historyIndex > 1 )
+  {
+    _writeToHistory = false;
+    clearScene();
+    _historyIndex--;
+    loadFromMemory(_history[_historyIndex - 1].data);
+    _writeToHistory = true;
+  }
+}
+
+
+void
+FlowScene::
+Redo()
+{
+  //qDebug() << "Redo : " << _historyIndex;
+  _writeToHistory = false;
+  if( _historyIndex < static_cast<int>(_history.size()) )
+  {
+      //qDebug() << "HistoryIndex: " << _historyIndex << " from " << _history.size();
+      clearScene();
+      loadFromMemory(_history[_historyIndex].data);
+      _historyIndex++;
+  }
+  _writeToHistory = true;
+}
+
+
+void
+FlowScene::
+UpdateHistory()
+{
+  if(_writeToHistory)
+  {
+    //qDebug() << "Update History";
+    SceneHistory sh;
+    sh.data = saveToMemory();
+    if( _history.size() !=0 && sh.data == _history.back().data )
+        return;
+ // Limit undo to 10 slots only.
+ // Undo/Redo History shold track only how a user interact with the scene.
+ // Not save/load everything from a memory like what it's doing now.
+ // If there are load of nodes, it might slow down a whole program while Undo/Redo/Update History.
+    if(_historyIndex == 10)
+    {
+       _historyIndex = 9;
+       _history.pop_front();
+    }
+    if(_historyIndex < static_cast<int>(_history.size()))
+      _history.resize(_historyIndex);
+ // if undo and then do something, remove histories after current point in time before start adding a new one.
+    _history.push_back(sh);
+    _historyIndex++;
+
+    Q_EMIT historyUpdated();
+  }
+}
+
+
+void
+FlowScene::
+ResetHistory()
+{
+  _historyIndex = 0;
+  _writeToHistory = true;
+  _history.clear();
+}
+
+
+int
+FlowScene::
+GetHistoryIndex()
+{
+  return _historyIndex;
+}
+
+
+QByteArray
+FlowScene::
+copyNodes(const std::vector<QtNodes::Node*>& nodes) const
+{
+  QJsonObject sceneJson;
+  QSet<QUuid> nodeIds;
+  QJsonArray nodesJsonArray;
+
+  // center of gravity
+  std::vector<int> cogX;
+  std::vector<int> cogY;
+
+  for (auto const & n : nodes)
+  {
+     auto nodeJson = n->save();
+     nodesJsonArray.append(nodeJson);
+     nodeIds.insert(n->id());
+
+     auto nodePosition = nodeJson = nodeJson["position"].toObject();
+     cogX.emplace_back(nodePosition["x"].toDouble());
+     cogY.emplace_back(nodePosition["y"].toDouble());
+  }
+
+  sceneJson["nodes"] = nodesJsonArray;
+
+  QJsonArray connectionJsonArray;
+  for (auto const & pair : connections())
+  {
+     auto const &connection = pair.second;
+
+     auto inNodeId = connection->getNode(PortType::In)->id();
+     auto outNodeId = connection->getNode(PortType::Out)->id();
+     if (nodeIds.contains(inNodeId) && nodeIds.contains(outNodeId))
+     {
+        QJsonObject connectionJson = connection->save();
+        if (!connectionJson.isEmpty())
+           connectionJsonArray.append(connectionJson);
+     }
+  }
+
+  sceneJson["connections"] = connectionJsonArray;
+
+  // save center of gravity too
+  if(cogX.size() > 0){
+     QJsonObject jsonCog;
+     jsonCog["x"] = std::accumulate(cogX.begin(), cogX.end(), 0) / static_cast<double>(cogX.size());
+     jsonCog["y"] = std::accumulate(cogY.begin(), cogY.end(), 0) / static_cast<double>(cogY.size());
+     sceneJson["cog"] = jsonCog;
+  }
+
+  QJsonDocument document(sceneJson);
+
+  return document.toJson();
+}
+
+void
+FlowScene::
+pasteNodes(const QByteArray& data, const QPointF& pointOffset)
+{
+  QMap<QString,QUuid> newIdsMap;
+  QJsonObject jsonDocument = QJsonDocument::fromJson(data).object();
+
+  // if exists a center of gravity, take it
+  auto jsonCog = jsonDocument["cog"].toObject();
+  double offsetX = pointOffset.x() - jsonCog["x"].toDouble();
+  double offsetY = pointOffset.y() - jsonCog["y"].toDouble();
+
+  QJsonArray nodesJsonArray = jsonDocument["nodes"].toArray();
+  for (auto node : nodesJsonArray)
+  {
+     auto nodeJson = node.toObject();
+
+     QString oldId = nodeJson["id"].toString();
+     if (!newIdsMap.contains(oldId))
+        newIdsMap[oldId] = QUuid::createUuid();
+
+     nodeJson["id"] = newIdsMap[oldId].toString();
+
+     // update position of the copy of the nodes
+     auto nodePosition = nodeJson["position"].toObject();
+     nodePosition["x"] = nodePosition["x"].toDouble() + offsetX;
+     nodePosition["y"] = nodePosition["y"].toDouble() + offsetY;
+     nodeJson["position"] = nodePosition;
+
+     node = nodeJson;
+  }
+  jsonDocument["nodes"] = nodesJsonArray;
+
+  QJsonArray connectionJsonArray = jsonDocument["connections"].toArray();
+  for (QJsonValueRef connection : connectionJsonArray)
+  {
+     auto connectionJson = connection.toObject();
+
+     QString oldId = connectionJson["in_id"].toString();
+     if (newIdsMap.contains(oldId))
+        connectionJson["in_id"] = newIdsMap[oldId].toString();
+
+     oldId = connectionJson["out_id"].toString();
+     if (newIdsMap.contains(oldId))
+        connectionJson["out_id"] = newIdsMap[oldId].toString();
+
+     connection = connectionJson;
+  }
+  jsonDocument["connections"] = connectionJsonArray;
+
+  loadFromMemory(QJsonDocument(jsonDocument).toJson());
 }
 
 

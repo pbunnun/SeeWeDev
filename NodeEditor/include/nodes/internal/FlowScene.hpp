@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <tuple>
 #include <functional>
+#include <deque>
 
 #include "QUuidStdHash.hpp"
 #include "Export.hpp"
@@ -23,6 +24,17 @@ class NodeGraphicsObject;
 class Connection;
 class ConnectionGraphicsObject;
 class NodeStyle;
+
+struct SceneHistory
+{
+    QByteArray data;
+};
+
+struct Anchor
+{
+    QPointF position;
+    double scale;
+};
 
 /// Scene holds connections and nodes.
 class NODE_EDITOR_PUBLIC FlowScene
@@ -58,7 +70,7 @@ public:
 
   Node&createNode(std::unique_ptr<NodeDataModel> && dataModel);
 
-  Node&restoreNode(QJsonObject const& nodeJson);
+  bool restoreNode(QJsonObject const& nodeJson);
 
   void removeNode(Node& node);
 
@@ -92,13 +104,35 @@ public:
 
   void clearScene();
 
+  /// Open a FileDialog to save the scene in a .flow file
   void save() const;
 
+  /// Load a FileDialog to open a scene from a .flow file
   void load();
 
   QByteArray saveToMemory() const;
 
-  void loadFromMemory(const QByteArray& data);
+  /// Load a scene from a JSON QByteArray
+  bool loadFromMemory(const QByteArray& data);
+
+  void Undo();
+
+  void Redo();
+
+  void UpdateHistory();
+
+  void ResetHistory();
+
+  int GetHistoryIndex();
+
+  void SetSnap2Grid(bool snap2grid) { _snap2grid = snap2grid; }
+  bool IsSnap2Grid() { return _snap2grid; }
+
+  /// Save only a subset of the nodes to memory, as well as the connections that link two nodes lying within this subset.
+  QByteArray copyNodes(const std::vector<Node*> & nodes) const;
+
+  /// Paste selected nodes to the scene replacing uuids with new ones with a certain offset from the original position.
+  void pasteNodes(const QByteArray& data, const QPointF& pointOffset = QPointF(0,0));
 
 Q_SIGNALS:
 
@@ -122,6 +156,8 @@ Q_SIGNALS:
 
   void nodeMoved(Node& n, const QPointF& newLocation);
 
+  void nodeMoveFinished(Node& n, const QPointF& newLocation);
+
   void nodeDoubleClicked(Node& n);
 
   void nodeClicked(Node& n);
@@ -136,6 +172,12 @@ Q_SIGNALS:
 
   void nodeContextMenu(Node& n, const QPointF& pos);
 
+  void historyUpdated();
+
+public:
+
+  std::vector<Anchor> _anchors;
+
 private:
 
   using SharedConnection = std::shared_ptr<Connection>;
@@ -149,6 +191,12 @@ private:
 
   std::unordered_map<QUuid, SharedConnection> _connections;
   std::unordered_map<QUuid, UniqueNode>       _nodes;
+
+  int _historyIndex;
+  bool _writeToHistory;
+  std::deque< SceneHistory > _history;
+
+  bool _snap2grid {false};
 
 private Q_SLOTS:
 

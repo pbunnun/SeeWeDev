@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>NodeDataTimerEmbeddedWidget</class>
+ <widget class="QWidget" name="NodeDataTimerEmbeddedWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>242</width>
+    <height>131</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QSpinBox" name="mpSecondSpinbox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>11</y>
+     <width>71</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="mpMillisecondSpinbox">
+   <property name="geometry">
+    <rect>
+     <x>120</x>
+     <y>11</y>
+     <width>81</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="mpSecondLabel">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>11</y>
+     <width>16</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>s</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="mpMillisecondLabel">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>11</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>ms</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="mpRemainingTextLabel">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>90</y>
+     <width>91</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Time Remaining :</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="mpPFLabel">
+   <property name="geometry">
+    <rect>
+     <x>100</x>
+     <y>51</y>
+     <width>41</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>0.00</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="mpPFComboBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>51</y>
+     <width>81</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>Period</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Frequency</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="mpRemainingLabel">
+   <property name="geometry">
+    <rect>
+     <x>100</x>
+     <y>91</y>
+     <width>41</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>0</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="mpStartButton">
+   <property name="geometry">
+    <rect>
+     <x>169</x>
+     <y>40</y>
+     <width>61</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Start</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="mpStopButton">
+   <property name="geometry">
+    <rect>
+     <x>169</x>
+     <y>70</y>
+     <width>61</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Stop</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="mpPFUnitLabel">
+   <property name="geometry">
+    <rect>
+     <x>150</x>
+     <y>50</y>
+     <width>16</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>s</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="mpRemainingUnitLabel">
+   <property name="geometry">
+    <rect>
+     <x>150</x>
+     <y>90</y>
+     <width>16</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>ms</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="mpResetButton">
+   <property name="geometry">
+    <rect>
+     <x>170</x>
+     <y>100</y>
+     <width>61</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Reset</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

@@ -35,6 +35,16 @@ public Q_SLOTS:
 
   void deleteSelectedNodes();
 
+  void copySelectedNodes();
+
+  void cutSelectedNodes();
+
+  void pasteNodes();
+
+  void addAnchor(int index);
+
+  void goToAnchor(int index);
+
 protected:
 
   void contextMenuEvent(QContextMenuEvent *event) override;
@@ -57,13 +67,32 @@ protected:
 
   FlowScene * scene();
 
+  /**
+    * MIME type used to copy/paste and drag n drop nodes.
+    * You will likely want to override it with your own type.
+    * This defaults to 'application/x-nodeeditor-nodes'.
+    */
+  virtual QString nodeMimeType() const;
+
+  bool _bPaste {false};
+
+private:
+  void copy();
+  void paste();
+  void cut();
+
 private:
 
   QAction* _clearSelectionAction;
   QAction* _deleteSelectionAction;
+  QAction* _undoAction;
+  QAction* _redoAction;
+
+  std::vector<QAction*> _anchorActions;
 
   QPointF _clickPos;
 
   FlowScene* _scene;
+
 };
 }

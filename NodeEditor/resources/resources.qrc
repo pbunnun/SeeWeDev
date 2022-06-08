@@ -2,5 +2,6 @@
     <qresource>
         <file>DefaultStyle.json</file>
         <file>convert.png</file>
+	<file>NodeEditor.png</file>
     </qresource>
 </RCC>

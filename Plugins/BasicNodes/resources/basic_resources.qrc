@@ -1,0 +1,41 @@
+<RCC>
+    <qresource prefix="/">
+        <file>RGBtoGray.png</file>
+        <file>Test_Sharpen.png</file>
+        <file>GaussianBlur.png</file>
+        <file>CannyEdge.png</file>
+        <file>RGBsetValue.png</file>
+        <file>ColorSpace.png</file>
+        <file>SobelAndScharr.png</file>
+        <file>DrawContour.png</file>
+        <file>CreateHistogram.png</file>
+        <file>ErodeAndDilate.png</file>
+        <file>InvertGray.png</file>
+        <file>Thresholding.png</file>
+        <file>BlendImages.png</file>
+        <file>FloodFill.png</file>
+        <file>MakeBorder.png</file>
+        <file>FaceDetection.png</file>
+        <file>ImageDisplay.png</file>
+        <file>BitwiseOperation.png</file>
+        <file>ImageROI.png</file>
+        <file>MorphologicalTransformation.png</file>
+        <file>HoughCircleTransform.png</file>
+        <file>DistanceTransform.png</file>
+        <file>Filter2D.png</file>
+        <file>SplitImage.png</file>
+        <file>TemplateMatching.png</file>
+        <file>MatrixOperation.png</file>
+        <file>MinMaxLocation.png</file>
+        <file>ConvertDepth.png</file>
+        <file>PixelIteration.png</file>
+        <file>ScalarOperation.png</file>
+        <file>DataGenerator.png</file>
+        <file>SyncGate.png</file>
+        <file>Normalization.png</file>
+        <file>ConnectedComponents.png</file>
+        <file>Watershed.png</file>
+        <file>ColorMap.png</file>
+        <file>NodeDataTimer.png</file>
+    </qresource>
+</RCC>

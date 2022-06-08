@@ -91,6 +91,12 @@ public:
     _registeredTypeConverters[id] = std::move(typeConverter);
   }
 
+  void unregisterModel(QString const & name)
+  {
+    _registeredItemCreators.erase(name);
+    _registeredModelsCategory.erase(name);
+  }
+
   std::unique_ptr<NodeDataModel>create(QString const &modelName);
 
   RegisteredModelCreatorsMap const &registeredModelCreators() const;

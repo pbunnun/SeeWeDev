@@ -88,6 +88,12 @@ public:
   void
   recalculateSize(QFont const &font) const;
 
+  QSize
+  minimumEmbeddedSize() const;
+
+  QSize
+  maximumEmbeddedSize() const;
+
   // TODO removed default QTransform()
   QPointF
   portScenePosition(PortIndex index,
@@ -101,6 +107,15 @@ public:
 
   QRect
   resizeRect() const;
+
+  QRect
+  minimizeRect() const;
+
+  QRect
+  enableRect() const;
+
+  QRect
+  lock_positionRect() const;
 
   /// Returns the position of a widget on the Node surface
   QPointF
@@ -121,6 +136,13 @@ public:
   calculateNodePositionBetweenNodePorts(PortIndex targetPortIndex, PortType targetPort, Node* targetNode,
                                         PortIndex sourcePortIndex, PortType sourcePort, Node* sourceNode,
                                         Node& newNode);
+
+//  QPoint
+//  minSize() const { return _minSize; }
+
+  QPoint
+  minEmbeddedWidgetSize() const { return _minEmbeddedWidgetSize; }
+
 private:
 
   unsigned int
@@ -153,7 +175,9 @@ private:
   unsigned int _nSinks;
 
   QPointF _draggingPos;
-
+  
+  QPoint _minEmbeddedWidgetSize;
+  
   std::unique_ptr<NodeDataModel> const &_dataModel;
 
   mutable QFontMetrics _fontMetrics;

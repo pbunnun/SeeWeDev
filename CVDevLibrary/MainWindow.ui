@@ -1,0 +1,568 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1200</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>CVDev</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QTabWidget" name="mpTabWidget">
+      <property name="currentIndex">
+       <number>-1</number>
+      </property>
+      <property name="documentMode">
+       <bool>true</bool>
+      </property>
+      <property name="tabsClosable">
+       <bool>true</bool>
+      </property>
+      <property name="movable">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="mpMenuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1200</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="mpMenuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="mpActionNew"/>
+    <addaction name="mpActionLoad"/>
+    <addaction name="mpActionSave"/>
+    <addaction name="mpActionSaveAll"/>
+    <addaction name="mpActionSaveAs"/>
+    <addaction name="separator"/>
+    <addaction name="mpActionQuit"/>
+   </widget>
+   <widget class="QMenu" name="mpMenuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="mpActionZoomReset"/>
+    <addaction name="separator"/>
+    <addaction name="mpActionSceneOnly"/>
+    <addaction name="mpActionAllPanels"/>
+    <addaction name="separator"/>
+    <addaction name="mpActionFocusView"/>
+    <addaction name="mpActionFullScreen"/>
+   </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="mpActionUndo"/>
+    <addaction name="mpActionRedo"/>
+    <addaction name="mpActionSnapToGrid"/>
+    <addaction name="separator"/>
+    <addaction name="mpActionCopy"/>
+    <addaction name="mpActionCut"/>
+    <addaction name="mpActionPaste"/>
+    <addaction name="mpActionDelete"/>
+    <addaction name="separator"/>
+    <addaction name="mpActionLoadPlugin"/>
+   </widget>
+   <widget class="QMenu" name="menuControl">
+    <property name="title">
+     <string>Control</string>
+    </property>
+    <addaction name="mpActionDisableAll"/>
+    <addaction name="mpActionEnableAll"/>
+    <addaction name="separator"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="mpActionAbout"/>
+   </widget>
+   <addaction name="mpMenuFile"/>
+   <addaction name="menuEdit"/>
+   <addaction name="mpMenuView"/>
+   <addaction name="menuControl"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QDockWidget" name="mpAvailableNodeCategoryDockWidget">
+   <property name="features">
+    <set>QDockWidget::AllDockWidgetFeatures</set>
+   </property>
+   <property name="windowTitle">
+    <string>Node Category</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="mpAvailableNodeCategoryContentDockWidget">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QLineEdit" name="mpAvailableNodeCategoryFilterLineEdit"/>
+     </item>
+     <item>
+      <widget class="PBTreeWidget" name="mpAvailableNodeCategoryTreeView">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="dragEnabled">
+        <bool>true</bool>
+       </property>
+       <property name="dragDropMode">
+        <enum>QAbstractItemView::DragOnly</enum>
+       </property>
+       <property name="headerHidden">
+        <bool>true</bool>
+       </property>
+       <attribute name="headerVisible">
+        <bool>false</bool>
+       </attribute>
+       <column>
+        <property name="text">
+         <string notr="true">1</string>
+        </property>
+       </column>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="mpNodeListDockWidget">
+   <property name="features">
+    <set>QDockWidget::AllDockWidgetFeatures</set>
+   </property>
+   <property name="windowTitle">
+    <string>Workspace</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="mpNodeListContentDockWidget">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QLineEdit" name="mpNodeListFilterLineEdit"/>
+     </item>
+     <item>
+      <widget class="QTreeWidget" name="mpNodeListTreeView">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="columnCount">
+        <number>2</number>
+       </property>
+       <attribute name="headerVisible">
+        <bool>true</bool>
+       </attribute>
+       <column>
+        <property name="text">
+         <string notr="true">1</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string notr="true">2</string>
+        </property>
+       </column>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="mpPropertyBrowserDockWidget">
+   <property name="features">
+    <set>QDockWidget::AllDockWidgetFeatures</set>
+   </property>
+   <property name="windowTitle">
+    <string>Properties</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="mpRightContentDockWidget">
+    <layout class="QVBoxLayout" name="verticalLayout_3">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QToolBar" name="mpToolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="mpActionNew"/>
+   <addaction name="mpActionLoad"/>
+   <addaction name="mpActionSave"/>
+   <addaction name="separator"/>
+   <addaction name="mpActionUndo"/>
+   <addaction name="mpActionRedo"/>
+   <addaction name="mpActionSnapToGrid"/>
+   <addaction name="separator"/>
+   <addaction name="mpActionDisableAll"/>
+   <addaction name="mpActionEnableAll"/>
+   <addaction name="separator"/>
+  </widget>
+  <action name="mpActionSave">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/document-save.png</normaloff>:/icons/tango/32x32/document-save.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save ...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="mpActionLoad">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/document-open.png</normaloff>:/icons/tango/32x32/document-open.png</iconset>
+   </property>
+   <property name="text">
+    <string>Load ...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="mpActionQuit">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/system-log-out.png</normaloff>:/icons/tango/32x32/system-log-out.png</iconset>
+   </property>
+   <property name="text">
+    <string>Quit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="mpActionSaveAs">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/document-save-as.png</normaloff>:/icons/tango/32x32/document-save-as.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save As ...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
+   </property>
+  </action>
+  <action name="mpActionSceneOnly">
+   <property name="text">
+    <string>Scene Only</string>
+   </property>
+   <property name="toolTip">
+    <string>Dispaly Scene Only</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+H</string>
+   </property>
+  </action>
+  <action name="mpActionAllPanels">
+   <property name="text">
+    <string>All Panels</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+P</string>
+   </property>
+  </action>
+  <action name="mpActionZoomReset">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/system-search.png</normaloff>:/icons/tango/32x32/system-search.png</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom Reset</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
+  <action name="mpActionSaveAll">
+   <property name="text">
+    <string>Save All</string>
+   </property>
+  </action>
+  <action name="mpActionNew">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/document-new.png</normaloff>:/icons/tango/32x32/document-new.png</iconset>
+   </property>
+   <property name="text">
+    <string>New</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
+  </action>
+  <action name="mpActionCopy">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/edit-copy.png</normaloff>:/icons/tango/32x32/edit-copy.png</iconset>
+   </property>
+   <property name="text">
+    <string>Copy</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="mpActionCut">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/edit-cut.png</normaloff>:/icons/tango/32x32/edit-cut.png</iconset>
+   </property>
+   <property name="text">
+    <string>Cut</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+X</string>
+   </property>
+  </action>
+  <action name="mpActionPaste">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/edit-paste.png</normaloff>:/icons/tango/32x32/edit-paste.png</iconset>
+   </property>
+   <property name="text">
+    <string>Paste</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+V</string>
+   </property>
+  </action>
+  <action name="mpActionDelete">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/edit-delete.png</normaloff>:/icons/tango/32x32/edit-delete.png</iconset>
+   </property>
+   <property name="text">
+    <string>Delete</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="mpActionUndo">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/edit-undo.png</normaloff>:/icons/tango/32x32/edit-undo.png</iconset>
+   </property>
+   <property name="text">
+    <string>Undo</string>
+   </property>
+   <property name="toolTip">
+    <string>Undo</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Z</string>
+   </property>
+  </action>
+  <action name="mpActionRedo">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/edit-redo.png</normaloff>:/icons/tango/32x32/edit-redo.png</iconset>
+   </property>
+   <property name="text">
+    <string>Redo</string>
+   </property>
+   <property name="toolTip">
+    <string>Redo</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Y</string>
+   </property>
+  </action>
+  <action name="mpActionDisableAll">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/process-stop.png</normaloff>:/icons/tango/32x32/process-stop.png</iconset>
+   </property>
+   <property name="text">
+    <string>Disable All</string>
+   </property>
+   <property name="toolTip">
+    <string>Disable All Nodes</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="mpActionEnableAll">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/start-here.png</normaloff>:/icons/tango/32x32/start-here.png</iconset>
+   </property>
+   <property name="text">
+    <string>Enable All</string>
+   </property>
+   <property name="toolTip">
+    <string>Enable All Nodes</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+G</string>
+   </property>
+  </action>
+  <action name="mpActionSnapToGrid">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/mail-attachment.png</normaloff>:/icons/tango/32x32/mail-attachment.png</iconset>
+   </property>
+   <property name="text">
+    <string>Snap to Grid</string>
+   </property>
+  </action>
+  <action name="mpActionLoadPlugin">
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/preferences-system.png</normaloff>:/icons/tango/32x32/preferences-system.png</iconset>
+   </property>
+   <property name="text">
+    <string>Load Plugin</string>
+   </property>
+   <property name="toolTip">
+    <string>Load Plugin File</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+L</string>
+   </property>
+  </action>
+  <action name="mpActionFocusView">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources/resources.qrc">
+     <normaloff>:/icons/tango/32x32/view-fullscreen.png</normaloff>:/icons/tango/32x32/view-fullscreen.png</iconset>
+   </property>
+   <property name="text">
+    <string>Focus View</string>
+   </property>
+   <property name="toolTip">
+    <string>Focus View</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
+   </property>
+  </action>
+  <action name="mpActionAbout">
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+  <action name="mpActionFullScreen">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Full Screen</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PBTreeWidget</class>
+   <extends>QTreeWidget</extends>
+   <header location="global">PBTreeWidget.hpp</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="resources/resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>

@@ -71,9 +71,34 @@ public:
 
   static
   void
+  drawMinimizeRect(QPainter* painter,
+                   NodeGeometry const& geom,
+                   NodeDataModel const * model);
+
+  static
+  void
+  drawEnableRect(QPainter* painter,
+                   NodeGeometry const& geom,
+                   NodeDataModel const * model);
+
+  static
+  void
+  drawLock_PositionRect(QPainter* painter,
+                   NodeGeometry const& geom,
+                   NodeDataModel const * model);
+
+  static
+  void
+  drawMinimizePixmap(QPainter * painter,
+                NodeGeometry const & geom,
+                NodeDataModel const * model);
+
+  static
+  void
   drawValidationRect(QPainter * painter,
                      NodeGeometry const & geom,
                      NodeDataModel const * model,
                      NodeGraphicsObject const & graphicsObject);
+
 };
 }

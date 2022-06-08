@@ -28,6 +28,13 @@ public:
     NOT_REACTING
   };
 
+  enum ResizingState
+  {
+      RESIZING,
+      RAPID_MOUSE_MOVING,
+      NOT_RESIZING
+  };
+
 public:
 
   NodeState(std::unique_ptr<NodeDataModel> const &model);
@@ -78,9 +85,9 @@ public:
   isReacting() const;
 
   void
-  setResizing(bool resizing);
+  setResizing(ResizingState resizing);
 
-  bool
+  ResizingState
   resizing() const;
 
 private:
@@ -92,6 +99,6 @@ private:
   PortType     _reactingPortType;
   NodeDataType _reactingDataType;
 
-  bool _resizing;
+  ResizingState _resizing;
 };
 }
