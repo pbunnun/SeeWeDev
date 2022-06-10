@@ -8,7 +8,17 @@ CVDev เป็นโปรแกรมที่ช่วยในการพ�
 
 CVDev และ Node พื้นฐานต่างๆ ถูกพัฒนาขึ้นโดยใช้ภาษา C++ เพื่อให้ CVDev สามารถทำการประมวลผลได้อย่างรวดเร็ว ในการพัฒนา Node นั้นสามารถเริ่มต้นพัฒนาได้จาก Template ที่เตรียมไว้ให้ ไม่จำเป็นต้องพัฒนาทุกส่วนเองทั้งหมด ทั้งนี้เพื่อให้นักพัฒนาได้มีเวลาไปมุ้งเน้นในการพัฒนาวิธีประมวลผลที่อยู่ใน Node นั้นๆ!
 
-Copyright (C) 2022 NECTEC All rights reserved. CVDev is made possible by open source softwares mainly NodeEditor, Qt and OpenCV.
+[![Blood Type Test](https://img.youtube.com/vi/cvRiDyQiHgA/0.jpg)](https://www.youtube.com/watch?v=cvRiDyQiHgA)
+
+[![Blood Type Test](https://img.youtube.com/vi/4ygVRSnO750/0.jpg)](https://www.youtube.com/watch?v=4ygVRSnO750)
+
+[![Blood Type Test](https://img.youtube.com/vi/PIxWVjwQGSs/0.jpg)](https://www.youtube.com/watch?v=PIxWVjwQGSs)
+
+[![Blood Type Test](https://img.youtube.com/vi/fa7johYZEeQ/0.jpg)](https://www.youtube.com/watch?v=fa7johYZEeQ)
+
+[![Blood Type Test](https://img.youtube.com/vi/cNzBbehysp4/0.jpg)](https://www.youtube.com/watch?v=cNzBbehysp4)
+
+CVDev is made possible by open source softwares mainly NodeEditor, Qt and OpenCV.
 
 NodeEditor : https://github.com/paceholder/nodeeditor
 
