@@ -23,7 +23,7 @@ class BasicNodePlugin : public QObject,
                         public PluginInterface
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA( IID "CVDevTool.PluginInterface" FILE "basicnodes.json" )
+    Q_PLUGIN_METADATA( IID "CVDev.PluginInterface" FILE "basicnodes.json" )
     Q_INTERFACES( PluginInterface )
 
 public:

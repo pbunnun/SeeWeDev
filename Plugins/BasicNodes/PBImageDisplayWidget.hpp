@@ -30,6 +30,7 @@ public:
 
 protected:
     void paintEvent( QPaintEvent * ) override;
+    void resizeEvent( QResizeEvent * ) override;
 
 private:
     cv::Mat mCVImage;
@@ -39,6 +40,9 @@ private:
     quint8 muImageFormat{0};
     qreal mrScale_x{1.};
     qreal mrScale_y{1.};
+
+    int miImageWidth{0};
+    int miImageHeight{0};
 };
 
 #endif

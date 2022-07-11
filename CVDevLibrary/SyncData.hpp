@@ -26,7 +26,7 @@ class SyncData : public NodeData
 {
 public:
     SyncData()
-        : mbSync(true)
+        : mbSync(false)
     {
     }
 

@@ -34,8 +34,18 @@ void
 PBImageDisplayWidget::
 Display( const cv::Mat &image )
 {
-    mCVImage = image.clone();
+    mCVImage = image;
     muImageFormat = static_cast< quint8 >( mCVImage.channels() );
+    if( mCVImage.cols != miImageWidth || mCVImage.rows != miImageHeight )
+    {
+        miImageWidth = mCVImage.cols;
+        miImageHeight = mCVImage.rows;
+        if( mCVImage.cols != 0 && mCVImage.rows != 0 )
+        {
+            mrScale_x = static_cast< qreal >( this->width() )/static_cast< qreal >( mCVImage.cols );
+            mrScale_y = static_cast< qreal >( this->height() )/static_cast< qreal >( mCVImage.rows );
+        }
+    }
     repaint();
 }
 
@@ -47,8 +57,6 @@ paintEvent( QPaintEvent * )
     if( muImageFormat == 1 )
     {
         QImage image( static_cast< uchar* >( mCVImage.data ), mCVImage.cols, mCVImage.rows, static_cast< qint32 >( mCVImage.step ), QImage::Format_Grayscale8 );
-        mrScale_x = static_cast< qreal >( this->width() )/static_cast< qreal >( mCVImage.cols );
-        mrScale_y = static_cast< qreal >( this->height() )/static_cast< qreal >( mCVImage.rows );
         mPainter.scale( mrScale_x, mrScale_y );
         mPainter.drawImage( 0, 0, image, 0, 0, image.width(), image.height(), Qt::MonoOnly );
     }
@@ -59,10 +67,20 @@ paintEvent( QPaintEvent * )
 #else
         QImage image = QImage( static_cast<uchar*>(mCVImage.data), mCVImage.cols, mCVImage.rows, static_cast< qint32 >( mCVImage.step ), QImage::Format_BGR888 );
 #endif
-        mrScale_x = static_cast< qreal >( this->width() )/static_cast< qreal >( mCVImage.cols );
-        mrScale_y = static_cast< qreal >( this->height() )/static_cast< qreal >( mCVImage.rows );
         mPainter.scale( mrScale_x, mrScale_y );
         mPainter.drawImage( 0, 0, image, 0, 0, image.width(), image.height(), Qt::ColorOnly );
     }
     mPainter.end();
+}
+
+void
+PBImageDisplayWidget::
+resizeEvent( QResizeEvent * ev )
+{
+    if( mCVImage.cols != 0 && mCVImage.rows != 0 )
+    {
+        mrScale_x = static_cast< qreal >( this->width() )/static_cast< qreal >( mCVImage.cols );
+        mrScale_y = static_cast< qreal >( this->height() )/static_cast< qreal >( mCVImage.rows );
+    }
+    QOpenGLWidget::resizeEvent(ev);
 }

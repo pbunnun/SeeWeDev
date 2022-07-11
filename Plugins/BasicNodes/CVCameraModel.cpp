@@ -24,8 +24,8 @@
 #include <QVariant>
 #include "qtvariantproperty.h"
 
-CVCameraThread:: CVCameraThread(QObject *parent)
-    : QThread(parent)
+CVCameraThread:: CVCameraThread(QObject *parent, std::shared_ptr< CVImageData > pCVImageData)
+    : QThread(parent), mpCVImageData( pCVImageData )
 {
 
 }
@@ -52,17 +52,17 @@ run()
             {
                 mSingleShotSemaphore.acquire();
 
-                mCVVideoCapture >> mCVImage;
-                if( !mCVImage.empty() )
-                    Q_EMIT image_ready( mCVImage );
+                mCVVideoCapture >> mpCVImageData->image();
+                if( !mpCVImageData->image().empty() )
+                    Q_EMIT image_ready( );
                 else
                     mCVVideoCapture.set(cv::CAP_PROP_POS_FRAMES, -1);
             }
             else
             {
-                mCVVideoCapture >> mCVImage;
-                if( !mCVImage.empty() )
-                    Q_EMIT image_ready( mCVImage );
+                mCVVideoCapture >> mpCVImageData->image();
+                if( !mpCVImageData->image().empty() )
+                    Q_EMIT image_ready( );
                 else
                     mCVVideoCapture.set(cv::CAP_PROP_POS_FRAMES, -1);
             }
@@ -156,9 +156,8 @@ CVCameraModel()
 
 void
 CVCameraModel::
-received_image( cv::Mat & image )
+received_image()
 {
-    mpCVImageData->set_image( image );
     updateAllOutputPorts();
 }
 
@@ -327,7 +326,7 @@ late_constructor()
 {
     if( !mpCVCameraThread )
     {
-        mpCVCameraThread = new CVCameraThread(this);
+        mpCVCameraThread = new CVCameraThread(this, mpCVImageData);
         connect( mpCVCameraThread, &CVCameraThread::image_ready, this, &CVCameraModel::received_image );
         connect( mpCVCameraThread, &CVCameraThread::camera_ready, this, &CVCameraModel::camera_status_changed );
         connect( mpCVCameraThread, &CVCameraThread::camera_ready, mpEmbeddedWidget, &CVCameraEmbeddedWidget::camera_status_changed );

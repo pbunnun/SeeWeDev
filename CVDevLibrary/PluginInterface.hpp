@@ -47,7 +47,7 @@ public:
 
 QT_BEGIN_NAMESPACE
 
-#define PluginInterface_iid "CVDevTool.PluginInterface/1.0"
+#define PluginInterface_iid "CVDev.PluginInterface/1.0"
 
 Q_DECLARE_INTERFACE(PluginInterface, PluginInterface_iid)
 

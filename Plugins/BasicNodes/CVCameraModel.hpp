@@ -49,7 +49,7 @@ class CVCameraThread : public QThread
     Q_OBJECT
 public:
     explicit
-    CVCameraThread( QObject *parent = nullptr );
+    CVCameraThread( QObject *parent, std::shared_ptr< CVImageData > pCVImageData );
 
     ~CVCameraThread() override;
 
@@ -67,7 +67,7 @@ public:
 
 Q_SIGNALS:
     void
-    image_ready( cv::Mat & image );
+    image_ready( );
 
     bool
     camera_ready( bool status );
@@ -89,8 +89,9 @@ private:
     bool mbConnected{false};
     unsigned long miDelayTime{10};
     double mdFPS{0};
-    cv::Mat mCVImage;
     cv::VideoCapture mCVVideoCapture;
+
+    std::shared_ptr< CVImageData > mpCVImageData;
 };
 
 class CVCameraModel : public PBNodeDataModel
@@ -140,9 +141,12 @@ public:
 
     void setSelected(bool selected) override;
 
+    bool
+    resizable() const override { return true; }
+
 private Q_SLOTS:
     void
-    received_image( cv::Mat & );
+    received_image();
 
     void
     camera_status_changed( bool );

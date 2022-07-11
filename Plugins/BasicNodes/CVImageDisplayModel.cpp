@@ -114,19 +114,30 @@ display_image()
     if ( d )
     {
         mpEmbeddedWidget->Display(d->image());
-        auto prop = mMapIdToProperty["image_size"];
-        auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );
-        typedPropSize->getData().miWidth = d->image().cols;
-        typedPropSize->getData().miHeight = d->image().rows;
-        Q_EMIT property_changed_signal( prop );
+        if( d->image().cols != miImageWidth || d->image().rows != miImageHeight )
+        {
+            miImageWidth = d->image().cols;
+            miImageHeight = d->image().rows;
 
-        prop = mMapIdToProperty[ "image_format" ];
-        auto typedPropFormat = std::static_pointer_cast<TypedProperty<QString>>( prop );
-        if( d->image().channels() == 1 )
-            typedPropFormat->getData() = "CV_8UC1";
-        else
-            typedPropFormat->getData() = "CV_8UC3";
-        Q_EMIT property_changed_signal( prop );
+            auto prop = mMapIdToProperty["image_size"];
+            auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );
+            typedPropSize->getData().miWidth = d->image().cols;
+            typedPropSize->getData().miHeight = d->image().rows;
+            Q_EMIT property_changed_signal( prop );
+        }
+
+        if( d->image().channels() != miImageFormat )
+        {
+            miImageFormat = d->image().channels();
+
+            auto prop = mMapIdToProperty[ "image_format" ];
+            auto typedPropFormat = std::static_pointer_cast<TypedProperty<QString>>( prop );
+            if( d->image().channels() == 1 )
+                typedPropFormat->getData() = "CV_8UC1";
+            else
+                typedPropFormat->getData() = "CV_8UC3";
+            Q_EMIT property_changed_signal( prop );
+        }
     }
 }
 

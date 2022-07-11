@@ -16,7 +16,6 @@
 
 #include <QApplication>
 #include <QSurfaceFormat>
-#include <QDebug>
 
 int main(int argc, char *argv[])
 {

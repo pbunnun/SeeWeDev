@@ -77,6 +77,10 @@ private:
     std::shared_ptr< SyncData > mpSyncData;
 
     QPixmap _minPixmap;
+
+    int miImageWidth{0};
+    int miImageHeight{0};
+    int miImageFormat{0};
 };
 
 #endif
