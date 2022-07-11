@@ -18,6 +18,10 @@ CVDev และ Node พื้นฐานต่างๆ ถูกพัฒน�
 
 [![Blood Type Test](https://img.youtube.com/vi/cNzBbehysp4/0.jpg)](https://www.youtube.com/watch?v=cNzBbehysp4)
 
+## License
+CVDev is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the license for more details.
+
+## Requirements
 CVDev is made possible by open source softwares mainly NodeEditor, Qt and OpenCV.
 
 NodeEditor : https://github.com/paceholder/nodeeditor

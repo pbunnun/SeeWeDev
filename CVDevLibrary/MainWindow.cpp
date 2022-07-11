@@ -1,3 +1,17 @@
+//Copyright © 2022, NECTEC, all rights reserved
+
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+
+//    http://www.apache.org/licenses/LICENSE-2.0
+
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+
 #include <QPluginLoader>
 #include <QDir>
 #include <QFileDialog>
@@ -24,8 +38,6 @@ MainWindow::MainWindow( QWidget *parent )
     : QMainWindow( parent )
     , ui( new Ui::MainWindow ) 
 {
-    qDebug() << "Hello World!";
-
     ui->setupUi( this );
 
     QDate check_day(2022, 03, 1);
@@ -1132,6 +1144,6 @@ on_mpActionAbout_triggered()
     QMessageBox::about(this, msProgramName, "<p>" + msProgramName + "(Beta 0) has been designed and developped as a software tool so that "
                                            "developers can reuse their codes and share their work with others. If you have any comment please "
                                            "feel free to contact <a href=mailto:pished.bunnun@nectec.or.th>pished.bunnun@nectec.or.th</a>.</p>"
-                                           "<p>Copyright (C) 2021 <a href=www.nectec.or.th>NECTEC</a> All rights reserved.</p>"
+                                           "<p>Copyright (C) 2022 <a href=www.nectec.or.th>NECTEC</a> All rights reserved.</p>"
                                            "<p>" + msProgramName + " is made possible by open source softwares.</p>");
 }
