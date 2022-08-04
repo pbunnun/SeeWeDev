@@ -1073,12 +1073,19 @@ loadSettings()
         auto filename = settings.value("Open Scene", "").toString();
         if( QFileInfo::exists(filename) )
             loadScene(filename);
-        if( settings.value("Hide Node Category", false).toBool() )
-            ui->mpAvailableNodeCategoryDockWidget->setHidden(true);
-        if( settings.value("Hide Workspace", false).toBool() )
-            ui->mpNodeListDockWidget->setHidden(true);
-        if( settings.value("Hide Properties", false).toBool() )
-            ui->mpPropertyBrowserDockWidget->setHidden(true);
+        if( settings.value("Focus View",false).toBool() )
+        {
+            ui->mpActionFocusView->setChecked(true);
+        }
+        else
+        {
+            if( settings.value("Hide Node Category", false).toBool() )
+                ui->mpAvailableNodeCategoryDockWidget->setHidden(true);
+            if( settings.value("Hide Workspace", false).toBool() )
+                ui->mpNodeListDockWidget->setHidden(true);
+            if( settings.value("Hide Properties", false).toBool() )
+                ui->mpPropertyBrowserDockWidget->setHidden(true);
+        }
     }
 }
 
@@ -1094,6 +1101,7 @@ saveSettings()
         else
             settings.setValue("Open Scene", "");
     }
+    settings.setValue("Focus View", ui->mpActionFocusView->isChecked());
     settings.setValue("Hide Node Category", ui->mpAvailableNodeCategoryDockWidget->isHidden());
     settings.setValue("Hide Workspace", ui->mpNodeListDockWidget->isHidden());
     settings.setValue("Hide Properties", ui->mpPropertyBrowserDockWidget->isHidden());

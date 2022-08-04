@@ -64,6 +64,9 @@
 #include "InfoConcatenateModel.hpp"
 #include "SaveImageModel.hpp"
 #include "CVImageInRangeModel.hpp"
+#include "ExternalCommandModel.hpp"
+#include "NotSyncDataModel.hpp"
+#include "MathIntegerSumModel.hpp"
 
 QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< DataModelRegistry > model_regs )
 {
@@ -123,5 +126,8 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< DataModelRegist
     registerModel< TemplateModel >( model_regs, duplicate_model_names );
     registerModel< Test_SharpenModel >( model_regs, duplicate_model_names );
 
+    registerModel< ExternalCommandModel >( model_regs, duplicate_model_names );
+    registerModel< NotSyncDataModel >( model_regs, duplicate_model_names );
+    registerModel< MathIntegerSumModel >( model_regs, duplicate_model_names );
     return duplicate_model_names;
 }
