@@ -22,6 +22,7 @@
 
 #include "qtvariantproperty.h"
 #include <QFile>
+#include <QMessageBox>
 #include <fstream>
 
 CVYoloDNNThread::CVYoloDNNThread( QObject * parent )
@@ -162,7 +163,7 @@ drawPrediction(int classId, float conf, int left, int top, int right, int bottom
     if (!mvStrClasses.empty())
     {
         CV_Assert(classId < (int)mvStrClasses.size());
-        label = mvStrClasses[classId];// + ": " + label;
+        label = mvStrClasses[classId] + ": " + label;
     }
 
     int baseLine;
@@ -228,6 +229,7 @@ CVYoloDNNModel()
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();
+    mpSyncData->state() = true;
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msWeights_Filename;
@@ -544,6 +546,21 @@ load_model()
     if( QFile::exists(msWeights_Filename) && QFile::exists( msClasses_Filename) && QFile::exists( msConfig_Filename) )
     {
         mpCVYoloDNNThread->readNet( msWeights_Filename, msClasses_Filename, msConfig_Filename );
+    }
+    else
+    {
+        QMessageBox err;
+        err.setWindowTitle("Yolo DNN Error!");
+        err.setText(caption() + " : Missing Files");
+        QString sInformativeText = "Cannot load the following files ... \n";
+        if( !QFile::exists(msWeights_Filename) )
+            sInformativeText += "  - Weight File is missing!\n";
+        if( !QFile::exists(msClasses_Filename) )
+            sInformativeText += "  - Classes File is missing!\n";
+        if( !QFile::exists(msConfig_Filename) )
+            sInformativeText += "  - Config File is missing!\n";
+        err.setInformativeText(sInformativeText);
+        err.exec();
     }
 }
 
