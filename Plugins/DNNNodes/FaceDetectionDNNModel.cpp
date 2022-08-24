@@ -111,6 +111,7 @@ FaceDetectionDNNModel()
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();
+    mpSyncData->state() = true;
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msDNNModel_Filename;

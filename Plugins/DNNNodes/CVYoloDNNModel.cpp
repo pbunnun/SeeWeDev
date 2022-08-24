@@ -194,10 +194,10 @@ readNet( QString & model, QString & classes, QString & config )
 {
     try {
         mCVYoloDNN = cv::dnn::readNet(model.toStdString(), config.toStdString());
-        //mCVYoloDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
-        //mCVYoloDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
-        mCVYoloDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-        mCVYoloDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
+        mCVYoloDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
+        mCVYoloDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+        //mCVYoloDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+        //mCVYoloDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
 
         mvStrOutNames = mCVYoloDNN.getUnconnectedOutLayersNames();
 
