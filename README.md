@@ -24,7 +24,7 @@ Each node can be combined together to make a new node that can be reuseable in m
 
 ## Contributions
 
-You can start creating node plugins from the node template that we provided.
+You can start creating node plugins from the [**node template**](./Plugins/BasicNodes/TemplateModel.cpp) that we provided.
 
 ## Dependencies & Tools
 
