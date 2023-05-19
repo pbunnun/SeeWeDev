@@ -446,6 +446,7 @@ void QtMetaEnumProvider::initLocale()
             }
             m_languageEnumNames << QLocale::languageToString(language);
             m_territoryEnumNames[language] = territoryNames;
+        }
 #else
         QList<QLocale::Country> countries;
         countries = QLocale::countriesForLanguage(language);

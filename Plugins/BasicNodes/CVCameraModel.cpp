@@ -105,7 +105,7 @@ check_camera()
             {
                 mCVVideoCapture.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
                 mCVVideoCapture.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
-		mCVVideoCapture.set(cv::CAP_PROP_AUTO_WB, 1);
+                mCVVideoCapture.set(cv::CAP_PROP_AUTO_WB, 1);
                 //mCVVideoCapture.set(cv::CAP_PROP_WB_TEMPERATURE, 6000);
                 //mCVVideoCapture.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
                 mdFPS = mCVVideoCapture.get(cv::CAP_PROP_FPS);

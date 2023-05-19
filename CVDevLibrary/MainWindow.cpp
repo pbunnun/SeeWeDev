@@ -40,10 +40,10 @@ MainWindow::MainWindow( QWidget *parent )
 {
     ui->setupUi( this );
 
-    QDate check_day(2022, 03, 1);
+    QDate check_day(2023, 5, 1);
     QDate current = QDate::currentDate();
     int no_days = check_day.daysTo(current);
-    if( no_days >= 180 )
+    if( no_days >= 365 )
         QMessageBox::warning(this, msProgramName, "<p>This version is too old. There might be a newer version with some bugs fixed and improvements. "
                                                  "Please contact <a href=mailto:pished.bunnun@nectec.or.th>pished.bunnun@nectec.or.th</a> to get a new version.</p>");
 
@@ -981,6 +981,9 @@ on_mpActionFocusView_toggled(bool checked)
         ui->mpNodeListDockWidget->hide();
         ui->mpPropertyBrowserDockWidget->hide();
         ui->mpToolBar->hide();
+        ui->mpStatusBar->hide();
+
+        ui->mpTabWidget->setTabsClosable(false);
     }
     else
     {
@@ -1003,6 +1006,9 @@ on_mpActionFocusView_toggled(bool checked)
         ui->mpNodeListDockWidget->show();
         ui->mpPropertyBrowserDockWidget->show();
         ui->mpToolBar->show();
+        ui->mpStatusBar->show();
+
+        ui->mpTabWidget->setTabsClosable(true);
     }
 }
 
@@ -1073,19 +1079,16 @@ loadSettings()
         auto filename = settings.value("Open Scene", "").toString();
         if( QFileInfo::exists(filename) )
             loadScene(filename);
-        if( settings.value("Focus View",false).toBool() )
-        {
+        if( settings.value("Hide Node Category", false).toBool() )
+            ui->mpAvailableNodeCategoryDockWidget->setHidden(true);
+        if( settings.value("Hide Workspace", false).toBool() )
+            ui->mpNodeListDockWidget->setHidden(true);
+        if( settings.value("Hide Properties", false).toBool() )
+            ui->mpPropertyBrowserDockWidget->setHidden(true);
+        if( settings.value("In Focus View", false).toBool() )
             ui->mpActionFocusView->setChecked(true);
-        }
-        else
-        {
-            if( settings.value("Hide Node Category", false).toBool() )
-                ui->mpAvailableNodeCategoryDockWidget->setHidden(true);
-            if( settings.value("Hide Workspace", false).toBool() )
-                ui->mpNodeListDockWidget->setHidden(true);
-            if( settings.value("Hide Properties", false).toBool() )
-                ui->mpPropertyBrowserDockWidget->setHidden(true);
-        }
+        if( settings.value("In Full Screen", false).toBool() )
+            ui->mpActionFullScreen->setChecked(true);
     }
 }
 
@@ -1101,10 +1104,11 @@ saveSettings()
         else
             settings.setValue("Open Scene", "");
     }
-    settings.setValue("Focus View", ui->mpActionFocusView->isChecked());
     settings.setValue("Hide Node Category", ui->mpAvailableNodeCategoryDockWidget->isHidden());
     settings.setValue("Hide Workspace", ui->mpNodeListDockWidget->isHidden());
     settings.setValue("Hide Properties", ui->mpPropertyBrowserDockWidget->isHidden());
+    settings.setValue("In Focus View", ui->mpActionFocusView->isChecked());
+    settings.setValue("In Full Screen", ui->mpActionFullScreen->isChecked());
 }
 
 void

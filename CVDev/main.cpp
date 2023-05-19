@@ -19,8 +19,11 @@
 
 int main(int argc, char *argv[])
 {
-    QApplication app(argc, argv);
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0) )
+    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+#endif
+    QApplication app(argc, argv);
     app.setWindowIcon(QIcon(":/cvdev-64.png"));
 
     MainWindow window;

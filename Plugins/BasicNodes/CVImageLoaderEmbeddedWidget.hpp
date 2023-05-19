@@ -14,7 +14,6 @@
 
 #ifndef CVIMAGELOADEREMBEDDEDWIDGET_H
 #define CVIMAGELOADEREMBEDDEDWIDGET_H
-#include "CVDevLibrary.hpp"
 
 #include <QVariant>
 #include <QWidget>

@@ -116,11 +116,8 @@
    <addaction name="menuControl"/>
    <addaction name="menuHelp"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="mpStatusBar"/>
   <widget class="QDockWidget" name="mpAvailableNodeCategoryDockWidget">
-   <property name="features">
-    <set>QDockWidget::AllDockWidgetFeatures</set>
-   </property>
    <property name="windowTitle">
     <string>Node Category</string>
    </property>
@@ -178,9 +175,6 @@
    </widget>
   </widget>
   <widget class="QDockWidget" name="mpNodeListDockWidget">
-   <property name="features">
-    <set>QDockWidget::AllDockWidgetFeatures</set>
-   </property>
    <property name="windowTitle">
     <string>Workspace</string>
    </property>
@@ -237,9 +231,6 @@
    </widget>
   </widget>
   <widget class="QDockWidget" name="mpPropertyBrowserDockWidget">
-   <property name="features">
-    <set>QDockWidget::AllDockWidgetFeatures</set>
-   </property>
    <property name="windowTitle">
     <string>Properties</string>
    </property>
