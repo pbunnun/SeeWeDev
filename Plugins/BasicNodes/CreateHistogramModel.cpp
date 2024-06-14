@@ -33,7 +33,7 @@ CreateHistogramModel()
     intPropertyType.miValue = mParams.miBinCount;
     intPropertyType.miMax = 256;
     QString propId = "bin_count";
-    auto propBinCount = std::make_shared< TypedProperty< IntPropertyType > >( "Bin Count", propId, QVariant::Int, intPropertyType, "Operation" );
+    auto propBinCount = std::make_shared< TypedProperty< IntPropertyType > >( "Bin Count", propId, QMetaType::Int, intPropertyType, "Operation" );
     mvProperty.push_back( propBinCount );
     mMapIdToProperty[ propId ] = propBinCount;
 
@@ -41,14 +41,14 @@ CreateHistogramModel()
     doublePropertyType.mdValue = mParams.mdIntensityMax;
     doublePropertyType.mdMax = 255;
     propId = "intensity_max";
-    auto propIntensityMax = std::make_shared< TypedProperty< DoublePropertyType > >( "Maximum Intensity", propId, QVariant::Double, doublePropertyType , "Operation");
+    auto propIntensityMax = std::make_shared< TypedProperty< DoublePropertyType > >( "Maximum Intensity", propId, QMetaType::Double, doublePropertyType , "Operation");
     mvProperty.push_back( propIntensityMax );
     mMapIdToProperty[ propId ] = propIntensityMax;
 
     doublePropertyType.mdValue= mParams.mdIntensityMin;
     doublePropertyType.mdMax = 255;
     propId = "intensity_min";
-    auto propIntensityMin = std::make_shared< TypedProperty< DoublePropertyType > >( "Minimum Intensity", propId, QVariant::Double, doublePropertyType, "Operation" );
+    auto propIntensityMin = std::make_shared< TypedProperty< DoublePropertyType > >( "Minimum Intensity", propId, QMetaType::Double, doublePropertyType, "Operation" );
     mvProperty.push_back( propIntensityMin );
     mMapIdToProperty[ propId ] = propIntensityMin;
 
@@ -62,7 +62,7 @@ CreateHistogramModel()
 
     intPropertyType.miValue = mParams.miLineThickness;
     propId = "line_thickness";
-    auto propLineThickness = std::make_shared< TypedProperty< IntPropertyType > >( "Line Thickness", propId, QVariant::Int, intPropertyType , "Display");
+    auto propLineThickness = std::make_shared< TypedProperty< IntPropertyType > >( "Line Thickness", propId, QMetaType::Int, intPropertyType , "Display");
     mvProperty.push_back( propLineThickness );
     mMapIdToProperty[ propId ] = propLineThickness;
 
@@ -74,22 +74,22 @@ CreateHistogramModel()
     mMapIdToProperty[ propId ] = propLineType;
 
     propId = "draw_endpoints";
-    auto propDrawEndpoints= std::make_shared<TypedProperty<bool>>("Draw Endpoints", propId, QVariant::Bool, mParams.mbDrawEndpoints, "Display");
+    auto propDrawEndpoints= std::make_shared<TypedProperty<bool>>("Draw Endpoints", propId, QMetaType::Bool, mParams.mbDrawEndpoints, "Display");
     mvProperty.push_back( propDrawEndpoints );
     mMapIdToProperty[ propId ] = propDrawEndpoints;
 
     propId = "enable_b";
-    auto propEnableB = std::make_shared<TypedProperty<bool>>("Enable B", propId, QVariant::Bool, mParams.mbEnableB, "Display");
+    auto propEnableB = std::make_shared<TypedProperty<bool>>("Enable B", propId, QMetaType::Bool, mParams.mbEnableB, "Display");
     mvProperty.push_back( propEnableB );
     mMapIdToProperty[ propId ] = propEnableB;
 
     propId = "enable_g";
-    auto propEnableG= std::make_shared<TypedProperty<bool>>("Enable G", propId, QVariant::Bool, mParams.mbEnableG, "Display");
+    auto propEnableG= std::make_shared<TypedProperty<bool>>("Enable G", propId, QMetaType::Bool, mParams.mbEnableG, "Display");
     mvProperty.push_back( propEnableG );
     mMapIdToProperty[ propId ] = propEnableG;
 
     propId = "enable_r";
-    auto propEnableR= std::make_shared<TypedProperty<bool>>("Enable R", propId, QVariant::Bool, mParams.mbEnableR, "Display");
+    auto propEnableR= std::make_shared<TypedProperty<bool>>("Enable R", propId, QMetaType::Bool, mParams.mbEnableR, "Display");
     mvProperty.push_back( propEnableR );
     mMapIdToProperty[ propId ] = propEnableR;
 }
@@ -418,13 +418,13 @@ CreateHistogramModel::
 processData( const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData> & out,
              const CreateHistogramParameters & params )
 {
-    cv::Mat& in_image = in->image();
-    cv::Mat& out_image = out->image();
+    cv::Mat& in_image = in->data();
+    cv::Mat& out_image = out->data();
     if(in_image.empty() || (in_image.depth()!=CV_8U && in_image.depth()!=CV_16U && in_image.depth()!=CV_32F))
     {
         return;
     }
-    out->image() = cv::Scalar::all(0);
+    out->data() = cv::Scalar::all(0);
     float range[2] = { static_cast<float>( params.mdIntensityMin ),static_cast<float>( params.mdIntensityMax+1 ) }; //+1 to make it inclusive
     double binSize = static_cast<double>( (range[1]-range[0] )/params.miBinCount );
     const float* pRange = &range[0];
@@ -464,7 +464,7 @@ processData( const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageDat
         {
             cv::cvtColor(out_image,out_image,cv::COLOR_GRAY2BGR);
         }
-        cv::split( in->image(), cvBGRChannelSplit );
+        cv::split( in->data(), cvBGRChannelSplit );
         for( int i=0; i < static_cast< int >( cvBGRChannelSplit.size() ); i++ )
         {
             if(enableDisplay[i])

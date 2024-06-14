@@ -134,17 +134,13 @@ add_image( const cv::Mat & in_image )
             }
             else
             {
-                cv::Mat image;
-                in_image.copyTo( image );
-                mqCVImage.enqueue( image );
+                mqCVImage.enqueue( in_image.clone() );
                 mWaitingSemaphore.release();
             }
         }
         else
         {
-            cv::Mat image;
-            in_image.copyTo( image );
-            mqCVImage.enqueue( image );
+            mqCVImage.enqueue( in_image.clone() );
             mWaitingSemaphore.release();
         }
     }
@@ -174,7 +170,7 @@ VideoWriterModel()
     intPropertyType.miMin = 1;
     intPropertyType.miValue = 10;
     propId = "fps";
-    auto propFPS = std::make_shared< TypedProperty<IntPropertyType> >("FPS", propId, QVariant::Int, intPropertyType);
+    auto propFPS = std::make_shared< TypedProperty<IntPropertyType> >("FPS", propId, QMetaType::Int, intPropertyType);
     mvProperty.push_back( propFPS );
     mMapIdToProperty[ propId ] = propFPS;
 }
@@ -252,7 +248,7 @@ restore( QJsonObject const &p )
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj["output_filename"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["output_filename"];
             auto typedProp = std::static_pointer_cast< TypedProperty<QString> >(prop);
@@ -260,7 +256,7 @@ restore( QJsonObject const &p )
             msOutput_Filename = v.toString();
         }
         v = paramsObj["fps"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["fps"];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >(prop);
@@ -312,7 +308,7 @@ processData(const std::shared_ptr< CVImageData > & in)
 {
     if( mbRecording )
     {
-        cv::Mat& in_image = in->image();
+        cv::Mat& in_image = in->data();
         if( !in_image.empty() )
             mpVideoWriterThread->add_image( in_image );
     }

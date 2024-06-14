@@ -229,7 +229,7 @@ CVYoloDNNModel()
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();
-    mpSyncData->state() = true;
+    mpSyncData->data() = true;
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msWeights_Filename;
@@ -261,7 +261,7 @@ CVYoloDNNModel()
     doublePropertyType.mdMax = 10000.0;
     doublePropertyType.mdValue = 255.;
     propId = "inv_scale_factor";
-    auto propInvScaleFactor = std::make_shared< TypedProperty< DoublePropertyType > >("Inverse Scale Factor", propId, QVariant::Double, doublePropertyType, "Image" );
+    auto propInvScaleFactor = std::make_shared< TypedProperty< DoublePropertyType > >("Inverse Scale Factor", propId, QMetaType::Double, doublePropertyType, "Image" );
     mvProperty.push_back( propInvScaleFactor );
     mMapIdToProperty[ propId ] = propInvScaleFactor;
 
@@ -269,12 +269,12 @@ CVYoloDNNModel()
     sizePropertyType.miHeight = 416;
     sizePropertyType.miWidth = 416;
     propId = "size";
-    auto propSize = std::make_shared< TypedProperty< SizePropertyType > >("Size", propId, QVariant::Size, sizePropertyType, "Image");
+    auto propSize = std::make_shared< TypedProperty< SizePropertyType > >("Size", propId, QMetaType::QSize, sizePropertyType, "Image");
     mvProperty.push_back( propSize );
     mMapIdToProperty[ propId ] = propSize;
 
     propId = "swap_rb";
-    auto propSwapRB = std::make_shared< TypedProperty< bool > >( "Swap RB", propId, QVariant::Bool, true, "Image" );
+    auto propSwapRB = std::make_shared< TypedProperty< bool > >( "Swap RB", propId, QMetaType::Bool, true, "Image" );
     mvProperty.push_back( propSwapRB );
     mMapIdToProperty[ propId ] = propSwapRB;
 }
@@ -341,9 +341,9 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 {
     if( !isEnable() )
         return;
-    if( nodeData && mpSyncData->state() == true )
+    if( nodeData && mpSyncData->data() == true )
     {
-        mpSyncData->state() = false;
+        mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
@@ -532,7 +532,7 @@ CVYoloDNNModel::
 received_result( cv::Mat & result )
 {
     mpCVImageData->set_image( result );
-    mpSyncData->state() = true;
+    mpSyncData->data() = true;
 
     updateAllOutputPorts();
 }
@@ -568,7 +568,7 @@ void
 CVYoloDNNModel::
 processData(const std::shared_ptr< CVImageData > & in)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if( !in_image.empty() )
         mpCVYoloDNNThread->detect( in_image );
 }

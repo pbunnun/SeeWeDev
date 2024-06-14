@@ -241,7 +241,7 @@ PixelIterationModel()
         ucharPropertyType.mucMin = -255;
         QString colorInput = QString::fromStdString("Input Color "+color[i]);
         propId = QString("color_input_%1").arg(i);
-        auto propColorInput = std::make_shared< TypedProperty< UcharPropertyType > >( colorInput, propId, QVariant::Int , ucharPropertyType, "Operation" );
+        auto propColorInput = std::make_shared< TypedProperty< UcharPropertyType > >( colorInput, propId, QMetaType::Int , ucharPropertyType, "Operation" );
         mvProperty.push_back( propColorInput );
         mMapIdToProperty[ propId ] = propColorInput;
     }
@@ -252,7 +252,7 @@ PixelIterationModel()
         ucharPropertyType.mucMin = -255;
         QString colorInput = QString::fromStdString("Output Color "+color[i]);
         propId = QString("color_output_%1").arg(i);
-        auto propColorOutput = std::make_shared< TypedProperty< UcharPropertyType > >( colorInput, propId, QVariant::Int , ucharPropertyType, "Operation" );
+        auto propColorOutput = std::make_shared< TypedProperty< UcharPropertyType > >( colorInput, propId, QMetaType::Int , ucharPropertyType, "Operation" );
         mvProperty.push_back( propColorOutput );
         mMapIdToProperty[ propId ] = propColorOutput;
     }
@@ -260,13 +260,13 @@ PixelIterationModel()
     DoublePropertyType doublePropertyType;
     doublePropertyType.mdValue = mParams.mdAlpha;
     propId = "alpha";
-    auto propAlpha = std::make_shared< TypedProperty< DoublePropertyType > >( "Alpha", propId, QVariant::Double, doublePropertyType, "Operation");
+    auto propAlpha = std::make_shared< TypedProperty< DoublePropertyType > >( "Alpha", propId, QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propAlpha );
     mMapIdToProperty[ propId ] = propAlpha;
 
     doublePropertyType.mdValue = mParams.mdBeta;
     propId = "beta";
-    auto propBeta = std::make_shared< TypedProperty< DoublePropertyType > >( "Beta", propId, QVariant::Double, doublePropertyType, "Operation");
+    auto propBeta = std::make_shared< TypedProperty< DoublePropertyType > >( "Beta", propId, QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propBeta );
     mMapIdToProperty[ propId ] = propBeta;
 }
@@ -515,11 +515,11 @@ PixelIterationModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & out,
             std::shared_ptr<IntegerData> &outInt, const PixelIterationParameters & params )
 {
-    if(in->image().empty())
+    if(in->data().empty())
     {
         return;
     }
-    out->set_image(in->image());
+    out->set_image(in->data());
     cv::Scalar inColors(params.mucColorInput[0],
                       params.mucColorInput[1],
                       params.mucColorInput[2]);
@@ -527,10 +527,10 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageDa
                          params.mucColorOutput[1],
                          params.mucColorOutput[2]);
     PixIter It(params.miOperation);
-    It.Iterate(out->image(),
+    It.Iterate(out->data(),
                inColors,
                outColors,
-               &(outInt->number()),
+               &(outInt->data()),
                params.mdAlpha,
                params.mdBeta);
 }

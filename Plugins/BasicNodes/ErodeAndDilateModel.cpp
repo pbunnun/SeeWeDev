@@ -48,7 +48,7 @@ ErodeAndDilateModel()
     sizePropertyType.miWidth = mParams.mCVSizeKernel.width;
     sizePropertyType.miHeight = mParams.mCVSizeKernel.height;
     propId = "kernel_size";
-    auto propKernelSize = std::make_shared< TypedProperty< SizePropertyType > >( "Kernel Size", propId, QVariant::Size, sizePropertyType, "Operation" );
+    auto propKernelSize = std::make_shared< TypedProperty< SizePropertyType > >( "Kernel Size", propId, QMetaType::QSize, sizePropertyType, "Operation" );
     mvProperty.push_back( propKernelSize );
     mMapIdToProperty[ propId ] = propKernelSize;
 
@@ -56,14 +56,14 @@ ErodeAndDilateModel()
     pointPropertyType.miXPosition = mParams.mCVPointAnchor.x;
     pointPropertyType.miYPosition = mParams.mCVPointAnchor.y;
     propId = "anchor_point";
-    auto propAnchorPoint = std::make_shared< TypedProperty< PointPropertyType > >( "Anchor Point", propId, QVariant::Point, pointPropertyType ,"Operation");
+    auto propAnchorPoint = std::make_shared< TypedProperty< PointPropertyType > >( "Anchor Point", propId, QMetaType::QPoint, pointPropertyType ,"Operation");
     mvProperty.push_back( propAnchorPoint );
     mMapIdToProperty[ propId ] = propAnchorPoint;
 
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mParams.miIterations;
     propId = "iterations";
-    auto propIterations = std::make_shared<TypedProperty<IntPropertyType>>("Iterations", propId, QVariant::Int, intPropertyType, "Operation");
+    auto propIterations = std::make_shared<TypedProperty<IntPropertyType>>("Iterations", propId, QMetaType::Int, intPropertyType, "Operation");
     mvProperty.push_back( propIterations );
     mMapIdToProperty[ propId ] = propIterations;
 
@@ -77,7 +77,7 @@ ErodeAndDilateModel()
     mpEmbeddedWidget->setCurrentState(0);
     intPropertyType.miValue = mpEmbeddedWidget->getCurrentState();
     propId = "operation";
-    auto propOperation = std::make_shared< TypedProperty< IntPropertyType > >( "Operation", propId, QVariant::Int, intPropertyType );
+    auto propOperation = std::make_shared< TypedProperty< IntPropertyType > >( "Operation", propId, QMetaType::Int, intPropertyType );
     mMapIdToProperty[ propId ] = propOperation;
 }
 
@@ -387,7 +387,7 @@ void ErodeAndDilateModel::em_radioButton_clicked()
 
 void ErodeAndDilateModel::processData(const std::shared_ptr<CVImageData> &in, std::shared_ptr<CVImageData> &out, const ErodeAndDilateParameters &params)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(in_image.empty() || (in_image.depth()!=CV_8U && in_image.depth()!=CV_16U && in_image.depth()!=CV_16S && in_image.depth()!=CV_32F && in_image.depth()!=CV_64F))
     {
         return;
@@ -397,7 +397,7 @@ void ErodeAndDilateModel::processData(const std::shared_ptr<CVImageData> &in, st
     {
     case 0:
         cv::erode(in_image,
-                  out->image(),
+                  out->data(),
                   Kernel,
                   params.mCVPointAnchor,
                   params.miIterations,
@@ -406,7 +406,7 @@ void ErodeAndDilateModel::processData(const std::shared_ptr<CVImageData> &in, st
 
     case 1:
         cv::dilate(in_image,
-                   out->image(),
+                   out->data(),
                    Kernel,
                    params.mCVPointAnchor,
                    params.miIterations,

@@ -41,32 +41,32 @@ SobelAndScharrModel()
     IntPropertyType intPropertyType;
     QString propId = "order_x";
     intPropertyType.miValue = mParams.miOrderX;
-    auto propOrderX = std::make_shared< TypedProperty< IntPropertyType > >( "X order", propId, QVariant::Int, intPropertyType ,"Operation");
+    auto propOrderX = std::make_shared< TypedProperty< IntPropertyType > >( "X order", propId, QMetaType::Int, intPropertyType ,"Operation");
     mvProperty.push_back( propOrderX );
     mMapIdToProperty[ propId ] = propOrderX;
 
     intPropertyType.miValue = mParams.miOrderY;
     propId = "order_y";
-    auto propOrderY = std::make_shared< TypedProperty< IntPropertyType > >( "Y order", propId, QVariant::Int, intPropertyType, "Operation" );
+    auto propOrderY = std::make_shared< TypedProperty< IntPropertyType > >( "Y order", propId, QMetaType::Int, intPropertyType, "Operation" );
     mvProperty.push_back( propOrderY );
     mMapIdToProperty[ propId ] = propOrderY;
 
     intPropertyType.miValue = mParams.miKernelSize;
     propId = "kernel_size";
-    auto propKernelSize = std::make_shared< TypedProperty< IntPropertyType > >( "Kernel Size", propId, QVariant::Int, intPropertyType ,"Operation");
+    auto propKernelSize = std::make_shared< TypedProperty< IntPropertyType > >( "Kernel Size", propId, QMetaType::Int, intPropertyType ,"Operation");
     mvProperty.push_back( propKernelSize );
     mMapIdToProperty[ propId ] = propKernelSize;
 
     DoublePropertyType doublePropertyType;
     doublePropertyType.mdValue = mParams.mdScale;
     propId = "scale";
-    auto propScale = std::make_shared< TypedProperty <DoublePropertyType>>("Scale", propId,QVariant::Double, doublePropertyType, "Operation");
+    auto propScale = std::make_shared< TypedProperty <DoublePropertyType>>("Scale", propId,QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propScale );
     mMapIdToProperty[ propId ] = propScale;
 
     doublePropertyType.mdValue = mParams.mdDelta;
     propId = "delta";
-    auto propDelta = std::make_shared< TypedProperty <DoublePropertyType>>("Delta", propId,QVariant::Double, doublePropertyType , "Operation");
+    auto propDelta = std::make_shared< TypedProperty <DoublePropertyType>>("Delta", propId,QMetaType::Double, doublePropertyType , "Operation");
     mvProperty.push_back(propDelta);
     mMapIdToProperty[ propId ] = propDelta;
 
@@ -79,11 +79,11 @@ SobelAndScharrModel()
     mMapIdToProperty[ propId ] = propBorderType;
 
     propId = "checked";
-    auto propChecked = std::make_shared<TypedProperty<bool>>("", propId, QVariant::Bool, mpEmbeddedWidget->checkbox_is_checked());
+    auto propChecked = std::make_shared<TypedProperty<bool>>("", propId, QMetaType::Bool, mpEmbeddedWidget->checkbox_is_checked());
     mMapIdToProperty[ propId ] = propChecked;
 
     propId = "enabled";
-    auto propEnabled = std::make_shared<TypedProperty<bool>>("", propId, QVariant::Bool, mpEmbeddedWidget->checkbox_is_enabled());
+    auto propEnabled = std::make_shared<TypedProperty<bool>>("", propId, QMetaType::Bool, mpEmbeddedWidget->checkbox_is_enabled());
     mMapIdToProperty[ propId ] = propEnabled;
 }
 
@@ -373,7 +373,7 @@ setModelProperty( QString & id, const QVariant & value )
 void SobelAndScharrModel::processData(const std::shared_ptr<CVImageData> &in, std::shared_ptr<CVImageData> (&out)[3],
                                       const SobelAndScharrParameters &params)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(in_image.empty())
     {
         return;
@@ -389,9 +389,9 @@ void SobelAndScharrModel::processData(const std::shared_ptr<CVImageData> &in, st
         cv::Sobel(in_image,Temp[0],CV_16S,params.miOrderX,0,params.miKernelSize,params.mdScale,params.mdDelta,params.miBorderType);
         cv::Sobel(in_image,Temp[1],CV_16S,0,params.miOrderY,params.miKernelSize,params.mdScale,params.mdDelta,params.miBorderType);
     }
-    cv::convertScaleAbs(Temp[0],out[1]->image());
-    cv::convertScaleAbs(Temp[1],out[2]->image());
-    cv::addWeighted(out[1]->image(),0.5,out[2]->image(),0.5,0,out[0]->image());
+    cv::convertScaleAbs(Temp[0],out[1]->data());
+    cv::convertScaleAbs(Temp[1],out[2]->data());
+    cv::addWeighted(out[1]->data(),0.5,out[2]->data(),0.5,0,out[0]->data());
 }
 
 const QString SobelAndScharrModel::_category = QString( "Image Processing" );

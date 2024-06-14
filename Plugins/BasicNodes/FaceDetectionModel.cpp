@@ -108,7 +108,7 @@ void FaceDetectionModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex
 cv::Mat FaceDetectionModel::processData(const std::shared_ptr<CVImageData> &p)
 {
     cv::Mat grayScaled, reducedSize, img;
-    img = p->image().clone();
+    img = p->data().clone();
     vector<Rect> objects;
     cvtColor(img, grayScaled, COLOR_BGR2GRAY );
 

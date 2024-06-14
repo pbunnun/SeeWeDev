@@ -91,7 +91,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     {
         if( mpIntegerData_1 && mpIntegerData_2 )
         {
-            mpIntegerData->number() = mpIntegerData_1->number() + mpIntegerData_2->number();
+            mpIntegerData->data() = mpIntegerData_1->data() + mpIntegerData_2->data();
 
             updateAllOutputPorts();
         }

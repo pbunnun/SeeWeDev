@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <iostream>
 
 #include <QtCore/QObject>
 #include <QtCore/QThread>
@@ -29,6 +28,7 @@
 
 #include "CVImageData.hpp"
 #include "SyncData.hpp"
+#include "InformationData.hpp"
 #include <opencv2/dnn.hpp>
 
 using QtNodes::PortType;
@@ -57,7 +57,7 @@ public:
 
 Q_SIGNALS:
     void
-    result_ready( cv::Mat & image );
+    result_ready( cv::Mat & , QString );
 
 protected:
     void
@@ -124,11 +124,12 @@ public:
 
 private Q_SLOTS:
     void
-    received_result( cv::Mat & );
+    received_result( cv::Mat &, QString );
 
 private:
     std::shared_ptr< CVImageData > mpCVImageData { nullptr };
-    std::shared_ptr<SyncData> mpSyncData;
+    std::shared_ptr< SyncData > mpSyncData;
+    std::shared_ptr< InformationData > mpInformationData{ nullptr };
 
     TextRecognitionThread * mpTextRecognitionDNNThread { nullptr };
 

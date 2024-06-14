@@ -32,12 +32,12 @@ NodeDataTimerModel()
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mpEmbeddedWidget->get_second_spinbox();
     QString propId = "second_value";
-    auto propSecond = std::make_shared< TypedProperty< IntPropertyType > >( "", propId, QVariant::Int, intPropertyType);
+    auto propSecond = std::make_shared< TypedProperty< IntPropertyType > >( "", propId, QMetaType::Int, intPropertyType);
     mMapIdToProperty[ propId ] = propSecond;
 
     intPropertyType.miValue = mpEmbeddedWidget->get_millisecond_spinbox();
     propId = "millisecond_value";
-    auto propMillisecond = std::make_shared< TypedProperty< IntPropertyType > >( "", propId, QVariant::Int, intPropertyType);
+    auto propMillisecond = std::make_shared< TypedProperty< IntPropertyType > >( "", propId, QMetaType::Int, intPropertyType);
     mMapIdToProperty[ propId ] = propMillisecond;
 
     EnumPropertyType enumPropertyType;
@@ -48,11 +48,11 @@ NodeDataTimerModel()
     mMapIdToProperty[ propId ] = propPF;
 
     propId = "start_enabled";
-    auto propStart = std::make_shared< TypedProperty < bool > > ("", propId, QVariant::Bool, mpEmbeddedWidget->get_start_button());
+    auto propStart = std::make_shared< TypedProperty < bool > > ("", propId, QMetaType::Bool, mpEmbeddedWidget->get_start_button());
     mMapIdToProperty[ propId ] = propStart;
 
     propId = "stop_enabled";
-    auto propStop = std::make_shared< TypedProperty < bool > > ("", propId, QVariant::Bool, mpEmbeddedWidget->get_stop_button());
+    auto propStop = std::make_shared< TypedProperty < bool > > ("", propId, QMetaType::Bool, mpEmbeddedWidget->get_stop_button());
     mMapIdToProperty[ propId ] = propStop;
 }
 

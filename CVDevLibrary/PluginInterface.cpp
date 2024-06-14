@@ -16,10 +16,62 @@
 #include <QDir>
 #include <QCoreApplication>
 #include <QDebug>
-#include <QPluginLoader>
 #include <QMessageBox>
 
-void load_plugins( std::shared_ptr< DataModelRegistry > model_regs )
+#include "BoolData.h"
+#include "CVImageData.hpp"
+#include "CVPointData.hpp"
+#include "CVRectData.hpp"
+#include "CVSizeData.hpp"
+#include "DoubleData.hpp"
+#include "FloatData.hpp"
+#include "IntegerData.hpp"
+#include "StdStringData.hpp"
+#include "StdVectorNumberData.hpp"
+
+#include "InformationData.hpp"
+
+std::shared_ptr<QtNodes::NodeData> converter(std::shared_ptr<QtNodes::NodeData> node_type)
+{
+    return node_type;
+}
+
+void add_type_converters( std::shared_ptr< DataModelRegistry > model_regs )
+{
+    auto inf_nodedata = std::make_shared<InformationData>();
+
+    auto bool_nodedata = std::make_shared<BoolData>();
+    model_regs->registerTypeConverter( std::make_pair( bool_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto mat_nodedata = std::make_shared<CVImageData>();
+    model_regs->registerTypeConverter( std::make_pair( mat_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto point_nodedata = std::make_shared<CVPointData>();
+    model_regs->registerTypeConverter( std::make_pair( point_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto rect_nodedata = std::make_shared<CVRectData>();
+    model_regs->registerTypeConverter( std::make_pair( rect_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto size_nodedata = std::make_shared<CVSizeData>();
+    model_regs->registerTypeConverter( std::make_pair( rect_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto double_nodedata = std::make_shared<DoubleData>();
+    model_regs->registerTypeConverter( std::make_pair( double_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto float_nodedata = std::make_shared<FloatData>();
+    model_regs->registerTypeConverter( std::make_pair( float_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto int_nodedata = std::make_shared<IntegerData>();
+    model_regs->registerTypeConverter( std::make_pair( int_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto string_nodedata = std::make_shared<StdStringData>();
+    model_regs->registerTypeConverter( std::make_pair( string_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto std_vec_nodedata = std::make_shared<StdVectorIntData>();
+    model_regs->registerTypeConverter( std::make_pair( std_vec_nodedata->type(), inf_nodedata->type() ), converter);
+}
+
+void load_plugins( std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader * > & plugins_list )
 {
     QDir pluginsDir = QDir(QCoreApplication::applicationDirPath());
     pluginsDir.cd( "plugins" );
@@ -32,9 +84,9 @@ void load_plugins( std::shared_ptr< DataModelRegistry > model_regs )
 #endif
     for(const QString & filename : entryList )
     {
-        QPluginLoader loader(pluginsDir.absoluteFilePath(filename));
+        QPluginLoader * loader = new QPluginLoader(pluginsDir.absoluteFilePath(filename));
         qDebug() << "Found Files : " << filename;
-        QObject *plugin = loader.instance();
+        QObject *plugin = loader->instance();
         if( plugin )
         {
             qDebug() << "Load Plugins : " << filename;
@@ -54,19 +106,20 @@ void load_plugins( std::shared_ptr< DataModelRegistry > model_regs )
                     msg.exec();
                 }
             }
+            plugins_list.push_back( loader );
         }
         else
         {
-            qDebug() << loader.errorString();
+            qDebug() << loader->errorString();
         }
     }
 
 }
 
-void load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QString filename )
+void load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QString filename, QList< QPluginLoader *> & plugins_list )
 {
-   QPluginLoader loader(filename);
-   QObject *plugin = loader.instance();
+   QPluginLoader * loader = new QPluginLoader(filename);
+   QObject *plugin = loader->instance();
    if( plugin )
    {
        qDebug() << "Load Plugins : " << filename;
@@ -86,9 +139,10 @@ void load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QString filen
                msg.exec();
            }
        }
+       plugins_list.push_back( loader );
    }
    else
    {
-       qDebug() << loader.errorString();
+       qDebug() << loader->errorString();
    }
 }

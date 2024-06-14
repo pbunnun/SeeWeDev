@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <QtCore/QObject>
 #include <QtCore/QThread>
 #include <QtCore/QSemaphore>
@@ -38,9 +36,10 @@ using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
 
 typedef struct OnnxClassificationDNNBlobImageParameters{
-    double mdInvScaleFactor{255};
-    cv::Size mCVSize{ cv::Size(300,300) };
-    cv::Scalar mCVScalarMean{ cv::Scalar(127.5, 127.5, 127.5) };
+    double mdInvScaleFactor{255.};
+    cv::Size mCVSize{ cv::Size(224,224) };
+    cv::Scalar mCVScalarMean{ cv::Scalar(0.485, 0.456, 0.406) };
+    cv::Scalar mCVScalarStd{ cv::Scalar(0.229, 0.224, 0.225) };
 } OnnxClassificationDNNBlobImageParameters;
 
 class OnnxClassificationDNNThread : public QThread

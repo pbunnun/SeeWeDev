@@ -87,7 +87,7 @@ public:
 private:
     CannyEdgeParameters mParams;
     std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };
+    std::shared_ptr<CVImageData> mpCVImageOutData { nullptr };
     std::shared_ptr<SyncData> mpSyncData { nullptr };
     QPixmap _minPixmap;
 

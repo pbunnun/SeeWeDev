@@ -73,8 +73,8 @@ private:
 
     PBImageDisplayWidget * mpEmbeddedWidget;
 
-    std::shared_ptr< NodeData > mpNodeData;
-    std::shared_ptr< SyncData > mpSyncData;
+    std::shared_ptr< NodeData > mpNodeData { nullptr };
+    std::shared_ptr< SyncData > mpSyncData { nullptr };
 
     QPixmap _minPixmap;
 

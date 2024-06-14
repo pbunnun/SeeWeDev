@@ -42,7 +42,7 @@ BitwiseOperationModel()
     mMapIdToProperty[ propId ] = propBorderType;
 
     propId = "active_mask";
-    auto propActiveMask = std::make_shared<TypedProperty<bool>>("", propId, QVariant::Bool, mProps.mbActiveMask);
+    auto propActiveMask = std::make_shared<TypedProperty<bool>>("", propId, QMetaType::Bool, mProps.mbActiveMask);
     mMapIdToProperty[ propId ] = propActiveMask;
 }
 
@@ -179,19 +179,19 @@ setModelProperty( QString & id, const QVariant & value )
 
 void BitwiseOperationModel::processData(const std::shared_ptr<CVImageData> (&in)[3], std::shared_ptr<CVImageData> &out, const BitwiseOperationParameters &params, BitwiseOperationProperties &props)
 {
-    cv::Mat& in_image0 = in[0]->image();
-    cv::Mat& in_image1 = in[1]->image();
+    cv::Mat& in_image0 = in[0]->data();
+    cv::Mat& in_image1 = in[1]->data();
     if(in_image0.empty() || in_image1.empty() || in_image0.type()!=in_image1.type())
     { //Extra condition buffer added to allow the program to load properly.
         return;
     }
-    cv::Mat& out_image = out->image();
-    props.mbActiveMask = (in[2]!=nullptr && !in[2]->image().empty() &&
-                          in[2]->image().type()==CV_8UC1)? true : false ;
+    cv::Mat& out_image = out->data();
+    props.mbActiveMask = (in[2]!=nullptr && !in[2]->data().empty() &&
+                          in[2]->data().type()==CV_8UC1)? true : false ;
     mpEmbeddedWidget->set_maskStatus_label(props.mbActiveMask);
     if(props.mbActiveMask)
     {
-        cv::Mat& mask = in[2]->image();
+        cv::Mat& mask = in[2]->data();
         switch(params.miBitwiseType)
         {
         case 0:

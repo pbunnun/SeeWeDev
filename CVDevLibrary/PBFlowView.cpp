@@ -47,8 +47,11 @@ dropEvent(QDropEvent *event)
         auto& node = scene()->createNode(std::move(type));
 
         node.nodeDataModel()->late_constructor();
-
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0 ))
         QPoint pos = event->pos();
+#else
+        QPoint pos = event->position().toPoint();
+#endif
 
         QPointF posView = this->mapToScene(pos) - QPointF(node.nodeGeometry().width()/2, 0);
 

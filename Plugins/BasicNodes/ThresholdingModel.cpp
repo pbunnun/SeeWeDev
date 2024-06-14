@@ -41,14 +41,14 @@ ThresholdingModel()
     doublePropertyType.mdValue = mParams.mdThresholdValue;
     doublePropertyType.mdMax = 255;
     propId = "threshold_value";
-    auto propThresholdValue = std::make_shared< TypedProperty< DoublePropertyType > >( "Threshold Value", propId, QVariant::Double, doublePropertyType, "Operation" );
+    auto propThresholdValue = std::make_shared< TypedProperty< DoublePropertyType > >( "Threshold Value", propId, QMetaType::Double, doublePropertyType, "Operation" );
     mvProperty.push_back( propThresholdValue );
     mMapIdToProperty[ propId ] = propThresholdValue;
 
     doublePropertyType.mdValue = mParams.mdBinaryValue;
     doublePropertyType.mdMax = 255;
     propId = "binary_value";
-    auto propBinaryValue = std::make_shared< TypedProperty< DoublePropertyType > >( "Binary Value", propId, QVariant::Double, doublePropertyType , "Operation");
+    auto propBinaryValue = std::make_shared< TypedProperty< DoublePropertyType > >( "Binary Value", propId, QMetaType::Double, doublePropertyType , "Operation");
     mvProperty.push_back( propBinaryValue );
     mMapIdToProperty[ propId ] = propBinaryValue;
 }
@@ -95,7 +95,7 @@ outData(PortIndex I)
 {
     if( isEnable() )
     {
-        if(I == 0)
+        if(I == 0 && mpCVImageData->data().data != nullptr )
         {
             return mpCVImageData;
         }
@@ -263,14 +263,14 @@ ThresholdingModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & outImage,
             std::shared_ptr<IntegerData> &outInt, const ThresholdingParameters & params)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(params.miThresholdType == cv::THRESH_OTSU || params.miThresholdType == cv::THRESH_TRIANGLE)
     {
         if(in_image.empty() || (in_image.type()!=CV_8UC1 && in_image.type()!=CV_8SC1))
         {
             return;
         }
-        outInt->number() = cv::threshold(in_image,outImage->image(),params.mdThresholdValue,params.mdBinaryValue,params.miThresholdType);
+        outInt->data() = cv::threshold(in_image,outImage->data(),params.mdThresholdValue,params.mdBinaryValue,params.miThresholdType);
     }
     else
     {
@@ -278,8 +278,8 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageDa
         {
             return;
         }
-        cv::threshold(in_image,outImage->image(),params.mdThresholdValue,params.mdBinaryValue,params.miThresholdType);
-        outInt->number() = 0;
+        cv::threshold(in_image,outImage->data(),params.mdThresholdValue,params.mdBinaryValue,params.miThresholdType);
+        outInt->data() = 0;
     }
 }
 

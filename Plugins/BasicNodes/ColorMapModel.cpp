@@ -98,7 +98,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
 {
     if (nodeData)
     {
-        mpSyncData->state() = false;
+        mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
         if (d)
@@ -106,7 +106,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
             mpCVImageInData = d;
             processData( mpCVImageInData, mpCVImageData, mParams );
         }
-        mpSyncData->state() = true;
+        mpSyncData->data() = true;
         Q_EMIT dataUpdated(1);
     }
 
@@ -151,7 +151,7 @@ void
 ColorMapModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    mpSyncData->state() = false;
+    mpSyncData->data() = false;
     Q_EMIT dataUpdated(1);
 
     PBNodeDataModel::setModelProperty( id, value );
@@ -260,7 +260,7 @@ setModelProperty( QString & id, const QVariant & value )
         Q_EMIT dataUpdated(0);
     }
 
-    mpSyncData->state() = true;
+    mpSyncData->data() = true;
     Q_EMIT dataUpdated(1);
 }
 
@@ -269,10 +269,10 @@ ColorMapModel::
 processData(const std::shared_ptr< CVImageData > &in, std::shared_ptr<CVImageData> & out,
             const ColorMapParameters & params )
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(!in_image.empty() && (in_image.type()==CV_8UC1 || in_image.type()==CV_8UC3))
     {
-        cv::applyColorMap(in_image,out->image(),params.miColorMap);
+        cv::applyColorMap(in_image,out->data(),params.miColorMap);
     }
 }
 

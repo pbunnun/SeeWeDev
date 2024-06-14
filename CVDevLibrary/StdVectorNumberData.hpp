@@ -12,12 +12,10 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-#ifndef CVRECTDATA_HPP
-#define CVRECTDATA_HPP
+#ifndef STDVECTORNUMBERDATA_HPP
+#define STDVECTORNUMBERDATA_HPP
 
 #pragma once
-
-#include <opencv2/core/core.hpp>
 
 #include <nodes/NodeDataModel>
 #include "InformationData.hpp"
@@ -25,41 +23,45 @@
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 
-class CVRectData : public InformationData
+template <class T>
+class StdVectorNumberData : public InformationData
 {
 public:
-
-    CVRectData()
-        : mCVRect()
+    StdVectorNumberData()
+        : mvData()
     {}
 
-    CVRectData( const cv::Rect & rect )
-        : mCVRect( rect )
+    StdVectorNumberData(const std::vector<T> & data )
+        : mvData( data )
     {}
 
     NodeDataType
     type() const override
     {
-        return { "information", "Rct" };
+        return { "Numbers", "Nbs" };
     }
 
-    cv::Rect &
+    std::vector<T> &
     data()
     {
-        return mCVRect;
+        return mvData;
     }
 
     void set_information() override
     {
-        mQSData = QString("Data Type : cv::Rect \n");
-        mQSData += QString("[%1 px x %2 px] @ (%3 , %4)\n")
-                  .arg(mCVRect.width).arg(mCVRect.height)
-                  .arg(mCVRect.x).arg(mCVRect.y);
+        mQSData  = QString("Data Type : std::vector \n");
+        for (T value : mvData)
+        {
+            mQSData += QString::number(value);
+            mQSData += "\n";
+        }
     }
 
 private:
-    cv::Rect mCVRect;
-
+    std::vector<T> mvData;
 };
 
-#endif // CVRECTDATA_HPP
+#define StdVectorIntData StdVectorNumberData<int>
+#define StdVectorFloatData StdVectorNumberData<float>
+#define StdVectorDoubleData StdVectorNumberData<double>
+#endif // STDVECTORNUMBERDATA_HPP

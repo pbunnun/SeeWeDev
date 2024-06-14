@@ -19,7 +19,6 @@
 #include <QEvent>
 #include <QDir>
 #include <QVariant>
-#include "qtvariantproperty.h"
 
 CVImageROIModel::
 CVImageROIModel()
@@ -30,10 +29,10 @@ CVImageROIModel()
     mpCVImageOutData = std::make_shared< CVImageData >( cv::Mat() );
 
     RectPropertyType rectPropertyType;
-    rectPropertyType.miXPosition = mRect.x;
-    rectPropertyType.miYPosition = mRect.y;
-    rectPropertyType.miWidth = mRect.width;
-    rectPropertyType.miHeight = mRect.height;
+    rectPropertyType.miXPosition = mRectROI.x;
+    rectPropertyType.miYPosition = mRectROI.y;
+    rectPropertyType.miWidth = mRectROI.width;
+    rectPropertyType.miHeight = mRectROI.height;
     QString propId = "rect_id";
     auto propRect = std::make_shared< TypedProperty< RectPropertyType > >("ROI", propId, QMetaType::QRect, rectPropertyType);
     mvProperty.push_back( propRect );
@@ -71,7 +70,7 @@ std::shared_ptr<NodeData>
 CVImageROIModel::
 outData(PortIndex)
 {
-    if( isEnable() && mpCVImageOutData->image().data != nullptr )
+    if( isEnable() && mpCVImageOutData->data().data != nullptr )
         return mpCVImageOutData;
     else
         return nullptr;
@@ -106,10 +105,10 @@ save() const
     QJsonObject modelJson = PBNodeDataModel::save();
 
     QJsonObject cParams;
-    cParams[ "x" ] = mRect.x;
-    cParams[ "y" ] = mRect.y;
-    cParams[ "width" ] = mRect.width;
-    cParams[ "height" ] = mRect.height;
+    cParams[ "x" ] = mRectROI.x;
+    cParams[ "y" ] = mRectROI.y;
+    cParams[ "width" ] = mRectROI.width;
+    cParams[ "height" ] = mRectROI.height;
 
     modelJson[ "cParams" ] = cParams;
 
@@ -141,7 +140,7 @@ restore(const QJsonObject &p)
             typedProp->getData().miYPosition = y.toInt();
             typedProp->getData().miWidth = width.toInt();
             typedProp->getData().miHeight = height.toInt();
-            mRect = cv::Rect(x.toInt(), y.toInt(), width.toInt(), height.toInt());
+            mRectROI = cv::Rect(x.toInt(), y.toInt(), width.toInt(), height.toInt());
         }
     }
 }
@@ -166,7 +165,7 @@ setModelProperty( QString & id, const QVariant & value )
         typedProp->getData().miWidth = rect.width();
         typedProp->getData().miHeight = rect.height();
 
-        mRect = cv::Rect( rect.x(), rect.y(), rect.width(), rect.height() );
+        mRectROI = cv::Rect( rect.x(), rect.y(), rect.width(), rect.height() );
 
         processData(mpCVImageInData, mpCVImageOutData);
         Q_EMIT dataUpdated(0);
@@ -177,10 +176,10 @@ void
 CVImageROIModel::
 processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData> & out )
 {
-    if( !in->image().empty() )
+    if( !in->data().empty() )
     {
-        auto image = in->image();
-        auto rect = mRect;
+        auto image = in->data();
+        auto rect = mRectROI;
         if( rect.x < image.cols && rect.y < image.rows )
         {
             if( rect.x + rect.width >= image.cols )

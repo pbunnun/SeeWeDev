@@ -36,26 +36,26 @@ BlendImagesModel()
     doublePropertyType.mdValue = mParams.mdAlpha;
     doublePropertyType.mdMax = 1.0;
     QString propId = "alpha";
-    auto propAlpha = std::make_shared< TypedProperty< DoublePropertyType > >( "Alpha", propId, QVariant::Double, doublePropertyType, "Operation");
+    auto propAlpha = std::make_shared< TypedProperty< DoublePropertyType > >( "Alpha", propId, QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propAlpha );
     mMapIdToProperty[ propId ] = propAlpha;
 
     doublePropertyType.mdValue = mParams.mdBeta;
     doublePropertyType.mdMax = 1.0;
     propId = "beta";
-    auto propBeta = std::make_shared< TypedProperty< DoublePropertyType > >( "Beta", propId, QVariant::Double, doublePropertyType, "Operation");
+    auto propBeta = std::make_shared< TypedProperty< DoublePropertyType > >( "Beta", propId, QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propBeta );
     mMapIdToProperty[ propId ] = propBeta;
 
     doublePropertyType.mdValue = mParams.mdGamma;
     doublePropertyType.mdMax = 100;
     propId = "gamma";
-    auto propGamma = std::make_shared< TypedProperty< DoublePropertyType > >( "Gamma", propId, QVariant::Double, doublePropertyType, "Operation");
+    auto propGamma = std::make_shared< TypedProperty< DoublePropertyType > >( "Gamma", propId, QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propGamma );
     mMapIdToProperty[ propId ] = propGamma;
 
     propId = "size_from_port0";
-    auto propSizeFromPort0 = std::make_shared< TypedProperty < bool > >("Size From Port 0", propId, QVariant::Bool, mParams.mbSizeFromPort0, "Display");
+    auto propSizeFromPort0 = std::make_shared< TypedProperty < bool > >("Size From Port 0", propId, QMetaType::Bool, mParams.mbSizeFromPort0, "Display");
     mvProperty.push_back( propSizeFromPort0 );
     mMapIdToProperty[ propId ] = propSizeFromPort0;
 
@@ -63,7 +63,7 @@ BlendImagesModel()
     mpEmbeddedWidget->setCurrentState(1);
     intPropertyType.miValue = mpEmbeddedWidget->getCurrentState();
     propId = "operation";
-    auto propOperation = std::make_shared<TypedProperty<IntPropertyType>>("", propId, QVariant::Int, intPropertyType);
+    auto propOperation = std::make_shared<TypedProperty<IntPropertyType>>("", propId, QMetaType::Int, intPropertyType);
     mMapIdToProperty[ propId ] = propOperation;
 }
 
@@ -263,8 +263,8 @@ BlendImagesModel::
 processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVImageData> & out,
             const BlendImagesParameters & params)
 {
-    cv::Mat& i0 = in[0]->image();
-    cv::Mat& i1 = in[1]->image();
+    cv::Mat& i0 = in[0]->data();
+    cv::Mat& i1 = in[1]->data();
     if(i0.empty() || i1.empty())
     {
         return;
@@ -281,11 +281,11 @@ processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVIma
             switch(mpEmbeddedWidget->getCurrentState())
             {
             case 0:
-                cv::add(i0,Temp,out->image());
+                cv::add(i0,Temp,out->data());
                 break;
 
             case 1:
-                cv::addWeighted(i0,params.mdAlpha,Temp,params.mdBeta,params.mdGamma,out->image(),-1);
+                cv::addWeighted(i0,params.mdAlpha,Temp,params.mdBeta,params.mdGamma,out->data(),-1);
                 break;
             }
         }
@@ -298,11 +298,11 @@ processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVIma
             switch(mpEmbeddedWidget->getCurrentState())
             {
             case 0:
-                cv::add(Temp,i1,out->image());
+                cv::add(Temp,i1,out->data());
                 break;
 
             case 1:
-                cv::addWeighted(Temp,params.mdAlpha,i1,params.mdBeta,params.mdGamma,out->image(),-1);
+                cv::addWeighted(Temp,params.mdAlpha,i1,params.mdBeta,params.mdGamma,out->data(),-1);
                 break;
             }
         }

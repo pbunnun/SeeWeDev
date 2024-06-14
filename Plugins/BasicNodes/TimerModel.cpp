@@ -29,7 +29,7 @@ TimerModel()
     mpTimer->setInterval( miMillisecondInterval );
     intPropertyType.miMin = 10;
     intPropertyType.miMax = 1000000000;
-    auto propInterval = std::make_shared< TypedProperty< IntPropertyType > > ( "Interval (m)", propId, QVariant::Int, intPropertyType );
+    auto propInterval = std::make_shared< TypedProperty< IntPropertyType > > ( "Interval (m)", propId, QMetaType::Int, intPropertyType );
     mvProperty.push_back( propInterval );
     mMapIdToProperty[ propId ] = propInterval;
 }

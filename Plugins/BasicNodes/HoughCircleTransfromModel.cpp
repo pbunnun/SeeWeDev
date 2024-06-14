@@ -41,43 +41,43 @@ HoughCircleTransformModel()
     DoublePropertyType doublePropertyType;
     doublePropertyType.mdValue = mParams.mdInverseRatio;
     propId = "inverse_ratio";
-    auto propInverseRatio = std::make_shared< TypedProperty< DoublePropertyType > >( "Resolution Inverse Ratio", propId, QVariant::Double, doublePropertyType, "Operation" );
+    auto propInverseRatio = std::make_shared< TypedProperty< DoublePropertyType > >( "Resolution Inverse Ratio", propId, QMetaType::Double, doublePropertyType, "Operation" );
     mvProperty.push_back( propInverseRatio );
     mMapIdToProperty[ propId ] = propInverseRatio;
 
     doublePropertyType.mdValue = mParams.mdCenterDistance;
     propId = "center_distance";
-    auto propCenterDistance = std::make_shared< TypedProperty< DoublePropertyType > >( "Minimum Center Distance", propId, QVariant::Double, doublePropertyType , "Operation");
+    auto propCenterDistance = std::make_shared< TypedProperty< DoublePropertyType > >( "Minimum Center Distance", propId, QMetaType::Double, doublePropertyType , "Operation");
     mvProperty.push_back( propCenterDistance );
     mMapIdToProperty[ propId ] = propCenterDistance;
 
     doublePropertyType.mdValue = mParams.mdThresholdU;
     propId = "th_u";
-    auto propThresholdU = std::make_shared< TypedProperty< DoublePropertyType > >( "Upper Threshold", propId, QVariant::Double, doublePropertyType , "Operation");
+    auto propThresholdU = std::make_shared< TypedProperty< DoublePropertyType > >( "Upper Threshold", propId, QMetaType::Double, doublePropertyType , "Operation");
     mvProperty.push_back( propThresholdU );
     mMapIdToProperty[ propId ] = propThresholdU;
 
     doublePropertyType.mdValue = mParams.mdThresholdL;
     propId = "th_l";
-    auto propThresholdL = std::make_shared< TypedProperty< DoublePropertyType > >( "Lower Threshold", propId, QVariant::Double, doublePropertyType , "Operation");
+    auto propThresholdL = std::make_shared< TypedProperty< DoublePropertyType > >( "Lower Threshold", propId, QMetaType::Double, doublePropertyType , "Operation");
     mvProperty.push_back( propThresholdL );
     mMapIdToProperty[ propId ] = propThresholdL;
 
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mParams.miRadiusMin;
     propId = "radius_min";
-    auto propRadiusMin = std::make_shared<TypedProperty<IntPropertyType>>("Minimum Radius", propId, QVariant::Int, intPropertyType, "Operation");
+    auto propRadiusMin = std::make_shared<TypedProperty<IntPropertyType>>("Minimum Radius", propId, QMetaType::Int, intPropertyType, "Operation");
     mvProperty.push_back(propRadiusMin);
     mMapIdToProperty[ propId ] = propRadiusMin;
 
     intPropertyType.miValue = mParams.miRadiusMax;
     propId = "radius_max";
-    auto propRadiusMax = std::make_shared<TypedProperty<IntPropertyType>>("Maximum Radius", propId, QVariant::Int, intPropertyType, "Operation");
+    auto propRadiusMax = std::make_shared<TypedProperty<IntPropertyType>>("Maximum Radius", propId, QMetaType::Int, intPropertyType, "Operation");
     mvProperty.push_back(propRadiusMax);
     mMapIdToProperty[ propId ] = propRadiusMax;
 
     propId = "display_point";
-    auto propDisplayPoint = std::make_shared< TypedProperty < bool > > ("Display Points", propId, QVariant::Bool, mParams.mbDisplayPoint, "Display");
+    auto propDisplayPoint = std::make_shared< TypedProperty < bool > > ("Display Points", propId, QMetaType::Bool, mParams.mbDisplayPoint, "Display");
     mvProperty.push_back( propDisplayPoint );
     mMapIdToProperty[ propId ] = propDisplayPoint;
 
@@ -87,19 +87,19 @@ HoughCircleTransformModel()
         ucharPropertyType.mucValue = mParams.mucPointColor[i];
         propId = QString("point_color_%1").arg(i);
         QString pointColor = QString::fromStdString("Point Color "+color[i]);
-        auto propPointColor = std::make_shared<TypedProperty<UcharPropertyType>>(pointColor, propId, QVariant::Int, ucharPropertyType, "Display");
+        auto propPointColor = std::make_shared<TypedProperty<UcharPropertyType>>(pointColor, propId, QMetaType::Int, ucharPropertyType, "Display");
         mvProperty.push_back(propPointColor);
         mMapIdToProperty[ propId ] = propPointColor;
     }
 
     intPropertyType.miValue = mParams.miPointSize;
     propId = "point_size";
-    auto propPointSize = std::make_shared<TypedProperty<IntPropertyType>>("Point Size", propId, QVariant::Int, intPropertyType, "Display");
+    auto propPointSize = std::make_shared<TypedProperty<IntPropertyType>>("Point Size", propId, QMetaType::Int, intPropertyType, "Display");
     mvProperty.push_back( propPointSize );
     mMapIdToProperty[ propId ] = propPointSize;
 
     propId = "display_circle";
-    auto propDisplayCircle = std::make_shared<TypedProperty<bool>>("Display Circle", propId, QVariant::Bool, mParams.mbDisplayCircle, "Display");
+    auto propDisplayCircle = std::make_shared<TypedProperty<bool>>("Display Circle", propId, QMetaType::Bool, mParams.mbDisplayCircle, "Display");
     mvProperty.push_back(propDisplayCircle);
     mMapIdToProperty[ propId ] = propDisplayCircle;
 
@@ -108,14 +108,14 @@ HoughCircleTransformModel()
         ucharPropertyType.mucValue = mParams.mucCircleColor[i];
         propId = QString("circle_color_%1").arg(i);
         QString circleColor = QString::fromStdString("Circle Color "+color[i]);
-        auto propCircleColor = std::make_shared<TypedProperty<UcharPropertyType>>(circleColor, propId, QVariant::Int, ucharPropertyType, "Display");
+        auto propCircleColor = std::make_shared<TypedProperty<UcharPropertyType>>(circleColor, propId, QMetaType::Int, ucharPropertyType, "Display");
         mvProperty.push_back(propCircleColor);
         mMapIdToProperty[ propId ] = propCircleColor;
     }
 
     intPropertyType.miValue = mParams.miCircleThickness;
     propId = "circle_thickness";
-    auto propCircleThickness = std::make_shared<TypedProperty<IntPropertyType>>("Circle Thickness", propId, QVariant::Int, intPropertyType, "Display");
+    auto propCircleThickness = std::make_shared<TypedProperty<IntPropertyType>>("Circle Thickness", propId, QMetaType::Int, intPropertyType, "Display");
     mvProperty.push_back( propCircleThickness );
     mMapIdToProperty[ propId ] = propCircleThickness;
 
@@ -537,12 +537,12 @@ HoughCircleTransformModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & outImage,
             std::shared_ptr<IntegerData> &outInt, const HoughCircleTransformParameters & params)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(in_image.empty() || in_image.type()!=CV_8UC1)
     {
         return;
     }
-    cv::Mat& out_image = outImage->image();   
+    cv::Mat& out_image = outImage->data();
     outImage->set_image(in_image);
     std::vector<cv::Vec3f> Circles;
     cv::HoughCircles(out_image,
@@ -554,7 +554,7 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageDa
                      100,
                      25,
                      200);
-    outInt->number() = static_cast<int>(Circles.size());
+    outInt->data() = static_cast<int>(Circles.size());
     cv::cvtColor(in_image,out_image,cv::COLOR_GRAY2BGR);
     for(cv::Vec3f& circle : Circles)
     {

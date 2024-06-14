@@ -91,9 +91,9 @@ void
 InvertGrayModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageData > & out )
 {
-    if( !in->image().empty() && in->image().channels() == 1 )
+    if( !in->data().empty() && in->data().channels() == 1 )
     {
-        cv::bitwise_not(in->image(),out->image());
+        cv::bitwise_not(in->data(),out->data());
     }
 }
 

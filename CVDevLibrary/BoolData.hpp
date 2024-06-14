@@ -18,11 +18,12 @@
 #pragma once
 
 #include <nodes/NodeDataModel>
+#include "InformationData.hpp"
 
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 
-class BoolData : public NodeData
+class BoolData : public InformationData
 {
 public:
     BoolData()
@@ -41,7 +42,7 @@ public:
     }
 
     bool&
-    state()
+    data()
     {
         return mbBool;
     }
@@ -50,6 +51,13 @@ public:
     state_str() const
     {
         return mbBool? QString("True") : QString("False");
+    }
+
+    void set_information() override
+    {
+        mQSData  = QString("Data Type: bool \n");
+        mQSData += state_str();
+        mQSData += QString("\n");
     }
 
 private:

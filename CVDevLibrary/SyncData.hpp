@@ -18,11 +18,12 @@
 #pragma once
 
 #include <nodes/NodeDataModel>
+#include "InformationData.hpp"
 
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 
-class SyncData : public NodeData
+class SyncData : public InformationData
 {
 public:
     SyncData()
@@ -41,7 +42,7 @@ public:
     }
 
     bool&
-    state()
+    data()
     {
         return mbSync;
     }
@@ -50,6 +51,13 @@ public:
     state_str() const
     {
         return mbSync? QString("Active") : QString("Inacive");
+    }
+
+    void set_information() override
+    {
+        mQSData = QString("Data Type : Sync \n");
+        mQSData += state_str();
+        mQSData += QString("\n");
     }
 
 private:

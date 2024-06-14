@@ -69,7 +69,7 @@ std::shared_ptr<NodeData>
 CVRotateImageModel::
 outData(PortIndex)
 {
-    if( isEnable() && mpCVImageOutData->image().data != nullptr )
+    if( isEnable() && mpCVImageOutData->data().data != nullptr )
         return mpCVImageOutData;
     else
         return nullptr;
@@ -162,9 +162,9 @@ void
 CVRotateImageModel::
 processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData> & out )
 {
-    if( !in->image().empty() )
+    if( !in->data().empty() )
     {
-        auto image = in->image();
+        auto image = in->data();
         cv::Point2f center((image.cols-1)/2.0, (image.rows-1)/2.0);
         cv::Mat rot = cv::getRotationMatrix2D(center, mdAngle, 1.0);
         cv::Rect2f bbox = cv::RotatedRect(cv::Point2f(), image.size(), mdAngle).boundingRect2f();

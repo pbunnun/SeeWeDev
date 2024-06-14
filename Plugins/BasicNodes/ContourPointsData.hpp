@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2024, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -12,51 +12,43 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-#ifndef INFORMATIONDATA_HPP
-#define INFORMATIONDATA_HPP
+#ifndef CONTOURPOINTSDATA_HPP
+#define CONTOURPOINTSDATA_HPP
 
 #pragma once
 
 #include <nodes/NodeDataModel>
+#include "InformationData.hpp"
+#include <opencv2/core/types.hpp>
 
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 
-class InformationData : public NodeData
+class ContourPointsData : public InformationData
 {
 public:
-    InformationData()
-    {
-        mQSData = "";
-    }
-
-    InformationData( QString & info )
-        : mQSData( info )
+    ContourPointsData()
+        : mvvPoints()
     {}
 
-    virtual NodeDataType
+    ContourPointsData(const std::vector< std::vector<cv::Point> > & data )
+        : mvvPoints( data )
+    {}
+
+    NodeDataType
     type() const override
     {
-        return { "Information", "Inf" };
+        return { "Contours", "Cnt" };
     }
 
-    virtual void
-    set_information() {};
-
-    void set_information(const QString& inf)
+    std::vector< std::vector<cv::Point> > &
+    data()
     {
-        mQSData = inf;
+        return mvvPoints;
     }
 
-    QString
-    info() const
-    {
-        return mQSData;
-    }
-
-protected:
-    QString mQSData;
-
+private:
+    std::vector< std::vector<cv::Point> > mvvPoints;
 };
 
-#endif // INFORMATIONDATA_HPP
+#endif // CONTOURPOINTSDATA_HPP

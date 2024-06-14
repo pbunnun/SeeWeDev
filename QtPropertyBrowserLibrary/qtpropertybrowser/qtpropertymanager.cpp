@@ -1124,7 +1124,7 @@ public:
         double minVal{-DBL_MAX};
         double maxVal{DBL_MAX};
         double singleStep{1};
-        int decimals{2};
+        int decimals{4};
         bool readOnly{false};
         double minimumValue() const { return minVal; }
         double maximumValue() const { return maxVal; }
@@ -3223,7 +3223,7 @@ public:
     struct Data
     {
         QPointF val;
-        int decimals{2};
+        int decimals{4};
     };
 
     void slotDoubleChanged(QtProperty *property, double value);
@@ -3890,7 +3890,7 @@ public:
         QSizeF val{0, 0};
         QSizeF minVal{0, 0};
         QSizeF maxVal{std::numeric_limits<qreal>::max(), std::numeric_limits<qreal>::max()};
-        int decimals{2};
+        int decimals{4};
         bool readOnly{false};
         QSizeF minimumValue() const { return minVal; }
         QSizeF maximumValue() const { return maxVal; }
@@ -4734,7 +4734,7 @@ public:
     {
         QRectF val{0, 0, 0, 0};
         QRectF constraint;
-        int decimals{2};
+        int decimals{4};
     };
 
     typedef QMap<const QtProperty *, Data> PropertyValueMap;

@@ -27,6 +27,7 @@
 #include <nodes/DataModelRegistry>
 #include "PBNodeDataModel.hpp"
 #include "CVImageData.hpp"
+#include "StdVectorNumberData.hpp"
 #include "TemplateEmbeddedWidget.hpp"
 
 #include <opencv2/videoio.hpp>
@@ -101,6 +102,7 @@ private:
     TemplateEmbeddedWidget * mpEmbeddedWidget;
 
     std::shared_ptr<CVImageData> mpCVImageData;
+    std::shared_ptr< StdVectorIntData > mpStdVectorIntData;
 
     bool mbCheckBox{ true };
     QString msDisplayText{ "ComboBox" };

@@ -122,14 +122,14 @@ void
 MinMaxLocationModel::
 processData( const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVPointData> (&outPoint)[2], std::shared_ptr<DoubleData>(&outDouble)[2])
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(!in_image.empty() && in_image.channels()==1)
     {
-        cv::minMaxLoc(in->image(),
-                      &outDouble[0]->number(),
-                      &outDouble[1]->number(),
-                      &outPoint[0]->point(),
-                      &outPoint[1]->point());
+        cv::minMaxLoc(in->data(),
+                      &outDouble[0]->data(),
+                      &outDouble[1]->data(),
+                      &outPoint[0]->data(),
+                      &outPoint[1]->data());
     }
 }
 

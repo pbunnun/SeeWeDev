@@ -182,7 +182,7 @@ ColorSpaceModel::
 processData( const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageData > & out,
              const ColorSpaceParameters & params)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(in_image.empty() || in_image.depth()!=CV_8U)
     {
         return;
@@ -273,7 +273,7 @@ processData( const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImage
         }
         if(cvColorSpaceConvertion != -1)
         {
-            cv::cvtColor( in->image(), out->image() , cvColorSpaceConvertion );
+            cv::cvtColor( in->data(), out->data() , cvColorSpaceConvertion );
         }
         else
         {

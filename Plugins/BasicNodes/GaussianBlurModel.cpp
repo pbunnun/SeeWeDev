@@ -36,20 +36,20 @@ GaussianBlurModel()
     sizePropertyType.miWidth = mParams.mCVSizeKernel.width;
     sizePropertyType.miHeight = mParams.mCVSizeKernel.height;
     QString propId = "kernel_size";
-    auto propKernelSize = std::make_shared< TypedProperty< SizePropertyType > >( "Kernel Size", propId, QVariant::Size, sizePropertyType , "Operation");
+    auto propKernelSize = std::make_shared< TypedProperty< SizePropertyType > >( "Kernel Size", propId, QMetaType::QSize, sizePropertyType , "Operation");
     mvProperty.push_back( propKernelSize );
     mMapIdToProperty[ propId ] = propKernelSize;
 
     DoublePropertyType doublePropertyType;
     doublePropertyType.mdValue = mParams.mdSigmaX;
     propId = "sigma_x";
-    auto propSigmaX = std::make_shared< TypedProperty< DoublePropertyType > >( "Sigma X", propId, QVariant::Double, doublePropertyType, "Operation" );
+    auto propSigmaX = std::make_shared< TypedProperty< DoublePropertyType > >( "Sigma X", propId, QMetaType::Double, doublePropertyType, "Operation" );
     mvProperty.push_back( propSigmaX );
     mMapIdToProperty[ propId ] = propSigmaX;
 
     doublePropertyType.mdValue = mParams.mdSigmaY;
     propId = "sigma_y";
-    auto propSigmaY = std::make_shared< TypedProperty< DoublePropertyType > >( "Sigma Y", propId, QVariant::Double, doublePropertyType, "Operation" );
+    auto propSigmaY = std::make_shared< TypedProperty< DoublePropertyType > >( "Sigma Y", propId, QMetaType::Double, doublePropertyType, "Operation" );
     mvProperty.push_back( propSigmaY );
     mMapIdToProperty[ propId ] = propSigmaY;
 
@@ -283,10 +283,10 @@ setModelProperty( QString & id, const QVariant & value )
 
 void GaussianBlurModel::processData(const std::shared_ptr<CVImageData> &in, std::shared_ptr<CVImageData> &out, const GaussianBlurParameters &params)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(!in_image.empty() && (in_image.depth()==CV_8U || in_image.depth()==CV_16U || in_image.depth()==CV_16S || in_image.depth()==CV_32F || in_image.depth()==CV_64F))
     {
-        cv::GaussianBlur(in->image(),out->image(),params.mCVSizeKernel,params.mdSigmaX,params.mdSigmaY,params.miBorderType);
+        cv::GaussianBlur(in->data(),out->data(),params.mCVSizeKernel,params.mdSigmaX,params.mdSigmaY,params.miBorderType);
     }
 }
 

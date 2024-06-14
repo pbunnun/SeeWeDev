@@ -31,27 +31,27 @@ PBNodeDataModel::PBNodeDataModel(QString modelName, bool bSource, bool bEnable)
     enabled(bEnable);
 
     QString propId = "caption";
-    auto propCaption = std::make_shared< TypedProperty< QString > >( "Caption", propId, QVariant::String, msCaptionName );
+    auto propCaption = std::make_shared< TypedProperty< QString > >( "Caption", propId, QMetaType::QString, msCaptionName );
     mvProperty.push_back( propCaption );
     mMapIdToProperty[ propId ] = propCaption;
 
     propId = "lock_position";
-    auto propLock_Position = std::make_shared< TypedProperty< bool > >( "Lock Position", propId, QVariant::Bool, isLockPosition(), "Common" );
+    auto propLock_Position = std::make_shared< TypedProperty< bool > >( "Lock Position", propId, QMetaType::Bool, isLockPosition(), "Common" );
     mvProperty.push_back( propLock_Position );
     mMapIdToProperty[ propId ] = propLock_Position;
 
     propId = "enable";
-    auto propEnable = std::make_shared< TypedProperty< bool > >( "Enable", propId, QVariant::Bool, isEnable(), "Common" );
+    auto propEnable = std::make_shared< TypedProperty< bool > >( "Enable", propId, QMetaType::Bool, isEnable(), "Common" );
     mvProperty.push_back( propEnable );
     mMapIdToProperty[ propId ] = propEnable;
 
     propId = "minimize";
-    auto propMinimize = std::make_shared< TypedProperty< bool > >( "Minimize", propId, QVariant::Bool, isMinimize(), "Common" );
+    auto propMinimize = std::make_shared< TypedProperty< bool > >( "Minimize", propId, QMetaType::Bool, isMinimize(), "Common" );
     mvProperty.push_back( propMinimize );
     mMapIdToProperty[ propId ] = propMinimize;
 
     propId = "draw_entries";
-    auto propDrawEntries = std::make_shared< TypedProperty< bool > >( "Draw Entries", propId, QVariant::Bool, isDrawEntries(), "Common" );
+    auto propDrawEntries = std::make_shared< TypedProperty< bool > >( "Draw Entries", propId, QMetaType::Bool, isDrawEntries(), "Common" );
     mvProperty.push_back( propDrawEntries );
     mMapIdToProperty[ propId ] = propDrawEntries;
 

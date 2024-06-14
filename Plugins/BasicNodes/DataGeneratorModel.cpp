@@ -40,7 +40,7 @@ DataGeneratorModel()
 
     propId = "text_input";
     QString textInput = mpEmbeddedWidget->get_text_input();
-    auto propTextInput = std::make_shared< TypedProperty< QString > >("", propId, QVariant::String, textInput);
+    auto propTextInput = std::make_shared< TypedProperty< QString > >("", propId, QMetaType::QString, textInput);
     mMapIdToProperty[ propId ] = propTextInput;
 }
 

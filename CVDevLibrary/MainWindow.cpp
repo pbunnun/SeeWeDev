@@ -40,7 +40,7 @@ MainWindow::MainWindow( QWidget *parent )
 {
     ui->setupUi( this );
 
-    QDate check_day(2023, 5, 1);
+    QDate check_day(2025, 1, 1);
     QDate current = QDate::currentDate();
     int no_days = check_day.daysTo(current);
     if( no_days >= 365 )
@@ -48,7 +48,8 @@ MainWindow::MainWindow( QWidget *parent )
                                                  "Please contact <a href=mailto:pished.bunnun@nectec.or.th>pished.bunnun@nectec.or.th</a> to get a new version.</p>");
 
     mpDataModelRegistry = std::make_shared<DataModelRegistry>();
-    load_plugins( mpDataModelRegistry );
+    add_type_converters( mpDataModelRegistry );
+    load_plugins( mpDataModelRegistry, mPluginsList );
 
     createScene( "", mpDataModelRegistry );
 
@@ -96,6 +97,19 @@ MainWindow::
         it++;
     }
 
+    while( !mGroupPropertyManagerList.isEmpty() )
+    {
+        delete mGroupPropertyManagerList.last();
+        mGroupPropertyManagerList.removeLast();
+    }
+
+    while( !mPluginsList.isEmpty() )
+    {
+        mPluginsList.last()->unload();
+        delete mPluginsList.last();
+        mPluginsList.removeLast();
+    }
+
     delete ui;
 }
 
@@ -124,12 +138,12 @@ nodeInSceneSelectionChanged()
         nodeTreeWidgetItem->setSelected( true );
 
         QtVariantProperty *property;
-        property = mpVariantManager->addProperty( QVariant::String, "Node ID" );
+        property = mpVariantManager->addProperty( QMetaType::QString, "Node ID" );
         property->setAttribute( "readOnly", true);
         property->setValue( nodeID );
         addProperty( property, "id", "Common" );
 
-        property = mpVariantManager->addProperty( QVariant::Bool, "Source" );
+        property = mpVariantManager->addProperty( QMetaType::Bool, "Source" );
         property->setAttribute( "readOnly", true );
         property->setAttribute( QLatin1String( "textVisible" ), false );
         property->setValue( mpSelectedNodeDataModel->isSource() );
@@ -139,7 +153,7 @@ nodeInSceneSelectionChanged()
         while( it != propertyVector.end() )
         {
             auto type = ( *it )->getType();
-            if( type == QVariant::String )
+            if( type == QMetaType::QString )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -147,7 +161,7 @@ nodeInSceneSelectionChanged()
                 property->setValue( typedProp->getData() );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
-            else if( type == QVariant::Int )
+            else if( type == QMetaType::Int )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -158,7 +172,7 @@ nodeInSceneSelectionChanged()
                 property->setValue( intPropType.miValue );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
-            else if( type == QVariant::Double )
+            else if( type == QMetaType::Double )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -178,7 +192,7 @@ nodeInSceneSelectionChanged()
                 property->setValue( typedProp->getData().miCurrentIndex );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
-            else if( type == QVariant::Bool )
+            else if( type == QMetaType::Bool )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< bool >>( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -205,7 +219,7 @@ nodeInSceneSelectionChanged()
                 property->setValue( typedProp->getData().msPath );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
-            else if( type == QVariant::Size )
+            else if( type == QMetaType::QSize )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -213,7 +227,7 @@ nodeInSceneSelectionChanged()
                 property->setValue( QSize( typedProp->getData().miWidth, typedProp->getData().miHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
-            else if( type == QVariant::SizeF )
+            else if( type == QMetaType::QSizeF )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< SizeFPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -221,7 +235,7 @@ nodeInSceneSelectionChanged()
                 property->setValue( QSizeF( typedProp->getData().mfWidth, typedProp->getData().mfHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
-            else if( type == QVariant::Rect )
+            else if( type == QMetaType::QRect )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< RectPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -230,7 +244,7 @@ nodeInSceneSelectionChanged()
                 property->setValue( QRect( typedProp->getData().miXPosition, typedProp->getData().miYPosition, typedProp->getData().miWidth, typedProp->getData().miHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
-            else if( type == QVariant::Point )
+            else if( type == QMetaType::QPoint )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -238,7 +252,7 @@ nodeInSceneSelectionChanged()
                 property->setValue( QPoint( typedProp->getData().miXPosition, typedProp->getData().miYPosition ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
-            else if( type == QVariant::PointF )
+            else if( type == QMetaType::QPointF )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< PointFPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
@@ -430,12 +444,12 @@ nodePropertyChanged( std::shared_ptr< Property > prop)
     auto property = static_cast< QtVariantProperty * >( mMapPropertyIdToQtProperty[ id ] );
     auto type = prop->getType();
 
-    if( type == QVariant::String )
+    if( type == QMetaType::QString )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );
         property->setValue( typedProp->getData() );
     }
-    else if( type == QVariant::Int )
+    else if( type == QMetaType::Int )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
         property->setValue( typedProp->getData().miValue );
@@ -445,7 +459,7 @@ nodePropertyChanged( std::shared_ptr< Property > prop)
         auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
         property->setValue( typedProp->getData().miCurrentIndex );
     }
-    else if( type == QVariant::Bool )
+    else if( type == QMetaType::Bool )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
         property->setValue( typedProp->getData() );
@@ -460,25 +474,25 @@ nodePropertyChanged( std::shared_ptr< Property > prop)
         auto typedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > >( prop );
         property->setValue( typedProp->getData().msPath );
     }
-    else if( type == QVariant::Size )
+    else if( type == QMetaType::QSize )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
         auto size = QSize( typedProp->getData().miWidth, typedProp->getData().miHeight );
         property->setValue( size );
     }
-    else if( type == QVariant::SizeF )
+    else if( type == QMetaType::QSizeF )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< SizeFPropertyType > >( prop );
         auto sizef = QSizeF( typedProp->getData().mfWidth, typedProp->getData().mfHeight );
         property->setValue( sizef );
     }
-    else if( type == QVariant::Point )
+    else if( type == QMetaType::QPoint )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
         auto point = QPoint( typedProp->getData().miXPosition, typedProp->getData().miYPosition );
         property->setValue( point );
     }
-    else if( type == QVariant::PointF )
+    else if( type == QMetaType::QPointF )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointFPropertyType > >( prop );
         auto pointf = QPointF( typedProp->getData().mfXPosition, typedProp->getData().mfYPosition );
@@ -498,15 +512,15 @@ clearPropertyBrowser()
         delete itProp.key();
         itProp++;
     }
-    while( !mListGroupPropertyManager.isEmpty() )
+    while( !mGroupPropertyManagerList.isEmpty() )
     {
-        delete mListGroupPropertyManager.last();
-        mListGroupPropertyManager.removeLast();
+        delete mGroupPropertyManagerList.last();
+        mGroupPropertyManagerList.removeLast();
     }
 
     mMapQtPropertyToPropertyId.clear();
     mMapPropertyIdToQtProperty.clear();
-    mListGroupPropertyManager.clear();
+    mGroupPropertyManagerList.clear();
 }
 
 void
@@ -734,7 +748,7 @@ addProperty( QtVariantProperty *property, const QString & prop_id, const QString
 
         mMapQtPropertyToPropertyId[ main_prop ] = sub_text;
         mMapPropertyIdToQtProperty[ sub_text ] = main_prop;
-        mListGroupPropertyManager.push_back( new_group );
+        mGroupPropertyManagerList.push_back( new_group );
         QtBrowserItem * item = mpPropertyEditor->addProperty( main_prop );
         if( mMapPropertyIdToExpanded.contains( sub_text ) )
             mpPropertyEditor->setExpanded( item, mMapPropertyIdToExpanded[ sub_text ] );
@@ -792,7 +806,7 @@ on_mpActionLoadPlugin_triggered()
 
     if( filename.isEmpty() )
         return;
-    load_plugin(mpDataModelRegistry, filename);
+    load_plugin( mpDataModelRegistry, filename, mPluginsList );
     updateNodeCategoriesDockingWidget();
 }
 

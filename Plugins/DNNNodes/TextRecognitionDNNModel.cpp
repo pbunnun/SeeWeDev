@@ -55,7 +55,7 @@ run()
         std::string recognitionResult = mTextRecognitionDNN.recognize(mCVImage);
         cv::putText(mCVImage, recognitionResult, cv::Point(mCVImage.cols/2, mCVImage.rows/2), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 2 );
         //qDebug() << "Prediction : " << QString::fromStdString(recognitionResult);
-        Q_EMIT result_ready( mCVImage );
+        Q_EMIT result_ready( mCVImage, QString::fromStdString(recognitionResult) );
         mLockMutex.unlock();
     }
 }
@@ -129,7 +129,8 @@ TextRecognitionDNNModel()
     : PBNodeDataModel( _model_name )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-    mpSyncData = std::make_shared< SyncData >();
+    mpSyncData = std::make_shared< SyncData >(true);
+    mpInformationData = std::make_shared< InformationData >();
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msModel_Filename;
@@ -163,7 +164,7 @@ nPorts(PortType portType) const
         break;
 
     case PortType::Out:
-        result = 2;
+        result = 3;
         break;
 
     default:
@@ -175,15 +176,27 @@ nPorts(PortType portType) const
 
 NodeDataType
 TextRecognitionDNNModel::
-dataType(PortType, PortIndex portIndex) const
+dataType(PortType portType, PortIndex portIndex) const
+{
+    if( portType == PortType::In )
+    {
+        if( portIndex == 0 )
+            return CVImageData().type();
+    }
+    else if( portType == PortType::Out )
 {
     if(portIndex == 0)
     {
         return CVImageData().type();
     }
     else if(portIndex == 1)
+        {
+            return InformationData().type();
+        }
+        else if(portIndex == 2)
     {
         return SyncData().type();
+    }
     }
     return NodeDataType();
 }
@@ -200,6 +213,10 @@ outData(PortIndex port)
         }
         else if( port == 1 )
         {
+            return mpInformationData;
+        }
+        else if( port == 2 )
+        {
             return mpSyncData;
         }
     }
@@ -212,10 +229,10 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 {
     if( !isEnable() )
         return;
-    if( nodeData && mpSyncData->state() == true )
+    if( nodeData && mpSyncData->data() == true )
     {
-        mpSyncData->state() = false;
-        Q_EMIT dataUpdated(1);
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(2);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
             processData( d );
@@ -312,10 +329,11 @@ late_constructor()
 
 void
 TextRecognitionDNNModel::
-received_result( cv::Mat & result )
+received_result( cv::Mat & result, QString text )
 {
     mpCVImageData->set_image( result );
-    mpSyncData->state() = true;
+    mpInformationData->set_information(text);
+    mpSyncData->data() = true;
 
     updateAllOutputPorts();
 }
@@ -328,7 +346,6 @@ load_model()
         return;
     if( QFile::exists(msModel_Filename) )
     {
-        qDebug() <<"Load Model";
         mpTextRecognitionDNNThread->readNet( msModel_Filename );
     }
 }
@@ -337,7 +354,7 @@ void
 TextRecognitionDNNModel::
 processData(const std::shared_ptr< CVImageData > & in)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if( !in_image.empty() )
         mpTextRecognitionDNNThread->detect( in_image );
 }

@@ -52,16 +52,16 @@ run()
             {
                 mSingleShotSemaphore.acquire();
 
-                mCVVideoCapture >> mpCVImageData->image();
-                if( !mpCVImageData->image().empty() )
+                mCVVideoCapture >> mpCVImageData->data();
+                if( !mpCVImageData->data().empty() )
                     Q_EMIT image_ready( );
                 else
                     mCVVideoCapture.set(cv::CAP_PROP_POS_FRAMES, -1);
             }
             else
             {
-                mCVVideoCapture >> mpCVImageData->image();
-                if( !mpCVImageData->image().empty() )
+                mCVVideoCapture >> mpCVImageData->data();
+                if( !mpCVImageData->data().empty() )
                     Q_EMIT image_ready( );
                 else
                     mCVVideoCapture.set(cv::CAP_PROP_POS_FRAMES, -1);
@@ -213,7 +213,7 @@ CVCameraModel::
 outData(PortIndex portIndex)
 {
     std::shared_ptr<NodeData> result;
-    if( isEnable() && mpCVImageData->image().data != nullptr )
+    if( isEnable() && mpCVImageData->data().data != nullptr )
     {
         if( portIndex == 0 )
             result = mpCVImageData;
@@ -221,7 +221,7 @@ outData(PortIndex portIndex)
         {
             QString currentTime = QTime::currentTime().toString( "hh:mm:ss.zzz" ) + " :: ";
             QString sInformation = "\n";
-            cv::Mat image = mpCVImageData->image();
+            cv::Mat image = mpCVImageData->data();
             if( image.channels() == 1 )
                 sInformation += currentTime + "Image Type : Gray\n" + currentTime + "Image Format : CV_8UC1\n";
             else if( image.channels() == 3 )

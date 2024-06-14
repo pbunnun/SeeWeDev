@@ -16,7 +16,6 @@
 
 #include "nodes/DataModelRegistry"
 #include "CVImageData.hpp"
-#include "qtvariantproperty.h"
 #include "SyncData.hpp"
 #include "Connection"
 #include <QProcess>
@@ -26,12 +25,12 @@ ExternalCommandModel()
     : PBNodeDataModel( _model_name )
 {
     QString propId = "ext_command";
-    auto propCommand = std::make_shared< TypedProperty< QString > >( "External Command", propId, QVariant::String, msExternalCommand);
+    auto propCommand = std::make_shared< TypedProperty< QString > >( "External Command", propId, QMetaType::QString, msExternalCommand);
     mvProperty.push_back( propCommand );
     mMapIdToProperty[ propId ] = propCommand;
 
     propId = "arguments";
-    auto propArguments = std::make_shared< TypedProperty< QString > >( "Arguments", propId, QVariant::String, msArguments);
+    auto propArguments = std::make_shared< TypedProperty< QString > >( "Arguments", propId, QMetaType::QString, msArguments);
     mvProperty.push_back( propArguments );
     mMapIdToProperty[ propId ] = propArguments;
 }
@@ -70,7 +69,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     if(portIndex == 0)
     {
         auto d = std::dynamic_pointer_cast< SyncData > ( nodeData );
-        if( d && d->state() )
+        if( d && d->data() )
         {
             QProcess cmd;
             cmd.start(msExternalCommand, QStringList() << msArguments);

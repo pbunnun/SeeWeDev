@@ -31,14 +31,14 @@ NormalizationModel()
     doublePropertyType.mdValue = mParams.mdRangeMax;
     doublePropertyType.mdMax = 255;
     QString propId = "range_max";
-    auto propRangeMax = std::make_shared< TypedProperty< DoublePropertyType > >( "Maximum", propId, QVariant::Double, doublePropertyType, "Operation" );
+    auto propRangeMax = std::make_shared< TypedProperty< DoublePropertyType > >( "Maximum", propId, QMetaType::Double, doublePropertyType, "Operation" );
     mvProperty.push_back( propRangeMax );
     mMapIdToProperty[ propId ] = propRangeMax;
 
     doublePropertyType.mdValue = mParams.mdRangeMin;
     doublePropertyType.mdMax = 255;
     propId = "range_min";
-    auto propRangeMin = std::make_shared< TypedProperty< DoublePropertyType > >( "Minimum", propId, QVariant::Double, doublePropertyType , "Operation");
+    auto propRangeMin = std::make_shared< TypedProperty< DoublePropertyType > >( "Minimum", propId, QMetaType::Double, doublePropertyType , "Operation");
     mvProperty.push_back( propRangeMin );
     mMapIdToProperty[ propId ] = propRangeMin;
 
@@ -265,10 +265,10 @@ NormalizationModel::
 processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData> & out,
             const NormalizationParameters & params)
 {
-    if(!in->image().empty())
+    if(!in->data().empty())
     {
-        cv::normalize(in->image(),
-                      out->image(),
+        cv::normalize(in->data(),
+                      out->data(),
                       params.mdRangeMin,
                       params.mdRangeMax,
                       params.miNormType);
@@ -281,7 +281,7 @@ overwrite(std::shared_ptr<DoubleData> (&in)[2], NormalizationParameters &params)
 {
     if(in[0])
     {
-        const double& in_number = in[0]->number();
+        const double& in_number = in[0]->data();
         if(in_number>=0 && in_number<=255)
         {
             auto prop = mMapIdToProperty["range_max"];
@@ -293,7 +293,7 @@ overwrite(std::shared_ptr<DoubleData> (&in)[2], NormalizationParameters &params)
     }
     if(in[1])
     {
-        const double& in_number = in[1]->number();
+        const double& in_number = in[1]->data();
         if(in_number>=0 && in_number<=255)
         {
             auto prop = mMapIdToProperty["range_min"];

@@ -38,13 +38,13 @@ ConvertDepthModel()
     DoublePropertyType doublePropertyType;
     doublePropertyType.mdValue = mParams.mdAlpha;
     propId = "alpha";
-    auto propAlpha = std::make_shared< TypedProperty< DoublePropertyType > >( "Alpha", propId, QVariant::Double, doublePropertyType, "Operation");
+    auto propAlpha = std::make_shared< TypedProperty< DoublePropertyType > >( "Alpha", propId, QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propAlpha );
     mMapIdToProperty[ propId ] = propAlpha;
 
     doublePropertyType.mdValue = mParams.mdBeta;
     propId = "beta";
-    auto propBeta = std::make_shared< TypedProperty< DoublePropertyType > >( "Beta", propId, QVariant::Double, doublePropertyType, "Operation");
+    auto propBeta = std::make_shared< TypedProperty< DoublePropertyType > >( "Beta", propId, QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propBeta );
     mMapIdToProperty[ propId ] = propBeta;
 }
@@ -229,9 +229,9 @@ ConvertDepthModel::
 processData( const std::shared_ptr< CVImageData> & in, std::shared_ptr<CVImageData> & out,
              const ConvertDepthParameters & params )
 {
-    if(!in->image().empty())
+    if(!in->data().empty())
     {
-        in->image().convertTo(out->image(),
+        in->data().convertTo(out->data(),
                                params.miImageDepth,
                                params.mdAlpha,
                                params.mdBeta);
@@ -242,7 +242,7 @@ void
 ConvertDepthModel::
 overwrite(std::shared_ptr<IntegerData> &in, ConvertDepthParameters &params)
 {
-    int& in_number = in->number();
+    int& in_number = in->data();
     if(in_number>=0 && in_number<=7)
     {
         auto prop = mMapIdToProperty["image_depth"];

@@ -61,7 +61,7 @@ NodeDataType Test_SharpenModel::dataType(PortType , PortIndex) const
 
 std::shared_ptr<NodeData> Test_SharpenModel::outData(PortIndex)
 {
-    if( isEnable() && mpCVImageData->image().data != nullptr )
+    if( isEnable() && mpCVImageData->data().data != nullptr )
     {
         return mpCVImageData;
     }
@@ -77,10 +77,10 @@ void Test_SharpenModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
     if( nodeData )
     {
         auto d= std::dynamic_pointer_cast<CVImageData>(nodeData);
-        if(d && d->image().type()==CV_8UC3)
+        if(d && d->data().type()==CV_8UC3)
         {
             //mpCVImageInData = d;
-            cv::Mat CVTestSharpenImage = d->image().clone();
+            cv::Mat CVTestSharpenImage = d->data().clone();
             uint row = CVTestSharpenImage.rows;
             uint col = CVTestSharpenImage.cols*CVTestSharpenImage.channels();
             for(uint i=1; i<row-1; i++)
@@ -101,7 +101,7 @@ void Test_SharpenModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
         }
         else
         {
-            mpCVImageData->set_image(d->image());
+            mpCVImageData->set_image(d->data());
         }
     }
     Q_EMIT dataUpdated(0);

@@ -31,42 +31,42 @@ CVImagePropertiesModel()
 {
     QString propId = "image_name";
     QString imageName = QString::fromStdString(mProps.msImageName);
-    auto propImageName = std::make_shared< TypedProperty< QString > >( "Name", propId, QVariant::String, imageName, "Properties");
+    auto propImageName = std::make_shared< TypedProperty< QString > >( "Name", propId, QMetaType::QString, imageName, "Properties");
     mvProperty.push_back( propImageName );
     mMapIdToProperty[ propId ] = propImageName;
 
     propId = "image_channels";
-    auto propChannels = std::make_shared< TypedProperty< QString > >( "Channels", propId, QVariant::String, QString("%1").arg(mProps.miChannels), "Properties");
+    auto propChannels = std::make_shared< TypedProperty< QString > >( "Channels", propId, QMetaType::QString, QString("%1").arg(mProps.miChannels), "Properties");
     mvProperty.push_back( propChannels );
     mMapIdToProperty[ propId ] = propChannels;
 
     propId = "image_size";
     QString imageSize = QString("%1 px x %2 px").arg(mProps.mCVMSizeImage.height).arg(mProps.mCVMSizeImage.width);
-    auto propImageSize = std::make_shared< TypedProperty <QString>>("Size", propId, QVariant::String, imageSize, "Properties");
+    auto propImageSize = std::make_shared< TypedProperty <QString>>("Size", propId, QMetaType::QString, imageSize, "Properties");
     mvProperty.push_back(propImageSize);
     mMapIdToProperty[propId] = propImageSize;
 
     propId = "is_binary";
     QString isBinary = mProps.mbIsBinary? "Yes" : "No" ;
-    auto propIsBinary = std::make_shared< TypedProperty <QString>>("Binary", propId, QVariant::String, isBinary, "Properties");
+    auto propIsBinary = std::make_shared< TypedProperty <QString>>("Binary", propId, QMetaType::QString, isBinary, "Properties");
     mvProperty.push_back(propIsBinary);
     mMapIdToProperty[propId] = propIsBinary;
 
     propId = "is_bandw";
     QString isBAndW = mProps.mbIsBAndW? "Yes" : "No" ;
-    auto propIsBAndW = std::make_shared< TypedProperty <QString>>("Black and White", propId, QVariant::String, isBAndW, "Properties");
+    auto propIsBAndW = std::make_shared< TypedProperty <QString>>("Black and White", propId, QMetaType::QString, isBAndW, "Properties");
     mvProperty.push_back(propIsBAndW);
     mMapIdToProperty[propId] = propIsBAndW;
 
     propId = "is_continuous";
     QString isContinuous = mProps.mbIsContinuous? "Yes" : "No" ;
-    auto propIsContinuous = std::make_shared< TypedProperty < QString >>("Continuous", propId, QVariant::String, isContinuous, "Properties");
+    auto propIsContinuous = std::make_shared< TypedProperty < QString >>("Continuous", propId, QMetaType::QString, isContinuous, "Properties");
     mvProperty.push_back(propIsContinuous);
     mMapIdToProperty[propId] = propIsContinuous;
 
     propId = "description";
     QString description = QString::fromStdString(mProps.msDescription);
-    auto propDescription = std::make_shared< TypedProperty <QString>>("Description", propId, QVariant::String, description, "Properties");
+    auto propDescription = std::make_shared< TypedProperty <QString>>("Description", propId, QMetaType::QString, description, "Properties");
     mvProperty.push_back(propDescription);
     mMapIdToProperty[propId] = propDescription;
 }
@@ -181,7 +181,7 @@ void
 CVImagePropertiesModel::
 processData(const std::shared_ptr< CVImageData > & in, CVImagePropertiesProperties &props )
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     props.miChannels = in_image.channels();
     props.mCVMSizeImage = cv::Size(in_image.cols, in_image.rows);
     bool binary_bandw[2] = {true,true};

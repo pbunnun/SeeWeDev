@@ -44,7 +44,7 @@ TemplateMatchingModel()
         ucharPropertyType.mucValue = mParams.mucLineColor[i];
         QString propId = QString("line_color_%1").arg(i);
         QString lineColor = QString::fromStdString("Line Color "+color[i]);
-        auto propLineColor = std::make_shared< TypedProperty < UcharPropertyType > > (lineColor , propId, QVariant::Int, ucharPropertyType, "Display");
+        auto propLineColor = std::make_shared< TypedProperty < UcharPropertyType > > (lineColor , propId, QMetaType::Int, ucharPropertyType, "Display");
         mvProperty.push_back( propLineColor );
         mMapIdToProperty[ propId ] = propLineColor;
     }
@@ -52,7 +52,7 @@ TemplateMatchingModel()
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mParams.miLineThickness;
     propId = "line_thickness";
-    auto propLineThickness = std::make_shared<TypedProperty<IntPropertyType>>("Line Thickness", propId,QVariant::Int, intPropertyType, "Display");
+    auto propLineThickness = std::make_shared<TypedProperty<IntPropertyType>>("Line Thickness", propId,QMetaType::Int, intPropertyType, "Display");
     mvProperty.push_back(propLineThickness);
     mMapIdToProperty[ propId ] = propLineThickness;
 
@@ -287,15 +287,15 @@ TemplateMatchingModel::
 processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVImageData> (&out)[2],
             const TemplateMatchingParameters & params )
 {
-    cv::Mat& in_image = in[0]->image();
-    cv::Mat& temp_image = in[1]->image();
+    cv::Mat& in_image = in[0]->data();
+    cv::Mat& temp_image = in[1]->data();
     if(in_image.empty() || temp_image.empty() || in_image.depth()!=temp_image.depth() ||
        (in_image.depth()!=CV_8U && in_image.depth()!=CV_8S && in_image.depth()!=CV_32F) ||
        temp_image.rows>in_image.rows || temp_image.cols > in_image.cols)
     {
         return;
     }
-    cv::Mat& out_image = out[0]->image();
+    cv::Mat& out_image = out[0]->data();
     cv::matchTemplate(in_image,temp_image,out_image,params.miMatchingMethod);
 
     double minValue;
@@ -307,7 +307,7 @@ processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVIma
     cv::Point& matchedLocation =
     (params.miMatchingMethod == cv::TM_SQDIFF || params.miMatchingMethod == cv::TM_SQDIFF_NORMED)?
     minLocation : maxLocation ;
-    cv::rectangle(out[1]->image(),
+    cv::rectangle(out[1]->data(),
                   matchedLocation,
                   cv::Point(matchedLocation.x + temp_image.cols,
                             matchedLocation.y + temp_image.rows),

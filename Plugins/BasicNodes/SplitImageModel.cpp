@@ -31,7 +31,7 @@ SplitImageModel()
         mp = std::make_shared< CVImageData >( cv::Mat() );
     }
     QString propId = "maintain_channels";
-    auto propMaintainChannels = std::make_shared< TypedProperty < bool > >("Maintain Channels", propId, QVariant::Bool, mParams.mbMaintainChannels, "Display");
+    auto propMaintainChannels = std::make_shared< TypedProperty < bool > >("Maintain Channels", propId, QMetaType::Bool, mParams.mbMaintainChannels, "Display");
     mvProperty.push_back( propMaintainChannels);
     mMapIdToProperty[ propId ] = propMaintainChannels;
 }
@@ -159,7 +159,7 @@ void
 SplitImageModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageData > (&out)[3], const SplitImageParameters &params)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(in_image.empty() || in_image.channels()!=3)
     {
         return;
@@ -175,7 +175,7 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageD
             {
                 arr[j] = (j==i)? vImage[i] : cv::Mat::zeros(vImage[i].size(), vImage[i].type()) ;
             }
-            cv::merge(arr,3,out[i]->image());
+            cv::merge(arr,3,out[i]->data());
         }
     }
     else

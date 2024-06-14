@@ -69,14 +69,14 @@ Filter2DModel()
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mParams.mMKKernel.miKernelSize;
     propId = "kernel_size";
-    auto propKernelSize = std::make_shared< TypedProperty< IntPropertyType > >( "Kernel Size", propId, QVariant::Int, intPropertyType , "Operation");
+    auto propKernelSize = std::make_shared< TypedProperty< IntPropertyType > >( "Kernel Size", propId, QMetaType::Int, intPropertyType , "Operation");
     mvProperty.push_back( propKernelSize );
     mMapIdToProperty[ propId ] = propKernelSize;
 
     DoublePropertyType doublePropertyType;
     doublePropertyType.mdValue = mParams.mdDelta;
     propId = "delta";
-    auto propDelta = std::make_shared< TypedProperty < DoublePropertyType > > ("Delta", propId, QVariant::Double, doublePropertyType, "Operation");
+    auto propDelta = std::make_shared< TypedProperty < DoublePropertyType > > ("Delta", propId, QMetaType::Double, doublePropertyType, "Operation");
     mvProperty.push_back( propDelta );
     mMapIdToProperty[ propId ] = propDelta;
 
@@ -342,16 +342,16 @@ Filter2DModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & out,
             const Filter2DParameters & params )
 {
-    if(!in->image().empty())
+    if(!in->data().empty())
     {
-        cv::filter2D(in->image(),
-                     out->image(),
+        cv::filter2D(in->data(),
+                     out->data(),
                      params.miImageDepth,
                      params.mMKKernel.image(),
                      cv::Point(-1,-1),
                      params.mdDelta,
                      params.miBorderType);
-        cv::convertScaleAbs(out->image(),out->image());
+        cv::convertScaleAbs(out->data(),out->data());
     }
 }
 

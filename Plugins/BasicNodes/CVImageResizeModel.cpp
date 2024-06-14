@@ -19,7 +19,6 @@
 #include <QEvent>
 #include <QDir>
 #include <QVariant>
-#include "qtvariantproperty.h"
 
 CVImageResizeModel::
 CVImageResizeModel()
@@ -69,7 +68,7 @@ std::shared_ptr<NodeData>
 CVImageResizeModel::
 outData(PortIndex)
 {
-    if( isEnable() && mpCVImageOutData->image().data != nullptr )
+    if( isEnable() && mpCVImageOutData->data().data != nullptr )
         return mpCVImageOutData;
     else
         return nullptr;
@@ -167,10 +166,10 @@ void
 CVImageResizeModel::
 processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData> & out )
 {
-    if( !in->image().empty() )
+    if( !in->data().empty() )
     {
         cv::Mat resizeImage;
-        auto image = in->image();
+        auto image = in->data();
         auto new_size = mSize;
         cv::resize(image, resizeImage, new_size, cv::INTER_LINEAR);
         out->set_image( resizeImage );

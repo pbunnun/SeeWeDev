@@ -68,7 +68,7 @@ outData(PortIndex port)
 {
     if( isEnable() )
     {
-        if( port == 0 )
+        if( port == 0 && mpCVImageData->data().data != nullptr )
             return mpCVImageData;
         else if( port == 1 )
             return mpSyncData;
@@ -85,14 +85,14 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 
     if( nodeData )
     {
-        mpSyncData->state() = false;
+        mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
         {
             processData( d, mpCVImageData );
         }
-        mpSyncData->state() = true;
+        mpSyncData->data() = true;
         Q_EMIT dataUpdated(1);
     }
 
@@ -103,10 +103,10 @@ void
 RGBtoGrayModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageData > & out )
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(!in_image.empty() && in_image.type()==CV_8UC3)
     {
-        cv::cvtColor( in_image, out->image(), cv::COLOR_BGR2GRAY );
+        cv::cvtColor( in_image, out->data(), cv::COLOR_BGR2GRAY );
     }
 }
 

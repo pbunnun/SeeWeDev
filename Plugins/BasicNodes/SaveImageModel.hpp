@@ -25,6 +25,8 @@
 #include <nodes/DataModelRegistry>
 #include "PBNodeDataModel.hpp"
 #include "InformationData.hpp"
+#include "SyncData.hpp"
+#include "CVImageData.hpp"
 
 #include <opencv2/videoio.hpp>
 
@@ -44,7 +46,7 @@ public:
     ~SavingImageThread() override;
 
     void
-    add_new_image( cv::Mat & image, QString filename );
+    add_new_image( const cv::Mat & image, QString filename );
 
     void
     set_saving_directory( QString dirname );
@@ -88,6 +90,9 @@ public:
     NodeDataType
     dataType( PortType portType, PortIndex portIndex ) const override;
 
+    std::shared_ptr<NodeData>
+    outData(PortIndex) override;
+
     void
     setInData( std::shared_ptr< NodeData > nodeData, PortIndex port ) override;
 
@@ -116,12 +121,19 @@ private Q_SLOTS:
 private:
     SavingImageThread * mpSavingImageThread { nullptr };
 
-    std::shared_ptr< NodeData > mpNodeData { nullptr };
-    std::shared_ptr< NodeData > mpFilenameData { nullptr };
-
+    std::shared_ptr< CVImageData > mpCVImageInData { nullptr };
+    std::shared_ptr< InformationData > mpFilenameData { nullptr };
+    std::shared_ptr< SyncData > mpSyncData{ nullptr };
+#ifdef _WIN32
     QString msDirname{"C:\\"};
+#else
+    QString msDirname{"./"};
+#endif
     bool mbUseProvidedFilename{false};
-    int miCounter{1000};
+    bool mbSyncData2SaveImage{false};
+    int miCounter{1000000};
+
+    QString msPrefix_Filename {"image"};
 };
 
 #endif // SAVEIMAGEMODEL_HPP

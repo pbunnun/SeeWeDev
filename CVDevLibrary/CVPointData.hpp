@@ -42,14 +42,15 @@ public:
     }
 
     cv::Point &
-    point()
+    data()
     {
         return mCVPoint;
     }
 
     void set_information() override
     {
-        mQSData = QString("(%1 , %2)").arg(mCVPoint.x).arg(mCVPoint.y);
+        mQSData = QString("Data Type : cv::Point \n");
+        mQSData += QString("(%1 , %2)\n").arg(mCVPoint.x).arg(mCVPoint.y);
     }
 
 private:

@@ -14,7 +14,6 @@
 
 #ifndef CVCAMERAEMBEDDEDWIDGET_H
 #define CVCAMERAEMBEDDEDWIDGET_H
-#include "CVDevLibrary.hpp"
 
 #include <QVariant>
 #include <QWidget>

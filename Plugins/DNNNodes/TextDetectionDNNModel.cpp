@@ -116,7 +116,7 @@ TextDetectionDNNModel()
     : PBNodeDataModel( _model_name )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-    mpSyncData = std::make_shared< SyncData >();
+    mpSyncData = std::make_shared< SyncData >(true);
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msDBModel_Filename;
@@ -132,19 +132,19 @@ TextDetectionDNNModel()
     doublePropertyType.mdMax = 10000.0;
     doublePropertyType.mdValue = 0.3;
     propId = "binary_threshold";
-    auto propBinaryThreshold = std::make_shared< TypedProperty< DoublePropertyType > >("Binary Threshold", propId, QVariant::Double, doublePropertyType );
+    auto propBinaryThreshold = std::make_shared< TypedProperty< DoublePropertyType > >("Binary Threshold", propId, QMetaType::Double, doublePropertyType );
     mvProperty.push_back( propBinaryThreshold );
     mMapIdToProperty[ propId ] = propBinaryThreshold;
 
     doublePropertyType.mdValue = 0.5;
     propId = "polygon_threshold";
-    auto propPolygonThreshold = std::make_shared< TypedProperty< DoublePropertyType > >("Polygon Threshold", propId, QVariant::Double, doublePropertyType );
+    auto propPolygonThreshold = std::make_shared< TypedProperty< DoublePropertyType > >("Polygon Threshold", propId, QMetaType::Double, doublePropertyType );
     mvProperty.push_back( propPolygonThreshold );
     mMapIdToProperty[ propId ] = propPolygonThreshold;
 
     doublePropertyType.mdValue = 2.0;
     propId = "unclip_ratio";
-    auto propUnclipRatio = std::make_shared< TypedProperty< DoublePropertyType > >("Unclip Ratio", propId, QVariant::Double, doublePropertyType );
+    auto propUnclipRatio = std::make_shared< TypedProperty< DoublePropertyType > >("Unclip Ratio", propId, QMetaType::Double, doublePropertyType );
     mvProperty.push_back( propUnclipRatio );
     mMapIdToProperty[ propId ] = propUnclipRatio;
 
@@ -152,7 +152,7 @@ TextDetectionDNNModel()
     sizePropertyType.miHeight = 736;
     sizePropertyType.miWidth = 736;
     propId = "input_size";
-    auto propInputSize = std::make_shared< TypedProperty< SizePropertyType > >("Input Size", propId, QVariant::Size, sizePropertyType );
+    auto propInputSize = std::make_shared< TypedProperty< SizePropertyType > >("Input Size", propId, QMetaType::QSize, sizePropertyType );
     mvProperty.push_back( propInputSize );
     mMapIdToProperty[ propId ] = propInputSize;
 
@@ -161,7 +161,7 @@ TextDetectionDNNModel()
     intPropertyType.miMax = 10000;
     intPropertyType.miValue = 200;
     propId = "max_candidate";
-    auto propMaxCandidate = std::make_shared< TypedProperty< IntPropertyType > >("Max Candidate", propId, QVariant::Int, intPropertyType );
+    auto propMaxCandidate = std::make_shared< TypedProperty< IntPropertyType > >("Max Candidate", propId, QMetaType::Int, intPropertyType );
     mvProperty.push_back( propMaxCandidate );
     mMapIdToProperty[ propId ] = propMaxCandidate;
 }
@@ -228,9 +228,9 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 {
     if( !isEnable() )
         return;
-    if( nodeData && mpSyncData->state() == true )
+    if( nodeData && mpSyncData->data() == true )
     {
-        mpSyncData->state() = false;
+        mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
@@ -420,7 +420,7 @@ TextDetectionDNNModel::
 received_result( cv::Mat & result )
 {
     mpCVImageData->set_image( result );
-    mpSyncData->state() = true;
+    mpSyncData->data() = true;
 
     updateAllOutputPorts();
 }
@@ -433,7 +433,6 @@ load_model()
         return;
     if( QFile::exists(msDBModel_Filename) )
     {
-        qDebug() <<"Load Model";
         mpTextDetectionDNNThread->readNet( msDBModel_Filename );
     }
 }
@@ -442,7 +441,7 @@ void
 TextDetectionDNNModel::
 processData(const std::shared_ptr< CVImageData > & in)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if( !in_image.empty() )
         mpTextDetectionDNNThread->detect( in_image );
 }

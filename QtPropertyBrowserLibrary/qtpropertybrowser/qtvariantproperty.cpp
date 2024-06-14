@@ -410,10 +410,10 @@ QtVariantProperty *QtVariantPropertyManagerPrivate::createSubProperty(QtVariantP
     varChild->setStatusTip(internal->statusTip());
     varChild->setWhatsThis(internal->whatsThis());
 
-    parent->insertSubProperty(varChild, after);
-
     m_internalToProperty[internal] = varChild;
     propertyToWrappedProperty()->insert(varChild, internal);
+
+    parent->insertSubProperty(varChild, after);
     return varChild;
 }
 
@@ -1686,8 +1686,11 @@ void QtVariantPropertyManager::setValue(QtProperty *property, const QVariant &va
 
     int valType = valueType(property);
 
-    //if (propType != valType && !val.canConvert(QMetaType(valType)))
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0 ) )
     if (propType != valType && !val.canConvert(static_cast<QMetaType::Type>(valType)))
+#else
+    if (propType != valType && !val.canConvert(QMetaType(valType)))
+#endif
         return;
 
     QtProperty *internProp = propertyToWrappedProperty()->value(property, 0);
@@ -1796,8 +1799,11 @@ void QtVariantPropertyManager::setAttribute(QtProperty *property,
         return;
 
     if (attrType != attributeType(propertyType(property), attribute) &&
-                //!value.canConvert(QMetaType(attrType)))
-                !value.canConvert((QMetaType::Type)attrType))
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0) )
+                !value.canConvert(static_cast<QMetaType::Type>(attrType)))
+#else
+                !value.canConvert(QMetaType(attrType)))
+#endif
         return;
 
     QtProperty *internProp = propertyToWrappedProperty()->value(property, 0);

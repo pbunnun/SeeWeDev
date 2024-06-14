@@ -41,14 +41,16 @@ public:
     }
 
     int &
-    number()
+    data()
     {
         return miData;
     }
 
     void set_information() override
     {
-        mQSData = QString::number(miData);
+        mQSData = QString("Data Type : int \n");
+        mQSData += QString::number(miData);
+        mQSData += QString("\n");
     }
 
 private:

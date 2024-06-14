@@ -85,7 +85,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
 
     if( nodeData )
     {
-        mpSyncData->state() = false;
+        mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
@@ -96,7 +96,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
                 processData( mapCVImageInData, mpCVImageData );
             }
         }
-        mpSyncData->state() = true;
+        mpSyncData->data() = true;
         Q_EMIT dataUpdated(1);
     }
 
@@ -107,12 +107,12 @@ void
 WatershedModel::
 processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr< CVImageData > & out )
 {
-    cv::Mat& in_image = in[0]->image();
-    cv::Mat& in_marker = in[1]->image();
+    cv::Mat& in_image = in[0]->data();
+    cv::Mat& in_marker = in[1]->data();
     if(!in_image.empty() && !in_marker.empty() && in_image.type()==CV_8UC3 && in_marker.type()==CV_32SC1)
     {
         out->set_image(in_marker);
-        cv::watershed(in_image,out->image());
+        cv::watershed(in_image,out->data());
     }
 }
 

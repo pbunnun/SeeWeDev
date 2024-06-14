@@ -51,7 +51,7 @@ ConnectedComponentsModel()
     mMapIdToProperty[ propId ] = propAlgorithmType;
 
     propId = "visualize";
-    auto propVisualize = std::make_shared< TypedProperty < bool > >("Visualize", propId, QVariant::Bool, mParams.mbVisualize, "Display");
+    auto propVisualize = std::make_shared< TypedProperty < bool > >("Visualize", propId, QMetaType::Bool, mParams.mbVisualize, "Display");
     mvProperty.push_back( propVisualize );
     mMapIdToProperty[ propId ] = propVisualize;
 }
@@ -283,14 +283,14 @@ ConnectedComponentsModel::
 processData( const std::shared_ptr< CVImageData> & in, std::shared_ptr< CVImageData > & outImage,
              std::shared_ptr<IntegerData> &outInt, const ConnectedComponentsParameters & params )
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(in_image.empty() || (in_image.type()!=CV_8UC1 && in_image.type()!=CV_8SC1))
     {
         return;
     }
-    cv::Mat& out_image = outImage->image();
+    cv::Mat& out_image = outImage->data();
     cv::Mat Temp;
-    outInt->number() = cv::connectedComponents(in_image,
+    outInt->data() = cv::connectedComponents(in_image,
                                                Temp,
                                                params.miConnectivity,
                                                params.miImageType,

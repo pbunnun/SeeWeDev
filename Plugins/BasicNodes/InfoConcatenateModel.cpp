@@ -23,6 +23,8 @@ InfoConcatenateModel()
     : PBNodeDataModel( _model_name )
 {
     mpInformationData = std::make_shared< InformationData >( );
+    mpInformationData_1 = std::make_shared< InformationData >( );
+    mpInformationData_2 = std::make_shared< InformationData >( );
 }
 
 unsigned int
@@ -79,21 +81,39 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     {
         auto d = std::dynamic_pointer_cast< InformationData >( nodeData );
         if( d )
-            mpInformationData_1 = d;
+        {
+            mpInformationData_1->set_information( d->info() );
+            //d->set_information("");
+        }
     }
     else if(portIndex == 1)
     {
         auto d = std::dynamic_pointer_cast< InformationData >( nodeData );
         if( d )
-            mpInformationData_2 = d;
+        {
+            mpInformationData_2->set_information( d->info() );
+            //d->set_information("");
+        }
     }
     else if(portIndex == 2)
     {
         if( mpInformationData_1 && mpInformationData_2 )
         {
-            QString result = mpInformationData_1->info() + ", " + mpInformationData_2->info();
+            QString result = mpInformationData_1->info() + "\t" + mpInformationData_2->info();
+            mpInformationData_1->set_information("");
+            mpInformationData_2->set_information("");
             mpInformationData->set_information( result );
-            //qDebug() << result;
+            updateAllOutputPorts();
+        }
+    }
+    if( mpInformationData_1 && mpInformationData_2 )
+    {
+        if( !(mpInformationData_1->info().isEmpty() || mpInformationData_2->info().isEmpty() ) )
+        {
+            QString result = mpInformationData_1->info() + "\t" + mpInformationData_2->info();
+            mpInformationData_1->set_information("");
+            mpInformationData_2->set_information("");
+            mpInformationData->set_information( result );
             updateAllOutputPorts();
         }
     }

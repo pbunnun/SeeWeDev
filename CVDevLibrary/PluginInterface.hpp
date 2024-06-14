@@ -18,13 +18,15 @@
 #pragma once
 
 #include <QtPlugin>
+#include <QPluginLoader>
 #include <DataModelRegistry>
 #include "CVDevLibrary.hpp"
 
 using QtNodes::DataModelRegistry;
 
-void CVDEVSHAREDLIB_EXPORT load_plugins( std::shared_ptr< DataModelRegistry > model_regs );
-void CVDEVSHAREDLIB_EXPORT load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QString filename );
+void CVDEVSHAREDLIB_EXPORT add_type_converters( std::shared_ptr< DataModelRegistry > model_regs );
+void CVDEVSHAREDLIB_EXPORT load_plugins( std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader *> & plugins_list );
+void CVDEVSHAREDLIB_EXPORT load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QString filename, QList< QPluginLoader *> & plugins_list );
 
 class PluginInterface
 {

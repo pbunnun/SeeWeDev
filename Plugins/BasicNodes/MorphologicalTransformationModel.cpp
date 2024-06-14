@@ -51,7 +51,7 @@ MorphologicalTransformationModel()
     sizePropertyType.miWidth = mParams.mCVSizeKernel.width;
     sizePropertyType.miHeight = mParams.mCVSizeKernel.height;
     propId = "kernel_size";
-    auto propKernelSize = std::make_shared< TypedProperty< SizePropertyType > >( "Kernel Size", propId, QVariant::Size, sizePropertyType, "Operation" );
+    auto propKernelSize = std::make_shared< TypedProperty< SizePropertyType > >( "Kernel Size", propId, QMetaType::QSize, sizePropertyType, "Operation" );
     mvProperty.push_back( propKernelSize );
     mMapIdToProperty[ propId ] = propKernelSize;
 
@@ -59,14 +59,14 @@ MorphologicalTransformationModel()
     pointPropertyType.miXPosition = mParams.mCVPointAnchor.x;
     pointPropertyType.miYPosition = mParams.mCVPointAnchor.y;
     propId = "anchor_point";
-    auto propAnchorPoint = std::make_shared< TypedProperty< PointPropertyType > >( "Anchor Point", propId, QVariant::Point, pointPropertyType ,"Operation");
+    auto propAnchorPoint = std::make_shared< TypedProperty< PointPropertyType > >( "Anchor Point", propId, QMetaType::QPoint, pointPropertyType ,"Operation");
     mvProperty.push_back( propAnchorPoint );
     mMapIdToProperty[ propId ] = propAnchorPoint;
 
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mParams.miIteration;
     propId = "iteration";
-    auto propIteration = std::make_shared<TypedProperty<IntPropertyType>>("Iterations", propId, QVariant::Int, intPropertyType, "Operation");
+    auto propIteration = std::make_shared<TypedProperty<IntPropertyType>>("Iterations", propId, QMetaType::Int, intPropertyType, "Operation");
     mvProperty.push_back(propIteration);
     mMapIdToProperty[propId] = propIteration;
 
@@ -400,11 +400,11 @@ setModelProperty( QString & id, const QVariant & value )
 
 void MorphologicalTransformationModel::processData(const std::shared_ptr<CVImageData> &in, std::shared_ptr<CVImageData> &out, const MorphologicalTransformationParameters &params)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(!in_image.empty() && (in_image.depth()==CV_8U || in_image.depth()==CV_16U || in_image.depth()==CV_16S || in_image.depth()==CV_32F || in_image.depth()==CV_64F))
     {
         cv::Mat Kernel = cv::getStructuringElement(params.miKernelShape,params.mCVSizeKernel,params.mCVPointAnchor);
-        cv::morphologyEx(in_image,out->image(),params.miMorphMethod,Kernel,params.mCVPointAnchor,params.miIteration,params.miBorderType);
+        cv::morphologyEx(in_image,out->data(),params.miMorphMethod,Kernel,params.mCVPointAnchor,params.miIteration,params.miBorderType);
     }
 }
 

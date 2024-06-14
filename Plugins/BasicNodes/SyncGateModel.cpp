@@ -46,19 +46,19 @@ SyncGateModel()
     mMapIdToProperty[ propId ] = propOperation;
 
     propId = "checkbox_in0";
-    auto propCheckboxIn0 = std::make_shared<TypedProperty<bool>>("",propId,QVariant::Bool,mpEmbeddedWidget->get_in0_Checkbox());
+    auto propCheckboxIn0 = std::make_shared<TypedProperty<bool>>("",propId,QMetaType::Bool,mpEmbeddedWidget->get_in0_Checkbox());
     mMapIdToProperty[ propId ] = propCheckboxIn0;
 
     propId = "checkbox_in1";
-    auto propCheckboxIn1 = std::make_shared<TypedProperty<bool>>("",propId,QVariant::Bool,mpEmbeddedWidget->get_in1_Checkbox());
+    auto propCheckboxIn1 = std::make_shared<TypedProperty<bool>>("",propId,QMetaType::Bool,mpEmbeddedWidget->get_in1_Checkbox());
     mMapIdToProperty[ propId ] = propCheckboxIn1;
 
     propId = "checkbox_out0";
-    auto propCheckboxOut0 = std::make_shared<TypedProperty<bool>>("",propId,QVariant::Bool,mpEmbeddedWidget->get_out0_Checkbox());
+    auto propCheckboxOut0 = std::make_shared<TypedProperty<bool>>("",propId,QMetaType::Bool,mpEmbeddedWidget->get_out0_Checkbox());
     mMapIdToProperty[ propId ] = propCheckboxOut0;
 
     propId = "checkbox_out1";
-    auto propCheckboxOut1 = std::make_shared<TypedProperty<bool>>("",propId,QVariant::Bool,mpEmbeddedWidget->get_out1_Checkbox());
+    auto propCheckboxOut1 = std::make_shared<TypedProperty<bool>>("",propId,QMetaType::Bool,mpEmbeddedWidget->get_out1_Checkbox());
     mMapIdToProperty[ propId ] = propCheckboxOut1;
 }
 
@@ -369,8 +369,8 @@ processData(const std::shared_ptr<SyncData> (&inSync)[2], const std::shared_ptr<
                      std::shared_ptr<SyncData> (&outSync)[2], std::shared_ptr<BoolData> (&outBool)[2],
                      const SyncGateParameters & params)
 {
-    const bool& in0 = inSync[0]? inSync[0]->state() : inBool[0]->boolean();
-    const bool& in1 = inSync[1]? inSync[1]->state() : inBool[1]->boolean();
+    const bool& in0 = inSync[0]? inSync[0]->data() : inBool[0]->boolean();
+    const bool& in1 = inSync[1]? inSync[1]->data() : inBool[1]->boolean();
     bool out0;
     bool out1;
     switch(params.miOperation)
@@ -419,20 +419,20 @@ processData(const std::shared_ptr<SyncData> (&inSync)[2], const std::shared_ptr<
         else
         {
             outBool[0]->boolean() = out0;
-            outSync[0]->state() = out1;
+            outSync[0]->data() = out1;
         }
     }
     else
     {
         if(mpEmbeddedWidget->get_out1_Checkbox())
         {
-            outSync[0]->state() = out0;
+            outSync[0]->data() = out0;
             outBool[1]->boolean() = out1;
         }
         else
         {
-            outSync[0]->state() = out0;
-            outSync[1]->state() = out1;
+            outSync[0]->data() = out0;
+            outSync[1]->data() = out1;
         }
     }
 }

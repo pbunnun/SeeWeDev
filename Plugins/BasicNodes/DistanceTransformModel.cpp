@@ -203,7 +203,7 @@ DistanceTransformModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & out,
             const DistanceTransformParameters & params )
 {
-    cv::Mat& in_image= in->image();
+    cv::Mat& in_image= in->data();
     if(in_image.empty() || (in_image.type()!=CV_8UC1 && in_image.type()!=CV_8SC1))
     {
         return;
@@ -254,8 +254,8 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageDa
         return;
     }
     cv::Mat Temp;
-    cv::distanceTransform(in->image(),Temp,params.miOperationType,params.miMaskSize,CV_32F);
-    cv::convertScaleAbs(Temp,out->image());
+    cv::distanceTransform(in->data(),Temp,params.miOperationType,params.miMaskSize,CV_32F);
+    cv::convertScaleAbs(Temp,out->data());
 }
 
 const QString DistanceTransformModel::_category = QString( "Image Processing" );

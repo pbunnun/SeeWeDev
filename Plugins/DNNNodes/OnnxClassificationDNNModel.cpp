@@ -52,7 +52,8 @@ run()
             break;
         mLockMutex.lock();
         cv::Mat blob;
-        cv::dnn::blobFromImage( mCVImage, blob, 1./mParams.mdInvScaleFactor, mParams.mCVSize, mParams.mCVScalarMean, true );
+        cv::dnn::blobFromImage( mCVImage, blob, 1./mParams.mdInvScaleFactor, mParams.mCVSize, mParams.mdInvScaleFactor*mParams.mCVScalarMean, true );
+        cv::divide(blob, mParams.mCVScalarStd, blob);
         mOnnxClassificationDNN.setInput(blob);
         cv::Mat out = mOnnxClassificationDNN.forward();
         double min, max;
@@ -62,12 +63,13 @@ run()
         for( int idx = 0; idx < out.cols; ++idx )
             sumScores += exp(out.at<float>(idx));
         float confidence = exp(max)/sumScores;
+        //qDebug() << "Got Confidence ... " << confidence;
         if( maxLoc.x < mvStrClasses.size() )
         {
             QString out_text = "Class : " + QString::fromStdString(mvStrClasses[maxLoc.x]);
-            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
             out_text = "Prob. : " + QString::number(confidence);
-            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 100), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 100), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
         }
         Q_EMIT result_ready( mCVImage );
         mLockMutex.unlock();
@@ -94,8 +96,8 @@ readNet( QString & model, QString & classes )
 {
     try {
         mOnnxClassificationDNN = cv::dnn::readNetFromONNX(model.toStdString());
-        mOnnxClassificationDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
-        mOnnxClassificationDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+        //mOnnxClassificationDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
+        //mOnnxClassificationDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
 
         cv::FileStorage fs;
         fs.open(classes.toStdString(), cv::FileStorage::READ);
@@ -106,7 +108,9 @@ readNet( QString & model, QString & classes )
             mbModelReady = true;
             fs.release();
         }
+        qDebug() << "Read Model Success! Good to go...";
     }  catch ( cv::Exception & e ) {
+        qDebug() << "Cannot Read Model!";
         mbModelReady = false;
     }
     return mbModelReady;
@@ -124,7 +128,7 @@ OnnxClassificationDNNModel()
     : PBNodeDataModel( _model_name )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-    mpSyncData = std::make_shared< SyncData >();
+    mpSyncData = std::make_shared< SyncData >( true );
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msDNNModel_Filename;
@@ -148,31 +152,51 @@ OnnxClassificationDNNModel()
     doublePropertyType.mdMax = 10000.0;
     doublePropertyType.mdValue = 255.;
     propId = "inv_scale_factor";
-    auto propInvScaleFactor = std::make_shared< TypedProperty< DoublePropertyType > >("Inverse Scale Factor", propId, QVariant::Double, doublePropertyType, "Blob Image" );
+    auto propInvScaleFactor = std::make_shared< TypedProperty< DoublePropertyType > >("Inverse Scale Factor", propId, QMetaType::Double, doublePropertyType, "Blob Image" );
     mvProperty.push_back( propInvScaleFactor );
     mMapIdToProperty[ propId ] = propInvScaleFactor;
 
-    doublePropertyType.mdValue = 127.5;
+    doublePropertyType.mdValue = 0.485;
     propId = "mean_r";
-    auto propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean R", propId, QVariant::Double, doublePropertyType, "Blob Image" );
+    auto propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean R", propId, QMetaType::Double, doublePropertyType, "Blob Image" );
     mvProperty.push_back( propMean );
     mMapIdToProperty[ propId ] = propMean;
 
+    doublePropertyType.mdValue = 0.456;
     propId = "mean_g";
-    propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean G", propId, QVariant::Double, doublePropertyType, "Blob Image" );
+    propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean G", propId, QMetaType::Double, doublePropertyType, "Blob Image" );
     mvProperty.push_back( propMean );
     mMapIdToProperty[ propId ] = propMean;
 
+    doublePropertyType.mdValue = 0.406;
     propId = "mean_b";
-    propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean B", propId, QVariant::Double, doublePropertyType, "Blob Image" );
+    propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean B", propId, QMetaType::Double, doublePropertyType, "Blob Image" );
     mvProperty.push_back( propMean );
     mMapIdToProperty[ propId ] = propMean;
+
+    doublePropertyType.mdValue = 0.229;
+    propId = "std_r";
+    auto propStd = std::make_shared< TypedProperty< DoublePropertyType > >("Std R", propId, QMetaType::Double, doublePropertyType, "Blob Image" );
+    mvProperty.push_back( propStd );
+    mMapIdToProperty[ propId ] = propStd;
+
+    doublePropertyType.mdValue = 0.224;
+    propId = "std_g";
+    propStd = std::make_shared< TypedProperty< DoublePropertyType > >("Std G", propId, QMetaType::Double, doublePropertyType, "Blob Image" );
+    mvProperty.push_back( propStd );
+    mMapIdToProperty[ propId ] = propStd;
+
+    doublePropertyType.mdValue = 0.225;
+    propId = "std_b";
+    propStd = std::make_shared< TypedProperty< DoublePropertyType > >("Std B", propId, QMetaType::Double, doublePropertyType, "Blob Image" );
+    mvProperty.push_back( propStd );
+    mMapIdToProperty[ propId ] = propStd;
 
     SizePropertyType sizePropertyType;
     sizePropertyType.miHeight = 300;
     sizePropertyType.miWidth = 300;
     propId = "size";
-    auto propBlobSize = std::make_shared< TypedProperty< SizePropertyType > >("Size", propId, QVariant::Size, sizePropertyType, "Blob Image");
+    auto propBlobSize = std::make_shared< TypedProperty< SizePropertyType > >("Size", propId, QMetaType::QSize, sizePropertyType, "Blob Image");
     mvProperty.push_back( propBlobSize );
     mMapIdToProperty[ propId ] = propBlobSize;
 }
@@ -239,9 +263,9 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 {
     if( !isEnable() )
         return;
-    if( nodeData && mpSyncData->state() == true )
+    if( nodeData && mpSyncData->data() == true )
     {
-        mpSyncData->state() = false;
+        mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
@@ -263,6 +287,9 @@ save() const
     cParams["mean_r"] = params.mCVScalarMean[0];
     cParams["mean_g"] = params.mCVScalarMean[1];
     cParams["mean_b"] = params.mCVScalarMean[2];
+    cParams["std_r"] = params.mCVScalarStd[0];
+    cParams["std_g"] = params.mCVScalarStd[1];
+    cParams["std_b"] = params.mCVScalarStd[2];
     cParams["size_width"] = params.mCVSize.width;
     cParams["size_height"] = params.mCVSize.height;
     modelJson["cParams"] = cParams;
@@ -333,6 +360,33 @@ restore( QJsonObject const &p )
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
             params.mCVScalarMean[0] = v.toDouble();
+        }
+
+        v = paramsObj["std_r"];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty["std_r"];
+            auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
+            typedProp->getData().mdValue = v.toDouble();
+            params.mCVScalarStd[0] = v.toDouble();
+        }
+
+        v = paramsObj["std_g"];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty["std_g"];
+            auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
+            typedProp->getData().mdValue = v.toDouble();
+            params.mCVScalarStd[1] = v.toDouble();
+        }
+
+        v = paramsObj["std_b"];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty["std_b"];
+            auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
+            typedProp->getData().mdValue = v.toDouble();
+            params.mCVScalarStd[2] = v.toDouble();
         }
 
         auto width = paramsObj["size_width"];
@@ -416,6 +470,34 @@ setModelProperty( QString & id, const QVariant & value )
             params.mCVScalarMean[2] = value.toDouble();
             mpOnnxClassificationDNNThread->setParams(params);
         }
+        else if( id == "std_r" )
+        {
+            auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
+            typedProp->getData().mdValue = value.toDouble();
+
+            auto params = mpOnnxClassificationDNNThread->getParams();
+            params.mCVScalarStd[0] = value.toDouble();
+            mpOnnxClassificationDNNThread->setParams(params);
+        }
+        else if( id == "std_g" )
+        {
+            auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
+            typedProp->getData().mdValue = value.toDouble();
+
+            auto params = mpOnnxClassificationDNNThread->getParams();
+            params.mCVScalarStd[1] = value.toDouble();
+            mpOnnxClassificationDNNThread->setParams(params);
+        }
+        else if( id == "std_b" )
+        {
+            auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
+            typedProp->getData().mdValue = value.toDouble();
+
+            auto params = mpOnnxClassificationDNNThread->getParams();
+            params.mCVScalarStd[2] = value.toDouble();
+            mpOnnxClassificationDNNThread->setParams(params);
+        }
+
         else if( id == "size" )
         {
             auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
@@ -449,7 +531,7 @@ OnnxClassificationDNNModel::
 received_result( cv::Mat & result )
 {
     mpCVImageData->set_image( result );
-    mpSyncData->state() = true;
+    mpSyncData->data() = true;
 
     updateAllOutputPorts();
 }
@@ -470,7 +552,7 @@ void
 OnnxClassificationDNNModel::
 processData(const std::shared_ptr< CVImageData > & in)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if( !in_image.empty() )
         mpOnnxClassificationDNNThread->detect( in_image );
 }

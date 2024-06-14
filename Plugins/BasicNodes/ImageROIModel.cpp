@@ -42,14 +42,14 @@ ImageROIModel()
     pointPropertyType.miXPosition = mParams.mCVPointRect1.x;
     pointPropertyType.miYPosition = mParams.mCVPointRect1.y;
     QString propId = "rect_point_1";
-    auto propRectPoint1 = std::make_shared< TypedProperty< PointPropertyType > >("Point 1", propId, QVariant::Point, pointPropertyType, "Operation");
+    auto propRectPoint1 = std::make_shared< TypedProperty< PointPropertyType > >("Point 1", propId, QMetaType::QPoint, pointPropertyType, "Operation");
     mvProperty.push_back( propRectPoint1 );
     mMapIdToProperty[ propId ] = propRectPoint1;
 
     pointPropertyType.miXPosition = mParams.mCVPointRect2.x;
     pointPropertyType.miYPosition = mParams.mCVPointRect2.y;
     propId = "rect_point_2";
-    auto propRectPoint2 = std::make_shared< TypedProperty< PointPropertyType > >("Point 2", propId, QVariant::Point, pointPropertyType, "Operation");
+    auto propRectPoint2 = std::make_shared< TypedProperty< PointPropertyType > >("Point 2", propId, QMetaType::QPoint, pointPropertyType, "Operation");
     mvProperty.push_back( propRectPoint2 );
     mMapIdToProperty[ propId ] = propRectPoint2;
 
@@ -58,7 +58,7 @@ ImageROIModel()
     {
         ucharPropertyType.mucValue = mParams.mucLineColor[i];
         propId = QString("line_color_%1").arg(i);
-        auto propLineColor = std::make_shared< TypedProperty< UcharPropertyType > >( QString::fromStdString("Line Color "+color[i]), propId, QVariant::Int, ucharPropertyType, "Display");
+        auto propLineColor = std::make_shared< TypedProperty< UcharPropertyType > >( QString::fromStdString("Line Color "+color[i]), propId, QMetaType::Int, ucharPropertyType, "Display");
         mvProperty.push_back( propLineColor );
         mMapIdToProperty[ propId ] = propLineColor;
     }
@@ -66,17 +66,17 @@ ImageROIModel()
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mParams.miLineThickness;
     propId = "line_thickness";
-    auto propLineThickness = std::make_shared<TypedProperty<IntPropertyType>>("Line Thickness", propId, QVariant::Int, intPropertyType, "Display");
+    auto propLineThickness = std::make_shared<TypedProperty<IntPropertyType>>("Line Thickness", propId, QMetaType::Int, intPropertyType, "Display");
     mvProperty.push_back( propLineThickness );
     mMapIdToProperty[ propId ] = propLineThickness;
 
     propId = "display_lines";
-    auto propDisplayLines = std::make_shared<TypedProperty<bool>>("Display Lines", propId, QVariant::Bool, mParams.mbDisplayLines, "Display");
+    auto propDisplayLines = std::make_shared<TypedProperty<bool>>("Display Lines", propId, QMetaType::Bool, mParams.mbDisplayLines, "Display");
     mvProperty.push_back( propDisplayLines );
     mMapIdToProperty[ propId ] = propDisplayLines;
 
     propId = "lock_output_roi";
-    auto propLockOutputROI = std::make_shared<TypedProperty<bool>>("Lock Output ROI", propId, QVariant::Bool, mParams.mbLockOutputROI, "Operation");
+    auto propLockOutputROI = std::make_shared<TypedProperty<bool>>("Lock Output ROI", propId, QMetaType::Bool, mParams.mbLockOutputROI, "Operation");
     mvProperty.push_back( propLockOutputROI );
     mMapIdToProperty[ propId ] = propLockOutputROI;
 }
@@ -310,8 +310,8 @@ setModelProperty( QString & id, const QVariant & value )
     minY = mParams.mCVPointRect1.y;
     if( mapCVImageInData[0] )
     {
-        maxX = mapCVImageInData[0]->image().cols;
-        maxY = mapCVImageInData[0]->image().rows;
+        maxX = mapCVImageInData[0]->data().cols;
+        maxY = mapCVImageInData[0]->data().rows;
     }
 
     if( id == "rect_point_2" )
@@ -424,7 +424,7 @@ ImageROIModel::
 processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVImageData> (&out)[2],
             const ImageROIParameters &params, ImageROIProperties &props )
 {
-    const cv::Mat& in_image = in[0]->image();
+    const cv::Mat& in_image = in[0]->data();
     const bool invalid = in_image.empty() || in_image.depth()!=CV_8U;
     mpEmbeddedWidget->enable_reset_button(!invalid);
     if(invalid)
@@ -432,7 +432,7 @@ processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVIma
         return;
     }
     const cv::Rect rect(params.mCVPointRect1,params.mCVPointRect2);
-    cv::Mat& out_image = out[1]->image();
+    cv::Mat& out_image = out[1]->data();
     out[1]->set_image(in_image);
     static cv::Mat save;
     if(props.mbReset || save.empty() ||props.mbNewMat)
@@ -441,16 +441,16 @@ processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVIma
     }
     out[1]->set_image(save);
     const bool validROI = in[1]!=nullptr &&
-                          !in[1]->image().empty() &&
-                          in[1]->image().cols==rect.width &&
-                          in[1]->image().rows==rect.height &&
-                          in[1]->image().channels() == out_image.channels();
+                          !in[1]->data().empty() &&
+                          in[1]->data().cols==rect.width &&
+                          in[1]->data().rows==rect.height &&
+                          in[1]->data().channels() == out_image.channels();
 
     mpEmbeddedWidget->enable_apply_button(validROI);
     if(props.mbApply)
     {
         cv::Mat roi(out_image,rect);
-        cv::addWeighted(in[1]->image(),1,roi,0,0,roi);
+        cv::addWeighted(in[1]->data(),1,roi,0,0,roi);
     }
     save = out_image.clone();
     out[0]->set_image(cv::Mat(in_image,rect));
@@ -497,8 +497,8 @@ processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVIma
 
 void ImageROIModel::overwrite(const std::shared_ptr<CVImageData> &in, ImageROIParameters &params)
 {
-    int& row = in->image().rows;
-    int& col = in->image().cols;
+    int& row = in->data().rows;
+    int& col = in->data().cols;
     if(params.mCVPointRect2.x > col)
     {
         auto prop = mMapIdToProperty["rect_point_2"];

@@ -30,6 +30,12 @@ TemplateModel()
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     connect( mpEmbeddedWidget, &TemplateEmbeddedWidget::button_clicked_signal, this, &TemplateModel::em_button_clicked );
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
+    mpCVImageData->data().create(320,240, CV_8UC3);
+
+    mpStdVectorIntData = std::make_shared< StdVectorIntData >();
+    auto & raw_data = mpStdVectorIntData->data();
+    for( int idx = 0; idx < 10; ++idx )
+        raw_data.push_back(idx);
 
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = mpEmbeddedWidget->get_combobox_string_list();
@@ -44,17 +50,17 @@ TemplateModel()
     intPropertyType.miMin = mpEmbeddedWidget->get_spinbox()->minimum();
     intPropertyType.miValue = mpEmbeddedWidget->get_spinbox()->value();
     propId = "spinbox_id";
-    auto propSpinBox = std::make_shared< TypedProperty< IntPropertyType > >("SpinBox", propId, QVariant::Int, intPropertyType, "SubProp0" );
+    auto propSpinBox = std::make_shared< TypedProperty< IntPropertyType > >("SpinBox", propId, QMetaType::Int, intPropertyType, "SubProp0" );
     mvProperty.push_back( propSpinBox );
     mMapIdToProperty[ propId ] = propSpinBox;
 
     propId = "checkbox_id";
-    auto propCheckBox = std::make_shared< TypedProperty< bool > >("CheckBox", propId, QVariant::Bool, mbCheckBox, "SubProp1" );
+    auto propCheckBox = std::make_shared< TypedProperty< bool > >("CheckBox", propId, QMetaType::Bool, mbCheckBox, "SubProp1" );
     mvProperty.push_back( propCheckBox );
     mMapIdToProperty[ propId ] = propCheckBox;
 
     propId = "display_id";
-    auto propDisplayText = std::make_shared< TypedProperty< QString > >("Text", propId, QVariant::String, msDisplayText, "SubProp1" );
+    auto propDisplayText = std::make_shared< TypedProperty< QString > >("Text", propId, QMetaType::QString, msDisplayText, "SubProp1" );
     mvProperty.push_back( propDisplayText );
     mMapIdToProperty[ propId ] = propDisplayText;
 
@@ -62,7 +68,7 @@ TemplateModel()
     sizePropertyType.miWidth = mSize.width();
     sizePropertyType.miHeight = mSize.height();
     propId = "size_id";
-    auto propSize = std::make_shared< TypedProperty< SizePropertyType > >("Size", propId, QVariant::Size, sizePropertyType );
+    auto propSize = std::make_shared< TypedProperty< SizePropertyType > >("Size", propId, QMetaType::QSize, sizePropertyType );
     mvProperty.push_back( propSize );
     mMapIdToProperty[ propId ] = propSize;
 
@@ -70,7 +76,7 @@ TemplateModel()
     pointPropertyType.miXPosition = mPoint.x();
     pointPropertyType.miYPosition = mPoint.y();
     propId = "point_id";
-    auto propPoint = std::make_shared< TypedProperty< PointPropertyType > >("Point", propId, QVariant::Point, pointPropertyType );
+    auto propPoint = std::make_shared< TypedProperty< PointPropertyType > >("Point", propId, QMetaType::QPoint, pointPropertyType );
     mvProperty.push_back( propPoint );
     mMapIdToProperty[ propId ] = propPoint;
 }
@@ -82,9 +88,9 @@ nPorts( PortType portType ) const
     switch( portType )
     {
     case PortType::In:
-        return( 1 );
+        return( 2 );
     case PortType::Out:
-        return( 1 );
+        return( 2 );
     default:
         return( 0 );
     }
@@ -94,20 +100,46 @@ NodeDataType
 TemplateModel::
 dataType(PortType portType, PortIndex portIndex) const
 {
-    if( portType == PortType::Out && portIndex == 0 )
+    if( portType == PortType::Out )
+    {
+        if( portIndex == 0 )
         return CVImageData().type();
-    else if( portType == PortType::In && portIndex == 0 )
+        else if( portIndex == 1 )
+            return StdVectorIntData().type();
+        else
+            return NodeDataType();
+    }
+    else if( portType == PortType::In )
+    {
+        if( portIndex == 0 )
         return CVImageData().type();
+        else if( portIndex == 1 )
+            return StdVectorIntData().type();
+        else
+            return NodeDataType();
+    }
     else
         return NodeDataType();
 }
 
 std::shared_ptr<NodeData>
 TemplateModel::
-outData(PortIndex)
+outData(PortIndex index)
 {
-    if( isEnable() && mpCVImageData->image().data != nullptr )
+    if( index ==  0 )
+    {
+        if( isEnable() && mpCVImageData->data().data != nullptr )
         return mpCVImageData;
+    else
+        return nullptr;
+}
+    else if( index == 1 )
+    {
+        if( isEnable() )
+            return mpStdVectorIntData;
+        else
+            return nullptr;
+    }
     else
         return nullptr;
 }
@@ -127,7 +159,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
         {
-            mpCVImageData->set_image( d->image() );
+            mpCVImageData->set_image( d->data() );
         }
     }
 

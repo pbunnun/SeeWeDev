@@ -164,8 +164,8 @@ MatrixOperationModel::
 processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVImageData> & out,
             const MatrixOperationParameters & params )
 {
-    cv::Mat& in0 = in[0]->image();
-    cv::Mat& in1 = in[1]->image();
+    cv::Mat& in0 = in[0]->data();
+    cv::Mat& in1 = in[1]->data();
     if(in0.empty() || in1.empty())
     {
         return;

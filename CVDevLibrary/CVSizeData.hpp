@@ -42,14 +42,15 @@ public:
     }
 
     cv::Size &
-    size()
+    data()
     {
         return mCVSize;
     }
 
     void set_information() override
     {
-        mQSData = QString("[%1 px x %2 px]").arg(mCVSize.height).arg(mCVSize.width);
+        mQSData = QString("Data Type : cv::Size \n");
+        mQSData += QString("[%1 px x %2 px]\n").arg(mCVSize.height).arg(mCVSize.width);
     }
 
 private:

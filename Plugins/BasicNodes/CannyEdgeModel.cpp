@@ -19,38 +19,37 @@
 #include <nodes/DataModelRegistry>
 
 #include <opencv2/imgproc.hpp>
-#include "qtvariantproperty.h"
 
 CannyEdgeModel::
 CannyEdgeModel()
     : PBNodeDataModel( _model_name ),
       _minPixmap( ":CannyEdge.png" )
 {
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
+    mpCVImageOutData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();
 
     IntPropertyType intPropertyType;
     QString propId = "kernel_size";
     intPropertyType.miValue = mParams.miSizeKernel;
-    auto propKernelSize = std::make_shared< TypedProperty< IntPropertyType > >( "Kernel Size", propId, QVariant::Int, intPropertyType, "Operation");
+    auto propKernelSize = std::make_shared< TypedProperty< IntPropertyType > >( "Kernel Size", propId, QMetaType::Int, intPropertyType, "Operation");
     mvProperty.push_back( propKernelSize );
     mMapIdToProperty[ propId ] = propKernelSize;
 
     intPropertyType.miValue = mParams.miThresholdU;
     intPropertyType.miMax = 255;
     propId = "th_u";
-    auto propThresholdU = std::make_shared< TypedProperty< IntPropertyType > >( "Upper Threshold", propId, QVariant::Int, intPropertyType, "Operation" );
+    auto propThresholdU = std::make_shared< TypedProperty< IntPropertyType > >( "Upper Threshold", propId, QMetaType::Int, intPropertyType, "Operation" );
     mvProperty.push_back( propThresholdU );
     mMapIdToProperty[ propId ] = propThresholdU;
 
     intPropertyType.miValue = mParams.miThresholdL;
     propId = "th_l";
-    auto propThresholdL = std::make_shared< TypedProperty< IntPropertyType > >( "Lower Threshold", propId, QVariant::Int, intPropertyType , "Operation");
+    auto propThresholdL = std::make_shared< TypedProperty< IntPropertyType > >( "Lower Threshold", propId, QMetaType::Int, intPropertyType , "Operation");
     mvProperty.push_back( propThresholdL );
     mMapIdToProperty[ propId ] = propThresholdL;
 
     propId = "enable_gradient";
-    auto propEnableGradient = std::make_shared< TypedProperty < bool > > ("Use Edge Gradient", propId, QVariant::Bool, mParams.mbEnableGradient, "Operation");
+    auto propEnableGradient = std::make_shared< TypedProperty < bool > > ("Use Edge Gradient", propId, QMetaType::Bool, mParams.mbEnableGradient, "Operation");
     mvProperty.push_back( propEnableGradient );
     mMapIdToProperty[ propId ] = propEnableGradient;
 }
@@ -103,7 +102,7 @@ outData(PortIndex port)
     {
         if( port == 0 )
         {
-            return mpCVImageData;
+            return mpCVImageOutData;
         }
         else if( port == 1 )
         {
@@ -122,15 +121,15 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
 
     if (nodeData)
     {
-        mpSyncData->state() = false;
+        mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
         if (d)
         {
             mpCVImageInData = d;
-            processData( mpCVImageInData, mpCVImageData, mParams );
+            processData( mpCVImageInData, mpCVImageOutData, mParams );
         }
-        mpSyncData->state() = true;
+        mpSyncData->data() = true;
         Q_EMIT dataUpdated(1);
     }
 
@@ -205,7 +204,7 @@ void
 CannyEdgeModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    mpSyncData->state() = false;
+    mpSyncData->data() = false;
     Q_EMIT dataUpdated(1);
     PBNodeDataModel::setModelProperty( id, value );
 
@@ -272,11 +271,11 @@ setModelProperty( QString & id, const QVariant & value )
 
     if( mpCVImageInData )
     {
-        processData( mpCVImageInData, mpCVImageData, mParams );
+        processData( mpCVImageInData, mpCVImageOutData, mParams );
 
         Q_EMIT dataUpdated(0);
     }
-    mpSyncData->state() = true;
+    mpSyncData->data() = true;
     Q_EMIT dataUpdated(1);
 }
 
@@ -285,12 +284,12 @@ CannyEdgeModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & out,
             const CannyEdgeParameters & params )
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(in_image.empty() || (in_image.depth()!=CV_8U && in_image.depth()!=CV_8S) )
     {
         return;
     }
-    cv::Canny(in_image, out->image(), params.miThresholdL, params.miThresholdU, params.miSizeKernel, params.mbEnableGradient);
+    cv::Canny(in_image, out->data(), params.miThresholdL, params.miThresholdU, params.miSizeKernel, params.mbEnableGradient);
 }
 
 const QString CannyEdgeModel::_category = QString( "Image Conversion" );

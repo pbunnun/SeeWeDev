@@ -85,13 +85,11 @@ set_active( bool active )
     { 
         ui->mpPlayPauseButton->setEnabled( true );
         ui->mpForwardButton->setEnabled( true );
-        ui->mpBackwardButton->setEnabled( true );
     }
     else
     {
         ui->mpPlayPauseButton->setEnabled( false );
         ui->mpForwardButton->setEnabled( false );
-        ui->mpBackwardButton->setEnabled( false );
     }
 }
 

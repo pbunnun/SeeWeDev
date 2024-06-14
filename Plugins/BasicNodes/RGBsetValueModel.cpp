@@ -22,7 +22,6 @@
 #include <nodes/DataModelRegistry>
 
 #include <opencv2/imgproc.hpp>
-#include "qtvariantproperty.h"
 
 RGBsetValueModel::RGBsetValueModel()
     :PBNodeDataModel( _model_name ),
@@ -37,19 +36,19 @@ RGBsetValueModel::RGBsetValueModel()
     UcharPropertyType ucharPropertyType;
     QString propId = "r_value";
     ucharPropertyType.mucValue = mParams.mucRvalue;
-    auto propRvalue = std::make_shared<TypedProperty<UcharPropertyType>>("R Value",propId,QVariant::Int, ucharPropertyType, "Operation");
+    auto propRvalue = std::make_shared<TypedProperty<UcharPropertyType>>("R Value",propId,QMetaType::Int, ucharPropertyType, "Operation");
     mvProperty.push_back(propRvalue);
     mMapIdToProperty[propId] = propRvalue;
 
     propId = "g_value";
     ucharPropertyType.mucValue = mParams.mucGvalue;
-    auto propGvalue = std::make_shared<TypedProperty<UcharPropertyType>>("G Value",propId,QVariant::Int, ucharPropertyType, "Operation");
+    auto propGvalue = std::make_shared<TypedProperty<UcharPropertyType>>("G Value",propId,QMetaType::Int, ucharPropertyType, "Operation");
     mvProperty.push_back(propGvalue);
     mMapIdToProperty[propId] = propGvalue;
 
     propId = "b_value";
     ucharPropertyType.mucValue = mParams.mucBvalue;
-    auto propBvalue = std::make_shared<TypedProperty<UcharPropertyType>>("B Value",propId,QVariant::Int,ucharPropertyType, "Operation");
+    auto propBvalue = std::make_shared<TypedProperty<UcharPropertyType>>("B Value",propId,QMetaType::Int,ucharPropertyType, "Operation");
     mvProperty.push_back(propBvalue);
     mMapIdToProperty[propId] = propBvalue;
 }
@@ -98,7 +97,7 @@ void RGBsetValueModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
         if(d) //no image modification when initially setting in the data
         {
             mpCVImageInData = d;
-            mpCVImageData->set_image(mpCVImageInData->image());
+            mpCVImageData->set_image(mpCVImageInData->data());
         }
     }
 
@@ -158,7 +157,7 @@ em_button_clicked( int )
 {
    if(mpCVImageInData)
    {
-       mpCVImageData->set_image(mpCVImageInData->image());
+       mpCVImageData->set_image(mpCVImageInData->data());
        Q_EMIT dataUpdated( 0 );
    }
 }
@@ -215,7 +214,7 @@ void RGBsetValueModel::setModelProperty(QString &id, const QVariant & value)
 
 void RGBsetValueModel::processData(std::shared_ptr<CVImageData> &out, const RGBsetValueProperties &props)
 {
-    cv::Mat& out_image = out->image();
+    cv::Mat& out_image = out->data();
     if(out_image.empty() || out_image.type()!=CV_8UC3)
     {
         return;

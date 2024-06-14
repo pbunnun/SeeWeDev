@@ -2,6 +2,14 @@ cmake_minimum_required(VERSION 3.5)
 
 project(CVDevLibrary LANGUAGES CXX)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_AUTOUIC ON)
@@ -13,6 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
+find_package(OpenCV CONFIG REQUIRED)
 
 file(GLOB CPP_FILES *.cpp)
 file(GLOB HPP_FILES *.hpp)
@@ -36,7 +45,9 @@ set_target_properties(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     NodeEditor
-    QtPropertyBrowserLibrary)
+    QtPropertyBrowserLibrary
+    ${OpenCV_LIBS}
+    )
 
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}
     ${NodeEditor_INCLUDE_DIRS}

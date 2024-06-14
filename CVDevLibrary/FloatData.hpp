@@ -41,14 +41,16 @@ public:
     }
 
     float &
-    number()
+    data()
     {
         return mfData;
     }
 
     void set_information() override
     {
-        mQSData = QString::number(mfData);
+        mQSData = QString("Data Type : float \n");
+        mQSData += QString::number(mfData);
+        mQSData += QString("\n");
     }
 
 private:

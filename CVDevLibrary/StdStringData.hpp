@@ -42,14 +42,16 @@ public:
     }
 
     std::string
-    text() const
+    data() const
     {
         return msData;
     }
 
     void set_information() override
     {
-        mQSData = QString::fromStdString(msData);
+        mQSData = QString("Data Type : std::string \n");
+        mQSData += QString::fromStdString(msData);
+        mQSData += QString("\n");
     }
 
 private:

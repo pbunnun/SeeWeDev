@@ -31,25 +31,25 @@ MakeBorderModel()
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mParams.miBorderTop;
     QString propId = "border_top";
-    auto propBorderTop = std::make_shared< TypedProperty< IntPropertyType > >( "Top", propId, QVariant::Int, intPropertyType, "Display");
+    auto propBorderTop = std::make_shared< TypedProperty< IntPropertyType > >( "Top", propId, QMetaType::Int, intPropertyType, "Display");
     mvProperty.push_back( propBorderTop );
     mMapIdToProperty[ propId ] = propBorderTop;
 
     intPropertyType.miValue = mParams.miBorderBottom;
     propId = "border_bottom";
-    auto propBorderBottom = std::make_shared< TypedProperty< IntPropertyType > >( "Bottom", propId, QVariant::Int, intPropertyType, "Display");
+    auto propBorderBottom = std::make_shared< TypedProperty< IntPropertyType > >( "Bottom", propId, QMetaType::Int, intPropertyType, "Display");
     mvProperty.push_back( propBorderBottom );
     mMapIdToProperty[ propId ] = propBorderBottom;
 
     intPropertyType.miValue = mParams.miBorderBottom;
     propId = "border_left";
-    auto propBorderLeft = std::make_shared< TypedProperty< IntPropertyType > >( "Left", propId, QVariant::Int, intPropertyType, "Display");
+    auto propBorderLeft = std::make_shared< TypedProperty< IntPropertyType > >( "Left", propId, QMetaType::Int, intPropertyType, "Display");
     mvProperty.push_back( propBorderLeft );
     mMapIdToProperty[ propId ] = propBorderLeft;
 
     intPropertyType.miValue = mParams.miBorderRight;
     propId = "border_right";
-    auto propBorderRight = std::make_shared< TypedProperty< IntPropertyType > >( "Right", propId, QVariant::Int, intPropertyType, "Display");
+    auto propBorderRight = std::make_shared< TypedProperty< IntPropertyType > >( "Right", propId, QMetaType::Int, intPropertyType, "Display");
     mvProperty.push_back( propBorderRight );
     mMapIdToProperty[ propId ] = propBorderRight;
 
@@ -64,31 +64,31 @@ MakeBorderModel()
     UcharPropertyType ucharPropertyType;
     ucharPropertyType.mucValue = mParams.mucBorderColor[0];
     propId = "border_color_b";
-    auto propBorderColorB = std::make_shared< TypedProperty <UcharPropertyType>>("B value", propId, QVariant::Int, ucharPropertyType, "Display");
+    auto propBorderColorB = std::make_shared< TypedProperty <UcharPropertyType>>("B value", propId, QMetaType::Int, ucharPropertyType, "Display");
     mvProperty.push_back( propBorderColorB );
     mMapIdToProperty[ propId ] = propBorderColorB;
 
     ucharPropertyType.mucValue = mParams.mucBorderColor[1];
     propId = "border_color_g";
-    auto propBorderColorG = std::make_shared< TypedProperty <UcharPropertyType>>("G value", propId, QVariant::Int, ucharPropertyType, "Display");
+    auto propBorderColorG = std::make_shared< TypedProperty <UcharPropertyType>>("G value", propId, QMetaType::Int, ucharPropertyType, "Display");
     mvProperty.push_back( propBorderColorG );
     mMapIdToProperty[ propId ] = propBorderColorG;
 
     ucharPropertyType.mucValue = mParams.mucBorderColor[2];
     propId = "border_color_r";
-    auto propBorderColorR = std::make_shared< TypedProperty <UcharPropertyType>>("R value", propId, QVariant::Int, ucharPropertyType, "Display");
+    auto propBorderColorR = std::make_shared< TypedProperty <UcharPropertyType>>("R value", propId, QMetaType::Int, ucharPropertyType, "Display");
     mvProperty.push_back( propBorderColorR );
     mMapIdToProperty[ propId ] = propBorderColorR;
 
     QString inputSize = QString("%1 px x %2 px").arg(mProps.mCVSizeInput.height).arg(mProps.mCVSizeInput.width);
     propId = "input_size";
-    auto propInputSize = std::make_shared< TypedProperty <QString>>("Input Size", propId, QVariant::String, inputSize, "Properties");
+    auto propInputSize = std::make_shared< TypedProperty <QString>>("Input Size", propId, QMetaType::QString, inputSize, "Properties");
     mvProperty.push_back( propInputSize );
     mMapIdToProperty[ propId ] = propInputSize;
 
     QString outputSize = QString("%1 px x %2 px").arg(mProps.mCVSizeOutput.height).arg(mProps.mCVSizeOutput.width);
     propId = "output_size";
-    auto propOutputSize = std::make_shared< TypedProperty <QString>>("Output Size", propId, QVariant::String, outputSize, "Properties");
+    auto propOutputSize = std::make_shared< TypedProperty <QString>>("Output Size", propId, QMetaType::QString, outputSize, "Properties");
     mvProperty.push_back( propOutputSize );
     mMapIdToProperty[ propId ] = propOutputSize;
 }
@@ -353,12 +353,12 @@ MakeBorderModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & out,
             const MakeBorderParameters & params, MakeBorderProperties &props )
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if(in_image.empty())
     {
         return;
     }
-    cv::Mat& out_image = out->image();
+    cv::Mat& out_image = out->data();
 
     cv::copyMakeBorder(in_image,
                        out_image,

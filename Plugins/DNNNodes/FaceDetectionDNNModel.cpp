@@ -111,7 +111,7 @@ FaceDetectionDNNModel()
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();
-    mpSyncData->state() = true;
+    mpSyncData->data() = true;
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msDNNModel_Filename;
@@ -193,9 +193,9 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 {
     if( !isEnable() )
         return;
-    if( nodeData && mpSyncData->state() == true )
+    if( nodeData && mpSyncData->data() == true )
     {
-        mpSyncData->state() = false;
+        mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
@@ -293,7 +293,7 @@ FaceDetectionDNNModel::
 received_result( cv::Mat & result )
 {
     mpCVImageData->set_image( result );
-    mpSyncData->state() = true;
+    mpSyncData->data() = true;
 
     updateAllOutputPorts();
 }
@@ -314,7 +314,7 @@ void
 FaceDetectionDNNModel::
 processData(const std::shared_ptr< CVImageData > & in)
 {
-    cv::Mat& in_image = in->image();
+    cv::Mat& in_image = in->data();
     if( !in_image.empty() )
         mpFaceDetectorThread->detect( in_image );
 }

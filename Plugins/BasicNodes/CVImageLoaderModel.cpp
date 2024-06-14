@@ -62,12 +62,12 @@ CVImageLoaderModel()
     intPropertyType.miMin = 5;
     intPropertyType.miValue = miFlipPeriodInMillisecond;
     propId = "flip_period";
-    auto propSpinBox = std::make_shared< TypedProperty< IntPropertyType > >( "Flip Period (ms)", propId, QVariant::Int, intPropertyType );
+    auto propSpinBox = std::make_shared< TypedProperty< IntPropertyType > >( "Flip Period (ms)", propId, QMetaType::Int, intPropertyType );
     mvProperty.push_back( propSpinBox );
     mMapIdToProperty[ propId ] = propSpinBox;
 
     propId = "is_loop";
-    auto propIsLoop = std::make_shared< TypedProperty< bool > >( "Loop Flip", propId, QVariant::Bool, true );
+    auto propIsLoop = std::make_shared< TypedProperty< bool > >( "Loop Flip", propId, QMetaType::Bool, true );
     mvProperty.push_back( propIsLoop );
     mMapIdToProperty[ propId ] = propIsLoop;
 
@@ -75,33 +75,33 @@ CVImageLoaderModel()
     sizePropertyType.miWidth = 0;
     sizePropertyType.miHeight = 0;
     propId = "image_size";
-    auto propImageSize = std::make_shared< TypedProperty< SizePropertyType > >( "Size", propId, QVariant::Size, sizePropertyType, "", true );
+    auto propImageSize = std::make_shared< TypedProperty< SizePropertyType > >( "Size", propId, QMetaType::QSize, sizePropertyType, "", true );
     mvProperty.push_back( propImageSize );
     mMapIdToProperty[ propId ] = propImageSize;
 
     propId = "image_format";
-    auto propFormat = std::make_shared< TypedProperty< QString > >( "Format", propId, QVariant::String, "", "", true );
+    auto propFormat = std::make_shared< TypedProperty< QString > >( "Format", propId, QMetaType::QString, "", "", true );
     mvProperty.push_back( propFormat );
     mMapIdToProperty[ propId ] = propFormat;
 
     propId = "info_time";
-    auto propInfoTime = std::make_shared< TypedProperty< bool > >( "Time", propId, QVariant::Bool, true, "Info Display" );
+    auto propInfoTime = std::make_shared< TypedProperty< bool > >( "Time", propId, QMetaType::Bool, true, "Info Display" );
     mvProperty.push_back( propInfoTime );
     mMapIdToProperty[ propId ] = propInfoTime;
     propId = "info_image_type";
-    auto propInfoImageType = std::make_shared< TypedProperty< bool > >( "Image Type", propId, QVariant::Bool, true, "Info Display" );
+    auto propInfoImageType = std::make_shared< TypedProperty< bool > >( "Image Type", propId, QMetaType::Bool, true, "Info Display" );
     mvProperty.push_back( propInfoImageType );
     mMapIdToProperty[ propId ] = propInfoImageType;
     propId = "info_image_format";
-    auto propInfoImageFormat = std::make_shared< TypedProperty< bool > >( "Image Format", propId, QVariant::Bool, true, "Info Display" );
+    auto propInfoImageFormat = std::make_shared< TypedProperty< bool > >( "Image Format", propId, QMetaType::Bool, true, "Info Display" );
     mvProperty.push_back( propInfoImageFormat );
     mMapIdToProperty[ propId ] = propInfoImageFormat;
     propId = "info_image_size";
-    auto propInfoImageSize = std::make_shared< TypedProperty< bool > >( "Image Size", propId, QVariant::Bool, true, "Info Display" );
+    auto propInfoImageSize = std::make_shared< TypedProperty< bool > >( "Image Size", propId, QMetaType::Bool, true, "Info Display" );
     mvProperty.push_back( propInfoImageSize );
     mMapIdToProperty[ propId ] = propInfoImageSize;
     propId = "info_image_filename";
-    auto propInfoImageFilename = std::make_shared< TypedProperty< bool > >( "Image Filename", propId, QVariant::Bool, true, "Info Display" );
+    auto propInfoImageFilename = std::make_shared< TypedProperty< bool > >( "Image Filename", propId, QMetaType::Bool, true, "Info Display" );
     mvProperty.push_back( propInfoImageFilename );
     mMapIdToProperty[ propId ] = propInfoImageFilename;
 }
@@ -159,7 +159,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex )
     {
         auto d = std::dynamic_pointer_cast< SyncData > ( nodeData );
         if( d )
-            mbSyncSignal = d->state();
+            mbSyncSignal = d->data();
     }
 }
 
@@ -170,7 +170,7 @@ outData(PortIndex portIndex)
     std::shared_ptr<NodeData> result;
     if( isEnable() )
     {
-        if( portIndex == 0 && mpCVImageData->image().data != nullptr )
+        if( portIndex == 0 && mpCVImageData->data().data != nullptr )
             result = mpCVImageData;
         else if( portIndex == 1 )
             result = mpInformationData;
@@ -561,8 +561,8 @@ set_image_filename(QString & filename)
         }
 
         mpInformationData->set_information( sInformation );
-        mpCVSizeData->size().width = cvImage.cols;
-        mpCVSizeData->size().height = cvImage.rows;
+        mpCVSizeData->data().width = cvImage.cols;
+        mpCVSizeData->data().height = cvImage.rows;
 
         auto prop = mMapIdToProperty["image_size"];
         auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );

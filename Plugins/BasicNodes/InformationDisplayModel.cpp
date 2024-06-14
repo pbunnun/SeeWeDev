@@ -62,10 +62,14 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         auto d = std::dynamic_pointer_cast< InformationData >( nodeData );
         if( d )
         {
+            if( !d->info().isEmpty() )
+            {
             mpInformationData = d;
             d->set_information();
+                mpEmbeddedWidget->appendPlainText("............................................\n");
             mpEmbeddedWidget->appendPlainText( d->info() );
         }
+    }
     }
     if(portIndex == 1)
     {

@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
@@ -27,7 +25,7 @@
 #include <nodes/DataModelRegistry>
 #include "PBNodeDataModel.hpp"
 #include "CVImageData.hpp"
-#include "IntegerData.hpp"
+#include "ContourPointsData.hpp"
 
 
 using QtNodes::PortType;
@@ -37,17 +35,13 @@ using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
 
 typedef struct DrawContourParameters{
-    int miContourMode;
-    int miContourMethod;
     int mucBValue;
     int mucGValue;
     int mucRValue;
     int miLineThickness;
     int miLineType;
     DrawContourParameters()
-        : miContourMode(1),
-          miContourMethod(1),
-          mucBValue(0),
+        : mucBValue(0),
           mucGValue(255),
           mucRValue(0),
           miLineThickness(2),
@@ -101,16 +95,15 @@ public:
 
     static const QString _model_name;
 
-
 private:
     DrawContourParameters mParams;
     std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };
-    std::shared_ptr<IntegerData> mpIntegerData {nullptr};
+    std::shared_ptr<CVImageData> mpCVImageOutData { nullptr };
+    std::shared_ptr<ContourPointsData> mpContourPointsData {nullptr};
     QPixmap _minPixmap;
 
     void processData(const std::shared_ptr<CVImageData>& in, std::shared_ptr<CVImageData>& outImage,
-                     std::shared_ptr<IntegerData> &outInt, const DrawContourParameters& params);
+                     std::shared_ptr<ContourPointsData> &ctrPnts, const DrawContourParameters& params);
 };
 
 #endif // DRAWCONTOURMODEL_HPP

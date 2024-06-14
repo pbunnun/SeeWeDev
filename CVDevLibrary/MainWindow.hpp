@@ -22,6 +22,7 @@
 #include <FlowScene>
 #include <QMainWindow>
 #include <QTreeWidgetItem>
+#include <QPluginLoader>
 #include "PBNodeDataModel.hpp"
 #include "PBFlowScene.hpp"
 #include "PBFlowView.hpp"
@@ -137,7 +138,8 @@ private:
     QMap< QtProperty *, QString > mMapQtPropertyToPropertyId;
     QMap< QString, QtProperty * > mMapPropertyIdToQtProperty;
     QMap< QString, bool > mMapPropertyIdToExpanded;
-    QList< QtGroupPropertyManager * > mListGroupPropertyManager;
+    QList< QtGroupPropertyManager * > mGroupPropertyManagerList;
+    QList< QPluginLoader * > mPluginsList;
 
     QString msSettingFilename;
     const QString msProgramName{ "CVDev" };

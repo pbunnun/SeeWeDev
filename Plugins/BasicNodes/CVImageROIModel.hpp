@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <QtCore/QObject>
 #include <QtWidgets/QSpinBox>
 #include <QtCore/QThread>
@@ -87,7 +85,7 @@ private:
     std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
     std::shared_ptr<CVImageData> mpCVImageOutData { nullptr };
 
-    cv::Rect mRect { cv::Rect( 0, 0, 640, 480 ) };
+    cv::Rect mRectROI { cv::Rect( 0, 0, 640, 480 ) };
 };
 
 #endif

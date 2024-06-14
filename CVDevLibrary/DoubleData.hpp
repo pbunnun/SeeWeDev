@@ -41,14 +41,16 @@ public:
     }
 
     double &
-    number()
+    data()
     {
         return mdData;
     }
 
     void set_information() override
     {
-        mQSData = QString::number(mdData);
+        mQSData = QString("Data Type : double \n");
+        mQSData += QString::number(mdData);
+        mQSData += QString("\n");
     }
 
 private:

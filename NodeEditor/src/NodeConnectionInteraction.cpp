@@ -72,6 +72,13 @@ canConnect(PortIndex &portIndex, TypeConverter & converter) const
 
   if (connectionDataType.id != candidateNodeDataType.id)
   {
+    // If In is Information Data, a link should accept the connection.
+    /*
+    qDebug()
+    if (candidateNodeDataType.id == "Inf")
+        return true;
+    */
+
     if (requiredPort == PortType::In)
     {
       converter = _scene->registry().getTypeConverter(connectionDataType, candidateNodeDataType);
