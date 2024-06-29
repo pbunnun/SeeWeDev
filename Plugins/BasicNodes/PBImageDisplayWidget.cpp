@@ -15,18 +15,17 @@
 #include <QtGui>
 #include <QtOpenGL/QtOpenGL>
 #include "PBImageDisplayWidget.hpp"
-#include <iostream>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <QDebug>
 
 PBImageDisplayWidget::
 PBImageDisplayWidget(QWidget *parent)
-    : QOpenGLWidget( parent )
+    : ImageDisplayWidget( parent )
 {
     QSize minSize = QSize( 80, 60 );
     setMinimumSize( minSize );
-    resize(minSize);
+    resize(QSize(640,480));
     setAutoFillBackground( false );
 }
 
@@ -54,6 +53,7 @@ PBImageDisplayWidget::
 paintEvent( QPaintEvent * )
 {
     mPainter.begin( this );
+    mPainter.setRenderHint(QPainter::Antialiasing);
     if( muImageFormat == 1 )
     {
         QImage image( static_cast< uchar* >( mCVImage.data ), mCVImage.cols, mCVImage.rows, static_cast< qint32 >( mCVImage.step ), QImage::Format_Grayscale8 );
@@ -82,5 +82,5 @@ resizeEvent( QResizeEvent * ev )
         mrScale_x = static_cast< qreal >( this->width() )/static_cast< qreal >( mCVImage.cols );
         mrScale_y = static_cast< qreal >( this->height() )/static_cast< qreal >( mCVImage.rows );
     }
-    QOpenGLWidget::resizeEvent(ev);
+    ImageDisplayWidget::resizeEvent(ev);
 }

@@ -29,7 +29,7 @@ CVImageDisplayModel()
       mpEmbeddedWidget( new PBImageDisplayWidget(qobject_cast<QWidget *>(this)) )
 {
     mpEmbeddedWidget->installEventFilter( this );
-    mpEmbeddedWidget->resize(120, 90);
+    mpEmbeddedWidget->resize(640, 480);
     mpSyncData = std::make_shared<SyncData>( true );
 
     SizePropertyType sizePropertyType;
@@ -99,7 +99,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if (nodeData)
     {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(0);
+        //Q_EMIT dataUpdated(0);
         mpNodeData = nodeData;
         display_image();
         mpSyncData->data() = true;

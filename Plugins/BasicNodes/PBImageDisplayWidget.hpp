@@ -15,13 +15,19 @@
 #ifndef PBIMAGEDISPLAYWIDGET_HPP
 #define PBIMAGEDISPLAYWIDGET_HPP
 
-#include "CVDevLibrary.hpp"
+#include <QtVersionChecks>
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0) )
+    #define ImageDisplayWidget QOpenGLWidget
+    #include <QOpenGLWidget>
+#else
+    #define ImageDisplayWidget QLabel
+    #include <QLabel>
+#endif
 
-#include <QOpenGLWidget>
 #include <QPainter>
 #include <opencv2/core/core.hpp>
 
-class PBImageDisplayWidget : public QOpenGLWidget
+class PBImageDisplayWidget : public ImageDisplayWidget
 {
     Q_OBJECT
 public:

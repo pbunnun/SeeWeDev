@@ -17,10 +17,7 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <QtCore/QObject>
-#include <QtWidgets/QLabel>
 
 #include <nodes/DataModelRegistry>
 #include "PBNodeDataModel.hpp"
