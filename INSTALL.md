@@ -18,6 +18,16 @@ MS Windows: tested with
         
         cuda and cudnn flags may be removed.
 
+    - Windows 10 64bits
+    - Visual Studio Community 2022
+    - Qt 6.7.2
+    - OpenCV 4.8.0
+    - vcpkg is used to compile required libraries.
+        - vcpkg.exe install opencv4[contrib,dnn,eigen,ffmpeg,ipp,jasper,jpeg,lapack,nonfree,opengl,png,qt,sfm,tbb,quirc,tiff,webp,cuda,cudnn] --recurse
+        
+        cuda and cudnn flags may be removed.
+
+
 macOS: tested with
 
     - macOS 10.15.5, 11.3
