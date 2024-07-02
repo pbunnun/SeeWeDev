@@ -18,6 +18,8 @@
 #include "TextDetectionDNNModel.hpp"
 #include "TextRecognitionDNNModel.hpp"
 #include "CVYoloDNNModel.hpp"
+#include "NecMLClassificationModel.hpp"
+#include "NomadMLClassificationModel.hpp"
 
 QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< DataModelRegistry > model_regs )
 {
@@ -28,6 +30,8 @@ QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< DataModelRegistry
     registerModel< TextDetectionDNNModel >( model_regs, duplicate_model_names );
     registerModel< TextRecognitionDNNModel >( model_regs, duplicate_model_names );
     registerModel< CVYoloDNNModel >( model_regs, duplicate_model_names );
+    registerModel< NecMLClassificationModel >( model_regs, duplicate_model_names );
+    registerModel< NomadMLClassificationModel >( model_regs, duplicate_model_names );
 
     return duplicate_model_names;
 }
