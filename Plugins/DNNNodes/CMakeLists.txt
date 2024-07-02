@@ -7,11 +7,10 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if (NOT WIN32)
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
     set(CMAKE_CXX_FLAGS_DEBUG "-g")
     set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 endif()
-
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
