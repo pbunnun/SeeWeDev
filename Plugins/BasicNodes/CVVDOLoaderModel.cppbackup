@@ -193,7 +193,7 @@ restore(const QJsonObject &p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj["filename"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             QString filename = v.toString();
             set_vdo_filename(filename, false);

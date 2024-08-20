@@ -154,7 +154,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "imageDepth" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "image_depth" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -163,7 +163,7 @@ restore(QJsonObject const& p)
             mParams.miImageDepth = v.toInt();
         }
         v = paramsObj[ "alpha" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "alpha" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -172,7 +172,7 @@ restore(QJsonObject const& p)
             mParams.mdAlpha = v.toDouble();
         }
         v = paramsObj[ "beta" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "beta" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );

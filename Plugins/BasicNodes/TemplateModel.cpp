@@ -103,7 +103,7 @@ dataType(PortType portType, PortIndex portIndex) const
     if( portType == PortType::Out )
     {
         if( portIndex == 0 )
-        return CVImageData().type();
+            return CVImageData().type();
         else if( portIndex == 1 )
             return StdVectorIntData().type();
         else
@@ -112,7 +112,7 @@ dataType(PortType portType, PortIndex portIndex) const
     else if( portType == PortType::In )
     {
         if( portIndex == 0 )
-        return CVImageData().type();
+            return CVImageData().type();
         else if( portIndex == 1 )
             return StdVectorIntData().type();
         else
@@ -129,10 +129,10 @@ outData(PortIndex index)
     if( index ==  0 )
     {
         if( isEnable() && mpCVImageData->data().data != nullptr )
-        return mpCVImageData;
-    else
-        return nullptr;
-}
+            return mpCVImageData;
+        else
+            return nullptr;
+    }
     else if( index == 1 )
     {
         if( isEnable() )
@@ -208,7 +208,7 @@ restore(const QJsonObject &p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "combobox_text" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "combobox_id" ];
             /* Restore internal property */
@@ -218,7 +218,7 @@ restore(const QJsonObject &p)
             mpEmbeddedWidget->set_combobox_value( v.toString() );
         }
         v = paramsObj[ "spinbox_value" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "spinbox_id" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -227,7 +227,7 @@ restore(const QJsonObject &p)
             mpEmbeddedWidget->set_spinbox_value( v.toInt() );
         }
         v = paramsObj[ "checkbox_value" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "checkbox_id" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
@@ -236,7 +236,7 @@ restore(const QJsonObject &p)
             mbCheckBox = v.toBool();
         }
         v = paramsObj[ "display_text" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "display_id" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );
@@ -247,7 +247,7 @@ restore(const QJsonObject &p)
         }
         QJsonValue qjWidth = paramsObj[ "size_width" ];
         QJsonValue qjHeight = paramsObj[ "size_height" ];
-        if( !qjWidth.isUndefined() && !qjHeight.isUndefined() )
+        if( !qjWidth.isNull() && !qjHeight.isNull() )
         {
             auto prop = mMapIdToProperty[ "size_id" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
@@ -260,7 +260,7 @@ restore(const QJsonObject &p)
 
         QJsonValue qjXPos = paramsObj[ "point_x" ];
         QJsonValue qjYPos = paramsObj[ "point_y" ];
-        if( !qjXPos.isUndefined() && !qjYPos.isUndefined() )
+        if( !qjXPos.isNull() && !qjYPos.isNull() )
         {
             auto prop = mMapIdToProperty[ "point_id" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );

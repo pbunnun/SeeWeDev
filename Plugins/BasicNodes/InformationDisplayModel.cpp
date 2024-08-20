@@ -64,12 +64,12 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         {
             if( !d->info().isEmpty() )
             {
-            mpInformationData = d;
-            d->set_information();
+                mpInformationData = d;
+                d->set_information();
                 mpEmbeddedWidget->appendPlainText("............................................\n");
-            mpEmbeddedWidget->appendPlainText( d->info() );
+                mpEmbeddedWidget->appendPlainText( d->info() );
+            }
         }
-    }
     }
     if(portIndex == 1)
     {

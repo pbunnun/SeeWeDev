@@ -177,7 +177,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "orderX" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "order_x" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -186,7 +186,7 @@ restore(QJsonObject const& p)
             mParams.miOrderX = v.toInt();
         }
         v =  paramsObj[ "orderY" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "order_y" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -195,7 +195,7 @@ restore(QJsonObject const& p)
             mParams.miOrderY = v.toInt();
         }
         v =  paramsObj[ "kernelSize" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "kernel_size" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -204,7 +204,7 @@ restore(QJsonObject const& p)
             mParams.miKernelSize = v.toInt();
         }
         v = paramsObj[ "scale" ];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty[ "scale" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType >>(prop);
@@ -213,7 +213,7 @@ restore(QJsonObject const& p)
             mParams.mdScale = v.toDouble();
         }
         v = paramsObj[ "delta" ];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty[ "delta" ];
             auto typedProp  = std::static_pointer_cast< TypedProperty< DoublePropertyType >>(prop);
@@ -222,7 +222,7 @@ restore(QJsonObject const& p)
             mParams.mdDelta = v.toDouble();
         }
         v = paramsObj[ "borderType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -230,7 +230,7 @@ restore(QJsonObject const& p)
             mParams.miBorderType = v.toInt();
         }
         v = paramsObj[ "checked" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "checked" ];
             auto typedProp = std::static_pointer_cast< TypedProperty <bool>>(prop);
@@ -239,7 +239,7 @@ restore(QJsonObject const& p)
             mpEmbeddedWidget->change_check_checkbox(v.toBool()? Qt::Checked : Qt::Unchecked);
         }
         v = paramsObj[ "enabled" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "enabled" ];
             auto typedProp = std::static_pointer_cast< TypedProperty <bool>>(prop);

@@ -130,7 +130,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "imageName" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "image_name" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );
@@ -139,7 +139,7 @@ restore(QJsonObject const& p)
             mProps.msImageName = v.toString().toStdString();
         }
         v =  paramsObj[ "description" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "description" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );

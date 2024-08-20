@@ -119,7 +119,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "maintainChannels" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "maintain_channels" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );

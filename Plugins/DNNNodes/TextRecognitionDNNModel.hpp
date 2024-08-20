@@ -57,7 +57,7 @@ public:
 
 Q_SIGNALS:
     void
-    result_ready( cv::Mat & , QString );
+    result_ready( cv::Mat &, QString );
 
 protected:
     void

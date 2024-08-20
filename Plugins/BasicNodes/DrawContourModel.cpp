@@ -89,11 +89,11 @@ dataType(PortType portType, PortIndex portIndex) const
     if( portType == PortType::In )
     {
         if( portIndex == 0 )
-    {
-        return CVImageData().type();
-    }
+        {
+            return CVImageData().type();
+        }
         else if( portIndex == 1 )
-    {
+        {
             return ContourPointsData().type();
         }
     }
@@ -127,20 +127,20 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex )
         return;
     if( portIndex == 0 )
     {
-    if( nodeData )
-    {
+        if( nodeData )
+        {
             if( mpCVImageInData )
                 mpContourPointsData = nullptr;
-        auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
-        if( d )
-        {
-            mpCVImageInData = d;
+            auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
+            if( d )
+            {
+                mpCVImageInData = d;
                 if( mpContourPointsData )
                 {
                     processData(mpCVImageInData, mpCVImageOutData, mpContourPointsData, mParams);
                     Q_EMIT dataUpdated(0);
                 }
-    }
+            }
         }
     }
     else if( portIndex == 1 )
@@ -196,7 +196,7 @@ restore(const QJsonObject &p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "bValue" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "b_value" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >(prop);
@@ -205,7 +205,7 @@ restore(const QJsonObject &p)
             mParams.mucBValue = v.toInt();
         }
         v = paramsObj[ "gValue" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "g_value" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >(prop);
@@ -214,7 +214,7 @@ restore(const QJsonObject &p)
             mParams.mucGValue = v.toInt();
         }
         v = paramsObj[ "rValue" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "r_value" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < UcharPropertyType > >(prop);
@@ -223,7 +223,7 @@ restore(const QJsonObject &p)
             mParams.mucRValue = v.toInt();
         }
         v = paramsObj[ "lineThickness" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "line_thickness" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < IntPropertyType > >(prop);
@@ -232,7 +232,7 @@ restore(const QJsonObject &p)
             mParams.miLineThickness = v.toInt();
         }
         v = paramsObj[ "lineType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "line_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < EnumPropertyType > >(prop);

@@ -182,7 +182,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "borderTop" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_top" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -191,7 +191,7 @@ restore(QJsonObject const& p)
             mParams.miBorderTop = v.toInt();
         }
         v = paramsObj[ "borderBottom" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_bottom" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -200,7 +200,7 @@ restore(QJsonObject const& p)
             mParams.miBorderBottom = v.toInt();
         }
         v = paramsObj[ "borderLeft" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_left" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -209,7 +209,7 @@ restore(QJsonObject const& p)
             mParams.miBorderLeft = v.toInt();
         }
         v = paramsObj[ "borderRight" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_right" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -218,7 +218,7 @@ restore(QJsonObject const& p)
             mParams.miBorderRight = v.toInt();
         }
         v = paramsObj[ "borderType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -227,7 +227,7 @@ restore(QJsonObject const& p)
             mParams.miBorderType = v.toInt();
         }
         v = paramsObj[ "borderColorB" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_color_b" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );
@@ -236,7 +236,7 @@ restore(QJsonObject const& p)
             mParams.mucBorderColor[0] = v.toInt();
         }
         v = paramsObj[ "borderColorG" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_color_g" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );
@@ -245,7 +245,7 @@ restore(QJsonObject const& p)
             mParams.mucBorderColor[1] = v.toInt();
         }
         v = paramsObj[ "borderColorR" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_color_r" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );

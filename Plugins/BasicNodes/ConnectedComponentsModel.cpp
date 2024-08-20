@@ -164,7 +164,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "connectivity" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "connectivity" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -173,7 +173,7 @@ restore(QJsonObject const& p)
             mParams.miConnectivity = v.toInt();
         }
         v =  paramsObj[ "imageType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "image_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -182,7 +182,7 @@ restore(QJsonObject const& p)
             mParams.miImageType = v.toInt();
         }
         v =  paramsObj[ "algorithmType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "algorithm_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -191,7 +191,7 @@ restore(QJsonObject const& p)
             mParams.miAlgorithmType = v.toInt();
         }
         v =  paramsObj[ "visualize" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "visualize" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );

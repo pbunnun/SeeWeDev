@@ -155,7 +155,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "matchingMethod" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "matching_method" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -166,7 +166,7 @@ restore(QJsonObject const& p)
         for(int i=0; i<3; i++)
         {
             v = paramsObj[QString("lineColor%1").arg(i)];
-            if(!v.isUndefined())
+            if(!v.isNull())
             {
                 auto prop = mMapIdToProperty[QString("line_color_%1").arg(i)];
                 auto typedProp = std::static_pointer_cast<TypedProperty<UcharPropertyType>>(prop);
@@ -176,7 +176,7 @@ restore(QJsonObject const& p)
             }
         }
         v = paramsObj[ "lineThickness" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "line_thickness" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < IntPropertyType > >(prop);
@@ -185,7 +185,7 @@ restore(QJsonObject const& p)
             mParams.miLineThickness = v.toInt();
         }
         v = paramsObj[ "lineType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "line_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < EnumPropertyType > >(prop);

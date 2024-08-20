@@ -125,7 +125,7 @@ restore(const QJsonObject &p)
     {
         QJsonValue width = paramsObj[ "width" ];
         QJsonValue height = paramsObj[ "height" ];
-        if( !width.isUndefined() && !height.isUndefined() )
+        if( !width.isNull() && !height.isNull() )
         {
             auto prop = mMapIdToProperty[ "size_id" ];
             /* Restore internal property */

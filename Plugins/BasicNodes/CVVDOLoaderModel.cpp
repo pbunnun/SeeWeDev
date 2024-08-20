@@ -108,7 +108,7 @@ dataType(PortType portType, PortIndex portIndex) const
         if( portIndex == 0 )
             return SyncData().type();
     }
-        return NodeDataType();
+    return NodeDataType();
 }
 
 void
@@ -276,16 +276,16 @@ set_video_filename(QString & filename)
 
             mpEmbeddedWidget->set_maximum_slider( miMaxNoFrames );
 
-    auto prop = mMapIdToProperty["image_size"];
-    auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );
+            auto prop = mMapIdToProperty["image_size"];
+            auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );
             typedPropSize->getData().miWidth = image.cols;
             typedPropSize->getData().miHeight = image.rows;
-    Q_EMIT property_changed_signal( prop );
+            Q_EMIT property_changed_signal( prop );
 
-    prop = mMapIdToProperty[ "image_format" ];
-    auto typedPropFormat = std::static_pointer_cast<TypedProperty<QString>>( prop );
+            prop = mMapIdToProperty[ "image_format" ];
+            auto typedPropFormat = std::static_pointer_cast<TypedProperty<QString>>( prop );
             typedPropFormat->getData() = msImage_Format;
-    Q_EMIT property_changed_signal( prop );
+            Q_EMIT property_changed_signal( prop );
 
         }
     }
@@ -370,6 +370,7 @@ next_frame( )
     {
         mpEmbeddedWidget->set_slider_value( miNextFrame );
         miNextFrame += 1;
+        mbSyncSignal = false;
 // mpEmbeddedWidget->Slider signal is blocked after playing the video file.
         if( isEnable() )
             Q_EMIT dataUpdated( 0 );
@@ -385,6 +386,7 @@ no_frame_changed( int no_frame )
         mcvVideoCapture.set(cv::CAP_PROP_POS_FRAMES, no_frame );
         mcvVideoCapture >> mpCVImageData->data();
         miNextFrame = no_frame + 1;
+        mbSyncSignal = false;
         if( isEnable() )
             Q_EMIT dataUpdated( 0 );
     }

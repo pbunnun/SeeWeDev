@@ -631,7 +631,7 @@ em_button_clicked( int button )
     else if( button == 4 )	// Forward
     {
         miFilenameIndex += 1;
-        if( miFilenameIndex >= mvsImageFilenames.size() )
+        if( miFilenameIndex >= static_cast<int>(mvsImageFilenames.size()) )
             miFilenameIndex = 0;
         auto prop = mMapIdToProperty[ "filename" ];
         auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
@@ -687,7 +687,7 @@ flip_image()
     if( mbUseSyncSignal && !mbSyncSignal )
         return;
     miFilenameIndex += 1;
-    if( miFilenameIndex >= mvsImageFilenames.size() )
+    if( miFilenameIndex >= static_cast<int>(mvsImageFilenames.size()) )
     {
         if( !mbLoop )
         {
@@ -699,6 +699,9 @@ flip_image()
         else
             miFilenameIndex = 0;
     }
+
+    mbSyncSignal = false;
+
     auto prop = mMapIdToProperty[ "filename" ];
     auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
     typedProp->getData().msFilename = mvsImageFilenames[miFilenameIndex];
@@ -708,7 +711,6 @@ flip_image()
     else
         set_image_filename( mvsImageFilenames[miFilenameIndex] );
 
-    mbSyncSignal = false;
 }
 
 void

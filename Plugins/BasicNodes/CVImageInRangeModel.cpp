@@ -148,7 +148,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "thresholdType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "threshold_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -157,7 +157,7 @@ restore(QJsonObject const& p)
             mParams.miThresholdType = v.toInt();
         }
         v =  paramsObj[ "thresholdValue" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "threshold_value" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -166,7 +166,7 @@ restore(QJsonObject const& p)
             mParams.mdThresholdValue = v.toDouble();
         }
         v =  paramsObj[ "binaryValue" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "binary_value" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );

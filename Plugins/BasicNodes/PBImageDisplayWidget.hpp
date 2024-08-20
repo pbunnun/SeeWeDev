@@ -15,7 +15,7 @@
 #ifndef PBIMAGEDISPLAYWIDGET_HPP
 #define PBIMAGEDISPLAYWIDGET_HPP
 
-#include <QtGlobal>
+#include <QtVersionChecks>
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0) )
     #define ImageDisplayWidget QOpenGLWidget
     #include <QOpenGLWidget>

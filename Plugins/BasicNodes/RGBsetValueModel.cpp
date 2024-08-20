@@ -125,7 +125,7 @@ void RGBsetValueModel::restore(QJsonObject const &p)
     if(!paramsObj.isEmpty())
     {
         QJsonValue v =paramsObj["R value"];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty["r_value"];
             auto typedProp =std::static_pointer_cast<TypedProperty<UcharPropertyType>>(prop);
@@ -133,7 +133,7 @@ void RGBsetValueModel::restore(QJsonObject const &p)
             mParams.mucRvalue = v.toInt();
         }
         v =paramsObj["G value"];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty["g_value"];
             auto typedProp =std::static_pointer_cast<TypedProperty<UcharPropertyType>>(prop);
@@ -141,7 +141,7 @@ void RGBsetValueModel::restore(QJsonObject const &p)
             mParams.mucGvalue = v.toInt();
         }
         v =paramsObj["B value"];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty["b_value"];
             auto typedProp =std::static_pointer_cast<TypedProperty<UcharPropertyType>>(prop);

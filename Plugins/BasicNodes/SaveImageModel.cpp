@@ -150,7 +150,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     if(portIndex == 0)
     {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(0);
+        //Q_EMIT dataUpdated(0);
         mpCVImageInData = std::dynamic_pointer_cast< CVImageData >(nodeData);
         if( mbSyncData2SaveImage )
         {
@@ -207,6 +207,11 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
                 Q_EMIT dataUpdated(0);
                 mpCVImageInData = nullptr;
             }
+        }
+        else
+        {
+            mpSyncData->data() = false;
+            Q_EMIT dataUpdated(0);
         }
     }
 }

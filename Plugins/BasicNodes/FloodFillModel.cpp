@@ -207,7 +207,7 @@ restore(QJsonObject const& p)
     {
         QJsonValue argX = paramsObj[ "seedPointX" ];
         QJsonValue argY = paramsObj[ "seedPointY" ];
-        if( !argX.isUndefined() && !argY.isUndefined() )
+        if( !argX.isNull() && !argY.isNull() )
         {
             auto prop = mMapIdToProperty[ "seed_point" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
@@ -220,7 +220,7 @@ restore(QJsonObject const& p)
         for(int i=0; i<4; i++)
         {
             v = paramsObj[QString("fillColor%1").arg(i)];
-            if( !v.isUndefined() )
+            if( !v.isNull() )
             {
                 auto prop = mMapIdToProperty[QString("fill_color_%1").arg(i)];
                 auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );
@@ -229,7 +229,7 @@ restore(QJsonObject const& p)
                 mParams.mucFillColor[i] = v.toInt();
             }
             v = paramsObj[QString("lowerDiff%1").arg(i)];
-            if( !v.isUndefined() )
+            if( !v.isNull() )
             {
                 auto prop = mMapIdToProperty[QString("lower_diff_%1").arg(i)];
                 auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );
@@ -238,7 +238,7 @@ restore(QJsonObject const& p)
                 mParams.mucLowerDiff[i] = v.toInt();
             }
             v = paramsObj[QString("upperDiff%1").arg(i)];
-            if( !v.isUndefined() )
+            if( !v.isNull() )
             {
                 auto prop = mMapIdToProperty[QString("upper_diff_%1").arg(i)];
                 auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );
@@ -249,7 +249,7 @@ restore(QJsonObject const& p)
         }
         mpEmbeddedWidget->set_lower_upper(mParams.mucLowerDiff,mParams.mucUpperDiff);
         v = paramsObj["defineBoundarie"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "define_boundaries" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < bool > >( prop);
@@ -259,7 +259,7 @@ restore(QJsonObject const& p)
         }
         argX = paramsObj[ "rectPoint1X" ];
         argY = paramsObj[ "rectPoint1Y" ];
-        if( !argX.isUndefined() && !argY.isUndefined() )
+        if( !argX.isNull() && !argY.isNull() )
         {
             auto prop = mMapIdToProperty[ "rect_point_1" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
@@ -270,7 +270,7 @@ restore(QJsonObject const& p)
         }
         argX = paramsObj[ "rectPoint2X" ];
         argY = paramsObj[ "rectPoint2Y" ];
-        if( !argX.isUndefined() && !argY.isUndefined() )
+        if( !argX.isNull() && !argY.isNull() )
         {
             auto prop = mMapIdToProperty[ "rect_point_2" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
@@ -280,7 +280,7 @@ restore(QJsonObject const& p)
             mParams.mCVPointRect2 = cv::Point(argX.toInt(),argY.toInt());
         }
         v = paramsObj[ "flags" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "flags" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < EnumPropertyType > >( prop);
@@ -289,7 +289,7 @@ restore(QJsonObject const& p)
             mParams.miFlags = v.toInt();
         }
         v = paramsObj[ "maskColor" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "mask_color" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < IntPropertyType >>( prop);
@@ -298,7 +298,7 @@ restore(QJsonObject const& p)
             mParams.miMaskColor = v.toInt();
         }
         v = paramsObj["activeMask"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "active_mask" ];
             auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);

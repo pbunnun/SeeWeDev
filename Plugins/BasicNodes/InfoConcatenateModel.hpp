@@ -40,6 +40,12 @@ public:
     virtual
     ~InfoConcatenateModel() override {}
 
+    QJsonObject
+    save() const override;
+
+    void
+    restore(QJsonObject const &p) override;
+
     unsigned int
     nPorts( PortType portType ) const override;
 
@@ -62,11 +68,20 @@ public:
 
     static const QString _model_name;
 
+private Q_SLOTS:
+    void
+    inputConnectionCreated(QtNodes::Connection const&) override;
+
+    void
+    inputConnectionDeleted(QtNodes::Connection const&) override;
+
 private:
 
     std::shared_ptr< InformationData > mpInformationData_1;
     std::shared_ptr< InformationData > mpInformationData_2;
     std::shared_ptr< InformationData > mpInformationData;
+
+    bool mbUseSyncSignal{false};
 };
 
 #endif // INFOCONCATENATEMODEL_HPP

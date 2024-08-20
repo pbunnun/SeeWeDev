@@ -124,7 +124,7 @@ restore(const QJsonObject &p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue angle = paramsObj[ "angle" ];
-        if( !angle.isUndefined() )
+        if( !angle.isNull() )
         {
             auto prop = mMapIdToProperty[ "angle_id" ];
             /* Restore internal property */

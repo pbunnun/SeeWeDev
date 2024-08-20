@@ -136,7 +136,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "second" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "second" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -145,7 +145,7 @@ restore(QJsonObject const& p)
             mpEmbeddedWidget->set_second_spinbox(v.toInt());
         }
         v = paramsObj[ "millisecond" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "millisecond" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -154,7 +154,7 @@ restore(QJsonObject const& p)
             mpEmbeddedWidget->set_millisecond_spinbox(v.toInt());
         }
         v = paramsObj[ "PF" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "pf" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -163,7 +163,7 @@ restore(QJsonObject const& p)
             mpEmbeddedWidget->set_pf_combobox(v.toInt());
         }
         v = paramsObj[ "start" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "start" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
@@ -172,7 +172,7 @@ restore(QJsonObject const& p)
             mpEmbeddedWidget->set_start_button(v.toBool());
         }
         v = paramsObj[ "stop" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "stop" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );

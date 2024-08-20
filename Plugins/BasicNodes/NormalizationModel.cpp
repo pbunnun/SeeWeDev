@@ -156,7 +156,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "rangeMax" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "range_max" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -165,7 +165,7 @@ restore(QJsonObject const& p)
             mParams.mdRangeMax= v.toDouble();
         }
         v =  paramsObj[ "rangeMin" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "range_min" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -174,7 +174,7 @@ restore(QJsonObject const& p)
             mParams.mdRangeMin = v.toDouble();
         }
         v =  paramsObj[ "normType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "norm_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );

@@ -15,6 +15,7 @@
 #include "InfoConcatenateModel.hpp"
 
 #include "nodes/DataModelRegistry"
+#include "internal/Connection.hpp"
 #include "InformationData.hpp"
 #include "SyncData.hpp"
 
@@ -25,6 +26,32 @@ InfoConcatenateModel()
     mpInformationData = std::make_shared< InformationData >( );
     mpInformationData_1 = std::make_shared< InformationData >( );
     mpInformationData_2 = std::make_shared< InformationData >( );
+}
+
+QJsonObject
+InfoConcatenateModel::
+save() const
+{
+    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject cParams;
+    cParams["use_sync_signal"] = mbUseSyncSignal;
+    modelJson["cParams"] = cParams;
+    return modelJson;
+}
+
+void
+InfoConcatenateModel::
+restore( QJsonObject const &p )
+{
+    PBNodeDataModel::restore( p );
+
+    QJsonObject paramsObj = p[ "cParams" ].toObject();
+    if( !paramsObj.isEmpty() )
+    {
+        QJsonValue v = paramsObj[ "use_sync_signal" ];
+        if( !v.isNull() )
+            mbUseSyncSignal = v.toBool();
+    }
 }
 
 unsigned int
@@ -95,9 +122,12 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
             //d->set_information("");
         }
     }
-    else if(portIndex == 2)
+
+    if(portIndex == 2)
     {
-        if( mpInformationData_1 && mpInformationData_2 )
+        auto d = std::dynamic_pointer_cast< SyncData >( nodeData );
+        if( d && d->data() )
+//        if( mpInformationData_1 && mpInformationData_2 )
         {
             QString result = mpInformationData_1->info() + "\t" + mpInformationData_2->info();
             mpInformationData_1->set_information("");
@@ -106,17 +136,31 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
             updateAllOutputPorts();
         }
     }
-    if( mpInformationData_1 && mpInformationData_2 )
+    else if( !mbUseSyncSignal && !(mpInformationData_1->info().isEmpty() || mpInformationData_2->info().isEmpty()) )
+//    if( mpInformationData_1 && mpInformationData_2 )
     {
-        if( !(mpInformationData_1->info().isEmpty() || mpInformationData_2->info().isEmpty() ) )
-        {
-            QString result = mpInformationData_1->info() + "\t" + mpInformationData_2->info();
-            mpInformationData_1->set_information("");
-            mpInformationData_2->set_information("");
-            mpInformationData->set_information( result );
-            updateAllOutputPorts();
-        }
+        QString result = mpInformationData_1->info() + "\t" + mpInformationData_2->info();
+        mpInformationData_1->set_information("");
+        mpInformationData_2->set_information("");
+        mpInformationData->set_information( result );
+        updateAllOutputPorts();
     }
+}
+
+void
+InfoConcatenateModel::
+inputConnectionCreated(QtNodes::Connection const& conx)
+{
+    if( conx.getPortIndex(PortType::In) == 2 )
+        mbUseSyncSignal = true;
+}
+
+void
+InfoConcatenateModel::
+inputConnectionDeleted(QtNodes::Connection const& conx)
+{
+    if( conx.getPortIndex(PortType::In) == 2 )
+        mbUseSyncSignal = false;
 }
 
 const QString InfoConcatenateModel::_category = QString( "Utility" );

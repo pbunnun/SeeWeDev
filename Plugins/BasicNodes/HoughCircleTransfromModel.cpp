@@ -240,7 +240,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "houghMethod" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "hough_method" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -249,7 +249,7 @@ restore(QJsonObject const& p)
             mParams.miHoughMethod = v.toInt();
         }
         v = paramsObj[ "inverseRatio" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "inverse_ratio" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -258,7 +258,7 @@ restore(QJsonObject const& p)
             mParams.mdInverseRatio = v.toDouble();
         }
         v = paramsObj[ "centerDistance" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "center_distance" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -267,7 +267,7 @@ restore(QJsonObject const& p)
             mParams.mdCenterDistance = v.toDouble();
         }
         v =  paramsObj[ "thresholdU" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "th_u" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -276,7 +276,7 @@ restore(QJsonObject const& p)
             mParams.mdThresholdU = v.toDouble();
         }
         v =  paramsObj[ "thresholdL" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "th_l" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -285,7 +285,7 @@ restore(QJsonObject const& p)
             mParams.mdThresholdL = v.toDouble();
         }
         v =  paramsObj[ "radiusMin" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "radius_min" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -294,7 +294,7 @@ restore(QJsonObject const& p)
             mParams.miRadiusMin = v.toInt();
         }
         v =  paramsObj[ "radiusMax" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "radius_max" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -303,7 +303,7 @@ restore(QJsonObject const& p)
             mParams.miRadiusMax = v.toInt();
         }
         v = paramsObj[ "displayPoint" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "display_point" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < bool > > (prop);
@@ -314,7 +314,7 @@ restore(QJsonObject const& p)
         for(int i=0; i<3; i++)
         {
             v = paramsObj[QString("pointColor%1").arg(i)];
-            if( !v.isUndefined() )
+            if( !v.isNull() )
             {
                 auto prop = mMapIdToProperty[QString("point_color_%1").arg(i)];
                 auto typedProp = std::static_pointer_cast<TypedProperty<UcharPropertyType>>(prop);
@@ -324,7 +324,7 @@ restore(QJsonObject const& p)
             }
         }
         v = paramsObj[ "pointSize" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "point_size" ];
             auto typedProp = std::static_pointer_cast<TypedProperty<IntPropertyType>>(prop);
@@ -333,7 +333,7 @@ restore(QJsonObject const& p)
             mParams.miPointSize = v.toInt();
         }
         v = paramsObj[ "displayCircle" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "display_circle" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < bool > > (prop);
@@ -344,7 +344,7 @@ restore(QJsonObject const& p)
         for(int i=0; i<3; i++)
         {
             v = paramsObj[QString("circleColor%1").arg(i)];
-            if( !v.isUndefined() )
+            if( !v.isNull() )
             {
                 auto prop = mMapIdToProperty[QString("circle_color_%1").arg(i)];
                 auto typedProp = std::static_pointer_cast<TypedProperty<UcharPropertyType>>(prop);
@@ -354,7 +354,7 @@ restore(QJsonObject const& p)
             }
         }
         v = paramsObj[ "circleThickness" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "circle_thickness" ];
             auto typedProp = std::static_pointer_cast<TypedProperty<IntPropertyType>>(prop);
@@ -363,7 +363,7 @@ restore(QJsonObject const& p)
             mParams.miCircleThickness = v.toInt();
         }
         v = paramsObj[ "circleType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "circle_type" ];
             auto typedProp = std::static_pointer_cast<TypedProperty<EnumPropertyType>>(prop);

@@ -174,7 +174,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "imageDepth" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "image_depth" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -183,7 +183,7 @@ restore(QJsonObject const& p)
             mParams.miImageDepth = v.toInt();
         }
         v =  paramsObj[ "kernelType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "kernel_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -192,7 +192,7 @@ restore(QJsonObject const& p)
             mParams.mMKKernel.miKernelType = v.toInt();
         }
         v =  paramsObj[ "kernelSize" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "kernel_size" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -201,7 +201,7 @@ restore(QJsonObject const& p)
             mParams.mMKKernel.miKernelSize = v.toInt();
         }
         v = paramsObj[ "delta" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "delta" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < DoublePropertyType > > (prop);
@@ -210,7 +210,7 @@ restore(QJsonObject const& p)
             mParams.mdDelta = v.toDouble();
         }
         v = paramsObj[ "borderType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );

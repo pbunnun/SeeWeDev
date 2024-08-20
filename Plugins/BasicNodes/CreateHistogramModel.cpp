@@ -185,7 +185,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "binCount" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "bin_count" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -194,7 +194,7 @@ restore(QJsonObject const& p)
             mParams.miBinCount = v.toInt();
         }
         v =  paramsObj[ "intensityMax" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "intensity_max" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -203,7 +203,7 @@ restore(QJsonObject const& p)
             mParams.mdIntensityMax = v.toDouble();
         }
         v =  paramsObj[ "intensityMin" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "intensity_min" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -212,7 +212,7 @@ restore(QJsonObject const& p)
             mParams.mdIntensityMin = v.toDouble();
         }
         v =  paramsObj[ "normType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "norm_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -221,7 +221,7 @@ restore(QJsonObject const& p)
             mParams.miNormType = v.toInt();
         }
         v =  paramsObj[ "lineThickness" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "line_thickness" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
@@ -230,7 +230,7 @@ restore(QJsonObject const& p)
             mParams.miLineThickness = v.toInt();
         }
         v = paramsObj[ "lineType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "line_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -239,7 +239,7 @@ restore(QJsonObject const& p)
             mParams.miLineType = v.toInt();
         }
         v = paramsObj[ "drawEndpoints" ];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty[ "draw_endpoints" ];
             auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);
@@ -248,7 +248,7 @@ restore(QJsonObject const& p)
             mParams.mbDrawEndpoints = v.toBool();
         }
         v = paramsObj[ "enableB" ];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty[ "enable_b" ];
             auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);
@@ -257,7 +257,7 @@ restore(QJsonObject const& p)
             mParams.mbEnableB = v.toBool();
         }
         v = paramsObj[ "enableG" ];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty[ "enable_g" ];
             auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);
@@ -266,7 +266,7 @@ restore(QJsonObject const& p)
             mParams.mbEnableG = v.toBool();
         }
         v = paramsObj[ "enableR" ];
-        if(!v.isUndefined())
+        if(!v.isNull())
         {
             auto prop = mMapIdToProperty[ "enable_r" ];
             auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);

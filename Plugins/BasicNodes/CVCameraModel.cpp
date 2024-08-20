@@ -99,8 +99,13 @@ check_camera()
     {
         try
         {
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
+            mCVVideoCapture = cv::VideoCapture(miCameraID, cv::CAP_DSHOW );
+#elif defined( __APPLE__ )
             mCVVideoCapture = cv::VideoCapture(miCameraID);
-            //mCVVideoCapture = cv::VideoCapture(miCameraID, cv::CAP_V4L2);
+#elif defined( __linux__ )
+            mCVVideoCapture = cv::VideoCapture(miCameraID, cv::CAP_V4L2);
+#endif
             if( mCVVideoCapture.isOpened() )
             {
                 mCVVideoCapture.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
@@ -271,7 +276,7 @@ restore(const QJsonObject &p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "camera_id" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "camera_id" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType> >( prop );

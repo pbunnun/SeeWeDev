@@ -167,7 +167,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "morphMethod" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "morph_method" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -176,7 +176,7 @@ restore(QJsonObject const& p)
         }
 
         v = paramsObj[ "kernelShape" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "kernel_shape" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -186,7 +186,7 @@ restore(QJsonObject const& p)
 
         QJsonValue argX = paramsObj[ "kernelWidth" ];
         QJsonValue argY = paramsObj[ "kernelHeight" ];
-        if( !argX.isUndefined() && !argY.isUndefined() )
+        if( !argX.isNull() && !argY.isNull() )
         {
             auto prop = mMapIdToProperty[ "kernel_size" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
@@ -197,7 +197,7 @@ restore(QJsonObject const& p)
         }
         argX = paramsObj[ "anchorX" ];
         argY = paramsObj[ "anchorY" ];
-        if( !argX.isUndefined() && ! argY.isUndefined() )
+        if( !argX.isNull() && ! argY.isNull() )
         {
             auto prop = mMapIdToProperty[ "anchor_point" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
@@ -207,7 +207,7 @@ restore(QJsonObject const& p)
             mParams.mCVPointAnchor = cv::Point(argX.toInt(),argY.toInt());
         }
         v = paramsObj[ "iteration" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["iteration"];
             auto typedProp = std::static_pointer_cast<TypedProperty<IntPropertyType>>(prop);
@@ -216,7 +216,7 @@ restore(QJsonObject const& p)
             mParams.miIteration = v.toInt();
         }
         v = paramsObj[ "borderType" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "border_type" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );

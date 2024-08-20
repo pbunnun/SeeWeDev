@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.5)
 
 project(BasicNodes LANGUAGES CXX)
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+if( NOT CMAKE_BUILD_TYPE )
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
-if (NOT WIN32)
+if( NOT WIN32 )
     set(CMAKE_CXX_FLAGS_RELEASE "-O3")
     set(CMAKE_CXX_FLAGS_DEBUG "-g")
     set(CMAKE_CXX_FLAGS "-Wall -Wextra")

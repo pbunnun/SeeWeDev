@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(CVDev LANGUAGES CXX)
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+if( NOT CMAKE_BUILD_TYPE )
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -20,7 +20,7 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 
 file(GLOB CPP_FILES *.cpp)
 
-if (WIN32)
+if( WIN32 )
     set(APP_ICON_RESOURCE_WINDOWS "resources/resources.rc")
     add_executable(${PROJECT_NAME}
         WIN32

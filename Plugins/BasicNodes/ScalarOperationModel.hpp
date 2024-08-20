@@ -17,8 +17,6 @@
                                  //such as cv::Rect and cv::Scalar
 #pragma once
 
-#include <iostream>
-
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 

@@ -18,7 +18,7 @@
 
 CVImageLoaderEmbeddedWidget::CVImageLoaderEmbeddedWidget(QWidget *parent)
     : QWidget(parent),
-      ui(new Ui::CVImageLoaderEmbeddedWidget)
+    ui(new Ui::CVImageLoaderEmbeddedWidget)
 {
     ui->setupUi(this);
 }

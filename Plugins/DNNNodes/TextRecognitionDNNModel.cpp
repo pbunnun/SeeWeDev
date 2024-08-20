@@ -184,19 +184,13 @@ dataType(PortType portType, PortIndex portIndex) const
             return CVImageData().type();
     }
     else if( portType == PortType::Out )
-{
-    if(portIndex == 0)
     {
-        return CVImageData().type();
-    }
-    else if(portIndex == 1)
-        {
+        if(portIndex == 0)
+            return CVImageData().type();
+        else if(portIndex == 1)
             return InformationData().type();
-        }
         else if(portIndex == 2)
-    {
-        return SyncData().type();
-    }
+            return SyncData().type();
     }
     return NodeDataType();
 }
@@ -208,17 +202,11 @@ outData(PortIndex port)
     if( isEnable() )
     {
         if( port == 0 )
-        {
             return mpCVImageData;
-        }
         else if( port == 1 )
-        {
             return mpInformationData;
-        }
         else if( port == 2 )
-        {
             return mpSyncData;
-        }
     }
     return nullptr;
 }
@@ -232,7 +220,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if( nodeData && mpSyncData->data() == true )
     {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(2);
+        //Q_EMIT dataUpdated(2);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
             processData( d );

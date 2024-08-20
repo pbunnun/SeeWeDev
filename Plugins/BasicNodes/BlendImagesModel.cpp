@@ -156,7 +156,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "alpha" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "alpha" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -165,7 +165,7 @@ restore(QJsonObject const& p)
             mParams.mdAlpha = v.toDouble();
         }
         v = paramsObj[ "beta" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "beta" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -174,7 +174,7 @@ restore(QJsonObject const& p)
             mParams.mdBeta = v.toDouble();
         }
         v = paramsObj[ "gamma" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "gamma" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
@@ -183,7 +183,7 @@ restore(QJsonObject const& p)
             mParams.mdGamma = v.toDouble();
         }
         v = paramsObj[ "sizeFromPort0" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "size_from_port0" ];
             auto typedProp = std::static_pointer_cast< TypedProperty < bool > >(prop);
@@ -192,7 +192,7 @@ restore(QJsonObject const& p)
             mParams.mbSizeFromPort0 = v.toBool();
         }
         v = paramsObj["operation"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "operation" ];
             auto typedProp = std::static_pointer_cast<TypedProperty <IntPropertyType> >(prop);

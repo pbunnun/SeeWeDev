@@ -111,7 +111,7 @@ restore(QJsonObject const& p)
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "comboboxIndex" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "combobox_index" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
@@ -120,7 +120,7 @@ restore(QJsonObject const& p)
             mpEmbeddedWidget->set_combobox_index(v.toInt());
         }
         v =  paramsObj[ "textInput" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "text_input" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );

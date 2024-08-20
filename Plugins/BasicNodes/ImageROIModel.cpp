@@ -185,7 +185,7 @@ restore(QJsonObject const& p)
     {
         QJsonValue argX = paramsObj[ "rectPoint1X" ];
         QJsonValue argY = paramsObj[ "rectPoint1Y" ];
-        if( !argX.isUndefined() && !argY.isUndefined() )
+        if( !argX.isNull() && !argY.isNull() )
         {
             auto prop = mMapIdToProperty[ "rect_point_1" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
@@ -196,7 +196,7 @@ restore(QJsonObject const& p)
         }
         argX = paramsObj[ "rectPoint2X" ];
         argY = paramsObj[ "rectPoint2Y" ];
-        if( !argX.isUndefined() && !argY.isUndefined() )
+        if( !argX.isNull() && !argY.isNull() )
         {
             auto prop = mMapIdToProperty[ "rect_point_2" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
@@ -209,7 +209,7 @@ restore(QJsonObject const& p)
         for(int i=0; i<3; i++)
         {
             v = paramsObj[QString("lineColor%1").arg(i)];
-            if( !v.isUndefined() )
+            if( !v.isNull() )
             {
                 auto prop = mMapIdToProperty[QString("line_color_%1").arg(i)];
                 auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );
@@ -219,7 +219,7 @@ restore(QJsonObject const& p)
             }
         }
         v = paramsObj[ "lineThickness" ];
-        if(! v.isUndefined() )
+        if(! v.isNull() )
         {
             auto prop = mMapIdToProperty["line_thickness"];
             auto typedProp = std::static_pointer_cast<TypedProperty<IntPropertyType>>(prop);
@@ -228,7 +228,7 @@ restore(QJsonObject const& p)
             mParams.miLineThickness = v.toInt();
         }
         v = paramsObj[ "displayLines" ];
-        if(! v.isUndefined() )
+        if(! v.isNull() )
         {
             auto prop = mMapIdToProperty["display_lines"];
             auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);
@@ -237,7 +237,7 @@ restore(QJsonObject const& p)
             mParams.mbDisplayLines = v.toBool();
         }
         v = paramsObj[ "lockOutputROIisplayLines" ];
-        if(! v.isUndefined() )
+        if(! v.isNull() )
         {
             auto prop = mMapIdToProperty["lock_output_roi"];
             auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);
