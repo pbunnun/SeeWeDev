@@ -83,15 +83,7 @@ unsigned int
 CVVDOLoaderModel::
 nPorts( PortType portType ) const
 {
-    switch ( portType )
-    {
-    case PortType::In:
-        return( 1 );
-    case PortType::Out:
-        return( 1 );
-    default:
-        return( 0 );
-    }
+    return 1;
 }
 
 NodeDataType
@@ -132,7 +124,7 @@ outData(PortIndex portIndex)
     std::shared_ptr<NodeData> result;
     if( isEnable() )
     {
-        if( portIndex == 0 && mpCVImageData->data().data != nullptr )
+        if( portIndex == 0 && mpCVImageData->data().data != nullptr)
             result = mpCVImageData;
     }
     return result;
@@ -266,6 +258,7 @@ set_video_filename(QString & filename)
         auto image = mpCVImageData->data();
         if( !image.empty() )
         {
+            mpCVImageData->set_timestamp();
             mcvImage_Size = cv::Size(image.cols, image.rows);
             miMaxNoFrames = mcvVideoCapture.get(cv::CAP_PROP_FRAME_COUNT);
             auto channels = image.channels();
@@ -368,12 +361,33 @@ next_frame( )
     mcvVideoCapture >> mpCVImageData->data();
     if( mpCVImageData->data().data != nullptr )
     {
+        mpCVImageData->set_timestamp();
+// mpEmbeddedWidget->Slider signal is blocked after playing the video file.
         mpEmbeddedWidget->set_slider_value( miNextFrame );
         miNextFrame += 1;
         mbSyncSignal = false;
-// mpEmbeddedWidget->Slider signal is blocked after playing the video file.
         if( isEnable() )
             Q_EMIT dataUpdated( 0 );
+    }
+    else if( mbLoop )
+    {
+        mcvVideoCapture.set(cv::CAP_PROP_POS_FRAMES, 0);
+        mcvVideoCapture >> mpCVImageData->data();
+        if( mpCVImageData->data().data != nullptr )
+        {
+            mpCVImageData->set_timestamp();
+            miNextFrame = 0;
+            mpEmbeddedWidget->set_slider_value( miNextFrame );
+            miNextFrame = 1;
+            mbSyncSignal = false;
+            if( isEnable() )
+                Q_EMIT dataUpdated( 0 );
+        }
+    }
+    else
+    {
+        mTimer.stop();
+        mpEmbeddedWidget->pause_video();
     }
 }
 
@@ -385,10 +399,15 @@ no_frame_changed( int no_frame )
     {
         mcvVideoCapture.set(cv::CAP_PROP_POS_FRAMES, no_frame );
         mcvVideoCapture >> mpCVImageData->data();
-        miNextFrame = no_frame + 1;
-        mbSyncSignal = false;
-        if( isEnable() )
-            Q_EMIT dataUpdated( 0 );
+        if( mpCVImageData->data().data != nullptr )
+        {
+            mpCVImageData->set_timestamp();
+            mpEmbeddedWidget->set_slider_value( no_frame );
+            miNextFrame = no_frame + 1;
+            mbSyncSignal = false;
+            if( isEnable() )
+                Q_EMIT dataUpdated( 0 );
+        }
     }
 }
 
@@ -407,15 +426,20 @@ inputConnectionDeleted(QtNodes::Connection const& conx)
     if( conx.getPortIndex(PortType::In) == 0 )
         mbUseSyncSignal = false;
 }
-/*
+
 void
 CVVDOLoaderModel::
 enable_changed( bool enable )
 {
-    if( enable )
-        updateAllOutputPorts();
+    PBNodeDataModel::enable_changed( enable );
+
+    if( !enable )
+    {
+        mTimer.stop();
+        mpEmbeddedWidget->pause_video();
+    }
 }
-*/
+
 const QString CVVDOLoaderModel::_category = QString( "Source" );
 
 const QString CVVDOLoaderModel::_model_name = QString( "CV Video Loader" );

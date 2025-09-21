@@ -28,11 +28,11 @@
 #include "InformationData.hpp"
 #include "FloatData.hpp"
 #include "DoubleData.hpp"
-#include "BoolData.h"
+#include "BoolData.hpp"
 #include "StdStringData.hpp"
 #include "CVRectData.hpp"
 #include "CVPointData.hpp"
-#include "CVScalarData.h"
+#include "CVScalarData.hpp"
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;

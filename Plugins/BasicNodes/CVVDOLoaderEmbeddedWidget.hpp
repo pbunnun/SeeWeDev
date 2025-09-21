@@ -47,6 +47,9 @@ public:
     void
     set_slider_value( int );
 
+    void
+    pause_video();
+
 Q_SIGNALS:
     void
     button_clicked_signal( int button );
@@ -70,6 +73,9 @@ public Q_SLOTS:
 
     void
     on_mpSlider_valueChanged( int );
+
+    void
+    on_mpFrameNumberSpinbox_valueChanged( int );
 
 private:
     Ui::CVVDOLoaderEmbeddedWidget *ui;

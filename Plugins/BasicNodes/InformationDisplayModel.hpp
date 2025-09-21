@@ -64,7 +64,7 @@ private:
 
     InformationDisplayEmbeddedWidget * mpEmbeddedWidget;
 
-    std::shared_ptr< InformationData > mpInformationData { nullptr };
+    //std::shared_ptr< InformationData > mpInformationData { nullptr };
 };
 
 #endif // INFORMATIONDISPLAYMODEL_HPP

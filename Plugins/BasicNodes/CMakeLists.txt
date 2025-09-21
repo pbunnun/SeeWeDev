@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 project(BasicNodes LANGUAGES CXX)
 
@@ -21,8 +21,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets OpenGL REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets OpenGL REQUIRED)
+find_package(Qt6 COMPONENTS Widgets OpenGL REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
 
 if( Qt6_FOUND )
@@ -43,7 +42,7 @@ add_library(${PROJECT_NAME} SHARED
 set_target_properties(${PROJECT_NAME}
                       PROPERTIES
                       POSITION_INDEPENDENT_CODE ON
-                      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
+                      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
                       )
 
 add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DQT_NO_KEYWORDS)
@@ -63,8 +62,15 @@ else()
         )
 endif()
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E rename
-    "$<TARGET_FILE:${PROJECT_NAME}>"
-    "${CMAKE_BINARY_DIR}/CVDev/plugins/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
-    )
+# ---- MODIFIED SECTION FOR CPACK ----
+# The old 'add_custom_command' has been removed.
+#
+# This install command places the compiled plugin library (.so file) into a
+# dedicated 'plugins' directory for our application.
+# 'LIBRARY DESTINATION' is used for shared libraries that are not meant to be
+# linked against by other development packages (i.e., plugins).
+install(TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION bin/cvdev_plugins
+    COMPONENT Runtime
+)
+# ------------------------------------

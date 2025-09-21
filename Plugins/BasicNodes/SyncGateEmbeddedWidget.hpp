@@ -42,11 +42,17 @@ Q_SIGNALS :
     void checkbox_checked_signal(int checkbox, int state);
 
 private Q_SLOTS :
-
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
     void on_mpIn0Checkbox_stateChanged(int arg1);
     void on_mpIn1Checkbox_stateChanged(int arg1);
     void on_mpOut0Checkbox_stateChanged(int arg1);
     void on_mpOut1Checkbox_stateChanged(int arg1);
+#else
+    void on_mpIn0Checkbox_checkStateChanged(Qt::CheckState arg1);
+    void on_mpIn1Checkbox_checkStateChanged(Qt::CheckState arg1);
+    void on_mpOut0Checkbox_checkStateChanged(Qt::CheckState arg1);
+    void on_mpOut1Checkbox_checkStateChanged(Qt::CheckState arg1);
+#endif
 
 private:
     Ui::SyncGateEmbeddedWidget *ui;

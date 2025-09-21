@@ -70,7 +70,8 @@ private:
 
     PBImageDisplayWidget * mpEmbeddedWidget;
 
-    std::shared_ptr< NodeData > mpNodeData { nullptr };
+    cv::Mat mCVImageDisplay;
+    //std::shared_ptr< NodeData > mpNodeData { nullptr };
     std::shared_ptr< SyncData > mpSyncData { nullptr };
 
     QPixmap _minPixmap;

@@ -12,8 +12,8 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef MAINWINDOW_HPP
+#define MAINWINDOW_HPP
 
 #pragma once
 
@@ -52,8 +52,9 @@ class CVDEVSHAREDLIB_EXPORT MainWindow : public QMainWindow
 public:
     MainWindow( QWidget *parent = nullptr );
     ~MainWindow();
+    void enable_all_nodes(bool);
 
-private slots:
+private Q_SLOTS:
     void editorPropertyChanged( QtProperty *property, const QVariant &value );
     void nodePropertyChanged( std::shared_ptr<Property> );
     void nodeCreated( Node & );
@@ -94,6 +95,7 @@ private slots:
     void on_mpActionFullScreen_toggled(bool);
 
     void on_mpActionAbout_triggered();
+
 protected:
     void closeEvent(QCloseEvent *);
 
@@ -148,4 +150,4 @@ private:
     void addProperty( QtVariantProperty *property, const QString & prop_id, const QString & sub_text );
     void clearPropertyBrowser();
 };
-#endif // MAINWINDOW_H
+#endif // MAINWINDOW_HPP

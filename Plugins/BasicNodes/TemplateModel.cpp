@@ -37,6 +37,18 @@ TemplateModel()
     for( int idx = 0; idx < 10; ++idx )
         raw_data.push_back(idx);
 
+    mpInformationData = std::make_shared< InformationData >();
+    QString information = "{\n    \"register_type\" : 2, \n";
+    information += "    \"start_address\" : 0, \n";
+    information += "    \"number_of_entries\" : 4, \n";
+    information += "    \"operation_mode\" : 1, \n";
+    information += "    \"value0\" : 0, \n";
+    information += "    \"value1\" : 1, \n";
+    information += "    \"value2\" : 0, \n";
+    information += "    \"value3\" : 1 \n";
+    information += "}";
+    mpInformationData->set_information( information );
+
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = mpEmbeddedWidget->get_combobox_string_list();
     enumPropertyType.miCurrentIndex = 0;
@@ -90,7 +102,7 @@ nPorts( PortType portType ) const
     case PortType::In:
         return( 2 );
     case PortType::Out:
-        return( 2 );
+        return( 3 );
     default:
         return( 0 );
     }
@@ -106,6 +118,8 @@ dataType(PortType portType, PortIndex portIndex) const
             return CVImageData().type();
         else if( portIndex == 1 )
             return StdVectorIntData().type();
+        else if( portIndex == 2 )
+            return InformationData().type();
         else
             return NodeDataType();
     }
@@ -126,22 +140,25 @@ std::shared_ptr<NodeData>
 TemplateModel::
 outData(PortIndex index)
 {
-    if( index ==  0 )
+    if( isEnable() )
     {
-        if( isEnable() && mpCVImageData->data().data != nullptr )
-            return mpCVImageData;
-        else
-            return nullptr;
-    }
-    else if( index == 1 )
-    {
-        if( isEnable() )
+        if( index ==  0 )
+        {
+            if( mpCVImageData->data().data != nullptr )
+                return mpCVImageData;
+            else
+                return nullptr;
+        }
+        else if( index == 1 )
+        {
             return mpStdVectorIntData;
-        else
-            return nullptr;
+        }
+        else if( index == 2 )
+        {
+            return mpInformationData;
+        }
     }
-    else
-        return nullptr;
+    return nullptr;
 }
 
 void
@@ -394,6 +411,10 @@ em_button_clicked( int button )
         auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
         typedProp->getData().miCurrentIndex = typedProp->getData().mslEnumNames.indexOf( mpEmbeddedWidget->get_combobox_text() );
         Q_EMIT property_changed_signal( prop );
+    }
+    else if( button == 4 )
+    {
+        updateAllOutputPorts();
     }
     // Notify node's NodeGraphicsObject to redraw itself.
     Q_EMIT embeddedWidgetStatusUpdated();

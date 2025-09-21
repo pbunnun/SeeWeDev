@@ -24,7 +24,7 @@
 #include "PBNodeDataModel.hpp"
 #include "CVImageData.hpp"
 #include "IntegerData.hpp"
-#include "CVScalarData.h"
+#include "CVScalarData.hpp"
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;

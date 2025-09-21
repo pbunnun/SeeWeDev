@@ -85,6 +85,9 @@ public:
 
 private Q_SLOTS:
     void
+    enable_changed( bool ) override;
+
+    void
     em_button_clicked( int button );
 
     void

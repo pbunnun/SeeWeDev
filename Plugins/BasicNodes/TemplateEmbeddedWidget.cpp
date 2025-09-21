@@ -62,6 +62,13 @@ on_mpComboBox_currentIndexChanged( int idx )
     Q_EMIT button_clicked_signal( 3 );
 }
 
+void
+TemplateEmbeddedWidget::
+on_mpSendButton_clicked()
+{
+    Q_EMIT button_clicked_signal( 4 );
+}
+
 QStringList
 TemplateEmbeddedWidget::
 get_combobox_string_list()

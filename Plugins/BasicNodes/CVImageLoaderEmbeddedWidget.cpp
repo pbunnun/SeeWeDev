@@ -32,7 +32,7 @@ void
 CVImageLoaderEmbeddedWidget::
 set_filename( QString filename )
 {
-    QString text = filename.left(15);
+    QString text = filename;//.left(15);
     ui->mpFilenameButton->setText(text);
 }
 

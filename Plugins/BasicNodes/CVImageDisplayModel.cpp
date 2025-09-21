@@ -95,15 +95,21 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 {
     if( !isEnable() )
         return;
-
     if (nodeData)
     {
-        mpSyncData->data() = false;
-        //Q_EMIT dataUpdated(0);
-        mpNodeData = nodeData;
-        display_image();
-        mpSyncData->data() = true;
-        Q_EMIT dataUpdated(0);
+        auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
+        if( d )
+        {
+            if( d->data().data != nullptr )
+            {
+                mpSyncData->data() = false;
+                //Q_EMIT dataUpdated(0);
+                d->data().copyTo( mCVImageDisplay );
+                display_image();
+                mpSyncData->data() = true;
+                Q_EMIT dataUpdated(0);
+            }
+        }
     }
 }
 
@@ -111,35 +117,31 @@ void
 CVImageDisplayModel::
 display_image()
 {
-    auto d = std::dynamic_pointer_cast< CVImageData >( mpNodeData );
-    if ( d )
+    mpEmbeddedWidget->Display( mCVImageDisplay );
+
+    if( mCVImageDisplay.cols != miImageWidth || mCVImageDisplay.rows != miImageHeight )
     {
-        mpEmbeddedWidget->Display(d->data());
+        miImageWidth = mCVImageDisplay.cols;
+        miImageHeight = mCVImageDisplay.rows;
 
-        if( d->data().cols != miImageWidth || d->data().rows != miImageHeight )
-        {
-            miImageWidth = d->data().cols;
-            miImageHeight = d->data().rows;
+        auto prop = mMapIdToProperty["image_size"];
+        auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );
+        typedPropSize->getData().miWidth = miImageWidth;
+        typedPropSize->getData().miHeight = miImageHeight;
+        Q_EMIT property_changed_signal( prop );
+    }
 
-            auto prop = mMapIdToProperty["image_size"];
-            auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );
-            typedPropSize->getData().miWidth = d->data().cols;
-            typedPropSize->getData().miHeight = d->data().rows;
-            Q_EMIT property_changed_signal( prop );
-        }
+    if( mCVImageDisplay.channels() != miImageFormat )
+    {
+        miImageFormat = mCVImageDisplay.channels();
 
-        if( d->data().channels() != miImageFormat )
-        {
-            miImageFormat = d->data().channels();
-
-            auto prop = mMapIdToProperty[ "image_format" ];
-            auto typedPropFormat = std::static_pointer_cast<TypedProperty<QString>>( prop );
-            if( d->data().channels() == 1 )
-                typedPropFormat->getData() = "CV_8UC1";
-            else
-                typedPropFormat->getData() = "CV_8UC3";
-            Q_EMIT property_changed_signal( prop );
-        }
+        auto prop = mMapIdToProperty[ "image_format" ];
+        auto typedPropFormat = std::static_pointer_cast<TypedProperty<QString>>( prop );
+        if( mCVImageDisplay.channels() == 1 )
+            typedPropFormat->getData() = "CV_8UC1";
+        else
+            typedPropFormat->getData() = "CV_8UC3";
+        Q_EMIT property_changed_signal( prop );
     }
 }
 

@@ -172,6 +172,7 @@ processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData
         auto image = in->data();
         auto new_size = mSize;
         cv::resize(image, resizeImage, new_size, cv::INTER_LINEAR);
+        //cv::resize(image, resizeImage, new_size, cv::INTER_CUBIC);
         out->set_image( resizeImage );
     }
 }

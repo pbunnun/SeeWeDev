@@ -90,6 +90,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
         {
             mpCVImageInData = d;
             processData(mpCVImageInData, mpCVImageOutData);
+            mpCVImageOutData->set_timestamp( d->timestamp() );
             Q_EMIT dataUpdated( 0 );
         }
     }

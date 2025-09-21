@@ -31,6 +31,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QDate>
+#include <QStandardPaths>
 
 using QtNodes::DataModelRegistry;
 
@@ -806,7 +807,7 @@ on_mpActionLoadPlugin_triggered()
 
     if( filename.isEmpty() )
         return;
-    load_plugin( mpDataModelRegistry, filename, mPluginsList );
+    load_plugin( mpDataModelRegistry, mPluginsList, filename );
     updateNodeCategoriesDockingWidget();
 }
 
@@ -928,22 +929,34 @@ on_mpActionRedo_triggered()
 
 void
 MainWindow::
-on_mpActionEnableAll_triggered()
+enable_all_nodes(bool enable)
 {
-    auto nodes = mpFlowScene->allNodes();
-    for( auto node : nodes )
+    if( enable )
     {
-        if( !static_cast< PBNodeDataModel * >(node->nodeDataModel())->isSource() )
+        auto nodes = mpFlowScene->allNodes();
+        for( auto node : nodes )
         {
-            node->nodeDataModel()->setEnable(true);
-            node->nodeGraphicsObject().update();
+            if( !static_cast< PBNodeDataModel * >(node->nodeDataModel())->isSource() )
+            {
+                node->nodeDataModel()->setEnable(true);
+                node->nodeGraphicsObject().update();
+            }
+        }
+        for( auto node : nodes )
+        {
+            if( static_cast< PBNodeDataModel * >(node->nodeDataModel())->isSource() )
+            {
+                node->nodeDataModel()->setEnable(true);
+                node->nodeGraphicsObject().update();
+            }
         }
     }
-    for( auto node : nodes )
+    else
     {
-        if( static_cast< PBNodeDataModel * >(node->nodeDataModel())->isSource() )
+        auto nodes = mpFlowScene->allNodes();
+        for( auto node : nodes )
         {
-            node->nodeDataModel()->setEnable(true);
+            static_cast< PBNodeDataModel * >(node->nodeDataModel())->setEnable(false);
             node->nodeGraphicsObject().update();
         }
     }
@@ -951,14 +964,16 @@ on_mpActionEnableAll_triggered()
 
 void
 MainWindow::
+on_mpActionEnableAll_triggered()
+{
+    enable_all_nodes( true );
+}
+
+void
+MainWindow::
 on_mpActionDisableAll_triggered()
 {
-    auto nodes = mpFlowScene->allNodes();
-    for( auto node : nodes )
-    {
-        node->nodeDataModel()->setEnable(false);
-        node->nodeGraphicsObject().update();
-    }
+    enable_all_nodes( false );
 }
 
 void
@@ -1086,7 +1101,12 @@ void
 MainWindow::
 loadSettings()
 {
-    msSettingFilename = QDir(QApplication::applicationDirPath()).filePath("cvdev.ini");
+    QString homePath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    QDir configDir(homePath + "/.CVDev");
+    if( !configDir.exists() )
+        configDir.mkpath(".");
+
+    msSettingFilename = configDir.filePath("cvdev.ini");
     if( QFileInfo::exists(msSettingFilename) )
     {
         QSettings settings(msSettingFilename, QSettings::IniFormat);
@@ -1167,9 +1187,9 @@ loadScene(QString & filename)
 void MainWindow::
 on_mpActionAbout_triggered()
 {
-    QMessageBox::about(this, msProgramName, "<p>" + msProgramName + "(Beta 0) has been designed and developped as a software tool so that "
+    QMessageBox::about(this, msProgramName, "<p>" + msProgramName + " has been designed and developped as a software tool so that "
                                            "developers can reuse their codes and share their work with others. If you have any comment please "
                                            "feel free to contact <a href=mailto:pished.bunnun@nectec.or.th>pished.bunnun@nectec.or.th</a>.</p>"
-                                           "<p>Copyright (C) 2022 <a href=www.nectec.or.th>NECTEC</a> All rights reserved.</p>"
+                                           "<p>Copyright (C) 2025 <a href=www.nectec.or.th>NECTEC</a> All rights reserved.</p>"
                                            "<p>" + msProgramName + " is made possible by open source softwares.</p>");
 }

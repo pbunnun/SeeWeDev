@@ -21,12 +21,14 @@
 #include <QPluginLoader>
 #include <DataModelRegistry>
 #include "CVDevLibrary.hpp"
+#include <QDir>
 
 using QtNodes::DataModelRegistry;
 
 void CVDEVSHAREDLIB_EXPORT add_type_converters( std::shared_ptr< DataModelRegistry > model_regs );
+void CVDEVSHAREDLIB_EXPORT load_plugins_from_dir( std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader *> & plugins_list, QDir pluginsDir );
 void CVDEVSHAREDLIB_EXPORT load_plugins( std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader *> & plugins_list );
-void CVDEVSHAREDLIB_EXPORT load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QString filename, QList< QPluginLoader *> & plugins_list );
+void CVDEVSHAREDLIB_EXPORT load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader *> & plugins_list, QString filename );
 
 class PluginInterface
 {

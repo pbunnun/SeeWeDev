@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <QtCore/QObject>
 #include <QtWidgets/QSpinBox>
 #include <QtCore/QThread>
@@ -42,6 +40,19 @@ using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
 using QtNodes::Connection;
 
+
+typedef struct CVCameraParameters{
+    int miFourCC {cv::VideoWriter::fourcc('M','J','P','G')}; //cv::VideoWriter::fourcc('Y','U','Y','V')
+    int miFps {25};
+    int miWidth {2592};
+    int miHeight {1944};
+    int miAutoWB {1};
+    int miBrightness {-10};
+    int miGain {70};
+    int miAutoExposure {1};
+    int miExposure {2000};
+} CVCameraParameters;
+
 /// The model dictates the number of inputs and outputs for the Node.
 /// In this example it has no logic.
 class CVCameraThread : public QThread
@@ -57,7 +68,13 @@ public:
     set_camera_id( int camera_id );
 
     void
-    set_single_shot_mode( const bool mode ) { mSingleShotSemaphore.release(); mbSingleShotMode = mode; };
+    set_params( CVCameraParameters & );
+
+    CVCameraParameters &
+    get_params( ) { return mCameraParams; }
+
+    void
+    set_single_shot_mode( const bool mode ) { mSingleShotSemaphore.release(); mbSingleShotMode.store(mode); };
 
     void
     fire_single_shot( ) { mSingleShotSemaphore.release(); };
@@ -85,10 +102,11 @@ private:
 
     int miCameraID{-1};
     bool mbAbort{false};
-    bool mbSingleShotMode{false};
+    std::atomic<bool> mbSingleShotMode {false};
     bool mbConnected{false};
     unsigned long miDelayTime{10};
     double mdFPS{0};
+    CVCameraParameters mCameraParams;
     cv::VideoCapture mCVVideoCapture;
 
     std::shared_ptr< CVImageData > mpCVImageData;
@@ -164,7 +182,13 @@ private Q_SLOTS:
     inputConnectionDeleted( QtNodes::Connection const & ) override { mpCVCameraThread->set_single_shot_mode( false ); };
 
 private:
-    CVCameraParameters mParams;
+    int miBrightness {-10};
+    int miGain {70};
+    int miExposure {8000};
+    bool mbAutoExposure {false};
+    bool mbAutoWB {false};
+
+    CVCameraProperty mCameraProperty;
     CVCameraEmbeddedWidget * mpEmbeddedWidget;
 
     CVCameraThread * mpCVCameraThread { nullptr };

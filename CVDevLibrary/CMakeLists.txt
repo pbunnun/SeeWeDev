@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 project(CVDevLibrary LANGUAGES CXX)
 
@@ -21,8 +21,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
 
 file(GLOB CPP_FILES *.cpp)
@@ -33,7 +32,7 @@ add_library(${PROJECT_NAME} SHARED
     ${HPP_FILES}
     MainWindow.ui
 
-    resources/resources.qrc
+    resources/cvdevlibrary_resources.qrc
 )
 
 add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DCVDEV_LIBRARY)
@@ -42,8 +41,9 @@ include_directories(${NodeEditor_INCLUDE_DIRS} ${QtPropertyBrowserLibrary_INCLUD
 
 # Required on Unix OS family to be able to be linked into shared libraries.
 set_target_properties(${PROJECT_NAME}
-                      PROPERTIES POSITION_INDEPENDENT_CODE ON
-                      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/)
+                      PROPERTIES 
+                      POSITION_INDEPENDENT_CODE ON
+                      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/)
 
 target_link_libraries(${PROJECT_NAME}
     NodeEditor
@@ -55,3 +55,24 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}
     ${NodeEditor_INCLUDE_DIRS}
     ${QtPropertyBrowserLibrary_INCLUDE_DIRS}
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
+
+# ---- ADD THIS SECTION FOR CPACK ----
+# Install the library target and its public headers.
+
+# 1. Install the shared library (.so file) and archive file (.a file).
+#    'LIBRARY DESTINATION lib' installs shared libraries to /usr/local/lib.
+#    'ARCHIVE DESTINATION lib' installs static libraries to /usr/local/lib.
+install(TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION lib
+    COMPONENT Runtime
+)
+
+# 2. Install the public header files (.hpp files).
+#    This makes them available for other projects that might link against this library.
+#    'DESTINATION include/${PROJECT_NAME}' organizes them neatly in a subdirectory,
+#    e.g., /usr/local/include/CVDevLibrary/
+install(FILES ${HPP_FILES}
+    DESTINATION include/${PROJECT_NAME}
+    COMPONENT Development
+)
+# ------------------------------------

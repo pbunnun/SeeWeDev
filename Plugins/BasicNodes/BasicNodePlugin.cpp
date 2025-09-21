@@ -21,7 +21,6 @@
 #include "CVVDOLoaderModel.hpp"
 #include "RGBtoGrayModel.hpp"
 #include "ColorSpaceModel.hpp"
-#include "DrawContourModel.hpp"
 #include "Test_SharpenModel.hpp"
 #include "CVCameraModel.hpp"
 #include "GaussianBlurModel.hpp"
@@ -34,7 +33,6 @@
 #include "BlendImagesModel.hpp"
 #include "FloodFillModel.hpp"
 #include "MakeBorderModel.hpp"
-#include "FaceDetectionModel.hpp"
 #include "BitwiseOperationModel.hpp"
 #include "ImageROIModel.hpp"
 #include "CVImageROIModel.hpp"
@@ -67,6 +65,16 @@
 #include "ExternalCommandModel.hpp"
 #include "NotSyncDataModel.hpp"
 #include "MathIntegerSumModel.hpp"
+#include "FindContourModel.hpp"
+#include "DrawContourModel.hpp"
+#include "FindAndDrawContourModel.hpp"
+#include "CVMatSumModel.hpp"
+//#include "CVCameraCalibrationModel.hpp"
+#include "MathConditionModel.hpp"
+#include "MathConvertToIntModel.hpp"
+#include "CombineSyncModel.hpp"
+
+//#include "FaceDetectionModel.hpp"
 
 QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< DataModelRegistry > model_regs )
 {
@@ -91,7 +99,6 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< DataModelRegist
     registerModel< CreateHistogramModel >( model_regs, duplicate_model_names );
     registerModel< DataGeneratorModel >( model_regs, duplicate_model_names );
     registerModel< DistanceTransformModel >( model_regs, duplicate_model_names );
-    registerModel< DrawContourModel >( model_regs, duplicate_model_names );
     registerModel< ErodeAndDilateModel >( model_regs, duplicate_model_names );
 //    registerModel< FaceDetectionModel >( model_regs, duplicate_model_names );
     registerModel< Filter2DModel >( model_regs, duplicate_model_names );
@@ -129,5 +136,15 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< DataModelRegist
     registerModel< ExternalCommandModel >( model_regs, duplicate_model_names );
     registerModel< NotSyncDataModel >( model_regs, duplicate_model_names );
     registerModel< MathIntegerSumModel >( model_regs, duplicate_model_names );
+    registerModel< DrawContourModel >( model_regs, duplicate_model_names );
+    registerModel< FindContourModel >( model_regs, duplicate_model_names );
+    registerModel< FindAndDrawContourModel >( model_regs, duplicate_model_names );
+    registerModel< CVMatSumModel >( model_regs, duplicate_model_names );
+    registerModel< MathConditionModel >( model_regs, duplicate_model_names );
+    registerModel< MathConvertToIntModel >( model_regs, duplicate_model_names );
+    registerModel< CombineSyncModel >( model_regs, duplicate_model_names );
+
+ //   registerModel< CVCameraCalibrationModel >( model_regs, duplicate_model_names );
+
     return duplicate_model_names;
 }

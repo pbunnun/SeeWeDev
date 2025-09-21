@@ -59,7 +59,7 @@ run()
         float * detections = (float*)out.data;
         cv::Scalar color(0, 0, 255);
         // every detection is a [batchId(0), classId(0), confidence, left, top, right, bottom] vector.
-        for( unsigned long i = 0; i < out.total()/7; ++i )
+        for( int i = 0; i < static_cast<int>(out.total())/7; ++i )
         {
            float confidence = detections[ i*7 + 2 ];
            if( confidence < 0.7 )
@@ -228,7 +228,7 @@ restore( QJsonObject const &p )
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj["model_filename"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["model_filename"];
             auto typedProp = std::static_pointer_cast< TypedProperty<QString> >(prop);
@@ -237,7 +237,7 @@ restore( QJsonObject const &p )
         }
 
         v = paramsObj["config_filename"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["config_filename"];
             auto typedProp = std::static_pointer_cast< TypedProperty<QString> >(prop);

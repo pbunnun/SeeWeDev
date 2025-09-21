@@ -51,7 +51,7 @@ public:
     add_image( const cv::Mat & );
 
     void
-    start_writer( QString filename, double fps );
+    start_writer( QString filename, int max_frame_per_video, int fps );
 
     void
     stop_writer();
@@ -70,7 +70,7 @@ private:
     QSemaphore mWaitingSemaphore;
 
     QString msFilename;
-    double mdFPS {10};
+    int miFPS {10};
     int miRecordingStatus {0};
     cv::Size mSize;
     int miChannels {0};
@@ -79,6 +79,10 @@ private:
     cv::VideoWriter mVideoWriter;
     bool mbWriterReady {false};
     bool mbAbort {false};
+
+    int miFrameCounter {0};
+    int miFilenameCounter {0};
+    int miFramePerVideo {1000};
 };
 
 /// The model dictates the number of inputs and outputs for the Node.
@@ -118,6 +122,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    bool
+    resizable() const override { return true; }
+
     void
     late_constructor() override;
 
@@ -143,7 +150,8 @@ private:
     VideoWriterThread * mpVideoWriterThread { nullptr };
 
     QString msOutput_Filename;
-    double mdFPS;
+    int miFPS {10};
+    int miFramePerVideo {1000};
 
     void processData(const std::shared_ptr< CVImageData > & in);
 };

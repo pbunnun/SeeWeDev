@@ -281,7 +281,7 @@
   </widget>
   <action name="mpActionSave">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/document-save.png</normaloff>:/icons/tango/32x32/document-save.png</iconset>
    </property>
    <property name="text">
@@ -293,7 +293,7 @@
   </action>
   <action name="mpActionLoad">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/document-open.png</normaloff>:/icons/tango/32x32/document-open.png</iconset>
    </property>
    <property name="text">
@@ -305,7 +305,7 @@
   </action>
   <action name="mpActionQuit">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/system-log-out.png</normaloff>:/icons/tango/32x32/system-log-out.png</iconset>
    </property>
    <property name="text">
@@ -317,7 +317,7 @@
   </action>
   <action name="mpActionSaveAs">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/document-save-as.png</normaloff>:/icons/tango/32x32/document-save-as.png</iconset>
    </property>
    <property name="text">
@@ -348,7 +348,7 @@
   </action>
   <action name="mpActionZoomReset">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/system-search.png</normaloff>:/icons/tango/32x32/system-search.png</iconset>
    </property>
    <property name="text">
@@ -365,7 +365,7 @@
   </action>
   <action name="mpActionNew">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/document-new.png</normaloff>:/icons/tango/32x32/document-new.png</iconset>
    </property>
    <property name="text">
@@ -377,7 +377,7 @@
   </action>
   <action name="mpActionCopy">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/edit-copy.png</normaloff>:/icons/tango/32x32/edit-copy.png</iconset>
    </property>
    <property name="text">
@@ -389,7 +389,7 @@
   </action>
   <action name="mpActionCut">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/edit-cut.png</normaloff>:/icons/tango/32x32/edit-cut.png</iconset>
    </property>
    <property name="text">
@@ -401,7 +401,7 @@
   </action>
   <action name="mpActionPaste">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/edit-paste.png</normaloff>:/icons/tango/32x32/edit-paste.png</iconset>
    </property>
    <property name="text">
@@ -413,7 +413,7 @@
   </action>
   <action name="mpActionDelete">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/edit-delete.png</normaloff>:/icons/tango/32x32/edit-delete.png</iconset>
    </property>
    <property name="text">
@@ -425,7 +425,7 @@
   </action>
   <action name="mpActionUndo">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/edit-undo.png</normaloff>:/icons/tango/32x32/edit-undo.png</iconset>
    </property>
    <property name="text">
@@ -440,7 +440,7 @@
   </action>
   <action name="mpActionRedo">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/edit-redo.png</normaloff>:/icons/tango/32x32/edit-redo.png</iconset>
    </property>
    <property name="text">
@@ -455,7 +455,7 @@
   </action>
   <action name="mpActionDisableAll">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/process-stop.png</normaloff>:/icons/tango/32x32/process-stop.png</iconset>
    </property>
    <property name="text">
@@ -470,7 +470,7 @@
   </action>
   <action name="mpActionEnableAll">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/start-here.png</normaloff>:/icons/tango/32x32/start-here.png</iconset>
    </property>
    <property name="text">
@@ -488,7 +488,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/mail-attachment.png</normaloff>:/icons/tango/32x32/mail-attachment.png</iconset>
    </property>
    <property name="text">
@@ -497,7 +497,7 @@
   </action>
   <action name="mpActionLoadPlugin">
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/preferences-system.png</normaloff>:/icons/tango/32x32/preferences-system.png</iconset>
    </property>
    <property name="text">
@@ -515,7 +515,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="resources/resources.qrc">
+    <iconset resource="resources/cvdevlibrary_resources.qrc">
      <normaloff>:/icons/tango/32x32/view-fullscreen.png</normaloff>:/icons/tango/32x32/view-fullscreen.png</iconset>
    </property>
    <property name="text">
@@ -553,7 +553,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="resources/resources.qrc"/>
+  <include location="resources/cvdevlibrary_resources.qrc"/>
  </resources>
  <connections/>
 </ui>

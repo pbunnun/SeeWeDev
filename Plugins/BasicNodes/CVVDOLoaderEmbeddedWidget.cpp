@@ -49,13 +49,23 @@ on_mpPlayPauseButton_clicked()
     if( ui->mpPlayPauseButton->isChecked() )
     {
         ui->mpSlider->blockSignals(true);
+        ui->mpFrameNumberSpinbox->blockSignals(true);
         Q_EMIT button_clicked_signal( 1 );
     }
     else
     {
         ui->mpSlider->blockSignals(false);
+        ui->mpFrameNumberSpinbox->blockSignals(true);
         Q_EMIT button_clicked_signal( 2 );
     }
+}
+
+void
+CVVDOLoaderEmbeddedWidget::
+pause_video()
+{
+    ui->mpPlayPauseButton->setChecked(false);
+    on_mpPlayPauseButton_clicked();
 }
 
 void
@@ -104,6 +114,7 @@ CVVDOLoaderEmbeddedWidget::
 set_maximum_slider( int max )
 {
     ui->mpSlider->setMaximum( max );
+    ui->mpFrameNumberSpinbox->setMaximum( max );
 }
 
 void
@@ -111,6 +122,16 @@ CVVDOLoaderEmbeddedWidget::
 on_mpSlider_valueChanged( int value )
 {
     Q_EMIT slider_value_signal( value );
+    ui->mpFrameNumberSpinbox->blockSignals( true );
+    ui->mpFrameNumberSpinbox->setValue( value );
+    ui->mpFrameNumberSpinbox->blockSignals( false );
+}
+
+void
+CVVDOLoaderEmbeddedWidget::
+on_mpFrameNumberSpinbox_valueChanged( int value )
+{
+    on_mpSlider_valueChanged( value );
 }
 
 void
@@ -118,4 +139,5 @@ CVVDOLoaderEmbeddedWidget::
 set_slider_value(int value )
 {
     ui->mpSlider->setValue( value );
+    ui->mpFrameNumberSpinbox->setValue( value );
 }

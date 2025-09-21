@@ -131,9 +131,10 @@ private:
 #endif
     bool mbUseProvidedFilename{false};
     bool mbSyncData2SaveImage{false};
-    int miCounter{1000000};
+    int miCounter{10000};
 
     QString msPrefix_Filename {"image"};
+    QString msImage_Format {"jpg"};
 };
 
 #endif // SAVEIMAGEMODEL_HPP

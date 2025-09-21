@@ -12,7 +12,6 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-#include <QtGui>
 #include <QtOpenGL/QtOpenGL>
 #include "PBImageDisplayWidget.hpp"
 #include <opencv2/highgui/highgui.hpp>

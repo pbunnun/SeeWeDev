@@ -15,6 +15,8 @@
 #ifndef CVSIZEDATA_HPP
 #define CVSIZEDATA_HPP
 
+#pragma once
+
 #include <opencv2/core/core.hpp>
 
 #include <nodes/NodeDataModel>

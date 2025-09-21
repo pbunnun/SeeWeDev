@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=CVDev
+Comment=A Computer Vision Development Environment
+Exec=CVDev
+Icon=cvdev-64.png
+Terminal=false
+Type=Application
+Categories=Development;IDE;
+

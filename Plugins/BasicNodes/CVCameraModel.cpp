@@ -48,7 +48,7 @@ run()
             check_camera();
         if( mbConnected )
         {
-            if( mbSingleShotMode )
+            if( mbSingleShotMode.load() )
             {
                 mSingleShotSemaphore.acquire();
 
@@ -60,14 +60,18 @@ run()
             }
             else
             {
-                mCVVideoCapture >> mpCVImageData->data();
+                if( !mCVVideoCapture.grab() )
+                    continue;
+                if( !mCVVideoCapture.retrieve( mpCVImageData->data() ) )
+                    continue;
+                //mCVVideoCapture >> mpCVImageData->data();
                 if( !mpCVImageData->data().empty() )
                     Q_EMIT image_ready( );
-                else
-                    mCVVideoCapture.set(cv::CAP_PROP_POS_FRAMES, -1);
+                //else
+                //    mCVVideoCapture.set(cv::CAP_PROP_POS_FRAMES, -1);
             }
         }
-        msleep( miDelayTime );
+        QThread::msleep( miDelayTime );
    }
 }
 
@@ -79,10 +83,21 @@ set_camera_id(int camera_id)
     {
         miCameraID = camera_id;
         mCameraCheckSemaphore.release();
-        mSingleShotSemaphore.release();
+        if( mbSingleShotMode.load() )
+            mSingleShotSemaphore.release();
         if( !isRunning() )
             start();
     }
+}
+
+void
+CVCameraThread::
+set_params( CVCameraParameters & params )
+{
+    mCameraParams = params;
+    mCameraCheckSemaphore.release();
+    if( mbSingleShotMode.load() )
+        mSingleShotSemaphore.release();
 }
 
 // need to move this function to run in a thread, eg. run function, otherwise it will block a main GUI loop a bit.
@@ -101,23 +116,97 @@ check_camera()
         {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
             mCVVideoCapture = cv::VideoCapture(miCameraID, cv::CAP_DSHOW );
-#elif defined( __APPLE__ )
+#elif defined(__APPLE__)
             mCVVideoCapture = cv::VideoCapture(miCameraID);
-#elif defined( __linux__ )
+#elif defined(__linux__)
             mCVVideoCapture = cv::VideoCapture(miCameraID, cv::CAP_V4L2);
 #endif
             if( mCVVideoCapture.isOpened() )
             {
-                mCVVideoCapture.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
-                mCVVideoCapture.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
-                mCVVideoCapture.set(cv::CAP_PROP_AUTO_WB, 1);
+                mCVVideoCapture.set(cv::CAP_PROP_FOURCC, mCameraParams.miFourCC);
+                mCVVideoCapture.set(cv::CAP_PROP_FPS, mCameraParams.miFps);
+                mCVVideoCapture.set(cv::CAP_PROP_FRAME_WIDTH, mCameraParams.miWidth);
+                mCVVideoCapture.set(cv::CAP_PROP_FRAME_HEIGHT, mCameraParams.miHeight);
+                mCVVideoCapture.set(cv::CAP_PROP_AUTO_WB, mCameraParams.miAutoWB);
                 //mCVVideoCapture.set(cv::CAP_PROP_WB_TEMPERATURE, 6000);
-                //mCVVideoCapture.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
                 mdFPS = mCVVideoCapture.get(cv::CAP_PROP_FPS);
+                qDebug() << "Config FPS : " << mdFPS;
                 if( mdFPS != 0. )
                     miDelayTime = unsigned(1000./mdFPS);
                 else
                     miDelayTime = 10;
+                if(miDelayTime > 15 )
+                    miDelayTime =  miDelayTime - 3;
+
+                int fourcc = static_cast<int>(mCVVideoCapture.get(cv::CAP_PROP_FOURCC));
+
+                // Convert the FourCC code to a readable string
+                char fourcc_str[] = {
+                (char)(fourcc & 0XFF),
+                (char)((fourcc & 0XFF00) >> 8),
+                (char)((fourcc & 0XFF0000) >> 16),
+                (char)((fourcc & 0XFF000000) >> 24),
+                '\0'
+                };
+    
+                qDebug() << "Camera output format (FourCC): " << QString(fourcc_str) << " " << fourcc;
+#if defined (__linux__)
+                if(!mCVVideoCapture.set(cv::CAP_PROP_BRIGHTNESS, mCameraParams.miBrightness))
+                {
+                    qDebug() << "Error: Brightness!";
+                    double value = mCVVideoCapture.get(cv::CAP_PROP_BRIGHTNESS);
+                    mCameraParams.miBrightness = value;
+                    qDebug() << "Get brightness : " << value;
+                }
+                else
+                {
+                    double value = mCVVideoCapture.get(cv::CAP_PROP_BRIGHTNESS);
+                    mCameraParams.miBrightness = value;
+                    qDebug() << "Get brightness : " << value;
+                }
+                if(!mCVVideoCapture.set(cv::CAP_PROP_AUTO_EXPOSURE, mCameraParams.miAutoExposure))
+                {
+                    qDebug() << "Error: Auto Exposure!";
+                    double value = mCVVideoCapture.get(cv::CAP_PROP_AUTO_EXPOSURE);
+                    mCameraParams.miAutoExposure = value;
+                    qDebug() << "Get Auto Exposure: " << value;
+                }
+                else
+                {
+                    double value = mCVVideoCapture.get(cv::CAP_PROP_AUTO_EXPOSURE);
+                    mCameraParams.miAutoExposure = value;
+                    qDebug() << "Get Auto Exposure: " << value;
+                }
+                if( mCameraParams.miAutoExposure == 1 ) // Manual Exposure
+                {
+                    if(!mCVVideoCapture.set(cv::CAP_PROP_GAIN, mCameraParams.miGain))
+                    {
+                        qDebug() << "Error: gain!";
+                        double value = mCVVideoCapture.get(cv::CAP_PROP_GAIN);
+                        mCameraParams.miGain = value;
+                        qDebug() << "Get gain : " << value;
+                    }
+                    else
+                    {
+                        double value = mCVVideoCapture.get(cv::CAP_PROP_GAIN);
+                        mCameraParams.miGain = value;
+                        qDebug() << "Get gain : " << value;
+                    }
+                    if(!mCVVideoCapture.set(cv::CAP_PROP_EXPOSURE, mCameraParams.miExposure))
+                    {
+                        qDebug() << "Error: Exposure!";
+                        double value = mCVVideoCapture.get(cv::CAP_PROP_EXPOSURE);
+                        mCameraParams.miExposure = value;
+                        qDebug() << "Get Exposure: " << value;
+                    }
+                    else
+                    {
+                        double value = mCVVideoCapture.get(cv::CAP_PROP_EXPOSURE);
+                        mCameraParams.miExposure = value;
+                        qDebug() << "Get Exposure: " << value;
+                    }
+                }
+#endif
                 mbConnected = true;
                 Q_EMIT camera_ready(true);
             }
@@ -156,11 +245,46 @@ CVCameraModel()
 
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList( {"0", "1", "2", "3", "4"} );
-    enumPropertyType.miCurrentIndex = enumPropertyType.mslEnumNames.indexOf( QString::number( mParams.miCameraID ) );
+    enumPropertyType.miCurrentIndex = enumPropertyType.mslEnumNames.indexOf( QString::number( mCameraProperty.miCameraID ) );
     QString propId = "camera_id";
     auto propCameraID = std::make_shared< TypedProperty< EnumPropertyType > >("Camera ID", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType);
     mvProperty.push_back( propCameraID );
     mMapIdToProperty[ propId ] = propCameraID;
+
+    IntPropertyType intPropertyType;
+    intPropertyType.miMax = 64;
+    intPropertyType.miMin = -64;
+    intPropertyType.miValue = -10;
+    propId = "brightness";
+    auto propBrightness = std::make_shared< TypedProperty< IntPropertyType > >("Brightness", propId, QMetaType::Int, intPropertyType);
+    mvProperty.push_back( propBrightness );
+    mMapIdToProperty[ propId ] = propBrightness;
+
+    propId = "auto_wb";
+    auto propAutoWB = std::make_shared< TypedProperty< bool > >("Auto White Balance", propId, QMetaType::Bool, false);
+    mvProperty.push_back( propAutoWB );
+    mMapIdToProperty[ propId ] = propAutoWB;
+
+    propId = "auto_exposure";
+    auto propAutoExposure = std::make_shared< TypedProperty< bool > >("Auto Exposure", propId, QMetaType::Bool, false);
+    mvProperty.push_back( propAutoExposure );
+    mMapIdToProperty[ propId ] = propAutoExposure;
+
+    intPropertyType.miMax = 5000;
+    intPropertyType.miMin = 1;
+    intPropertyType.miValue = 2000;
+    propId = "exposure";
+    auto propExposure = std::make_shared< TypedProperty< IntPropertyType > >("Exposure(1/s)", propId, QMetaType::Int, intPropertyType);
+    mvProperty.push_back( propExposure );
+    mMapIdToProperty[ propId ] = propExposure;
+
+    intPropertyType.miMax = 100;
+    intPropertyType.miMin = 1;
+    intPropertyType.miValue = 70;
+    propId = "gain";
+    auto propGain = std::make_shared< TypedProperty< IntPropertyType > >("Gain", propId, QMetaType::Int, intPropertyType);
+    mvProperty.push_back( propGain );
+    mMapIdToProperty[ propId ] = propGain;
 }
 
 void
@@ -174,7 +298,7 @@ void
 CVCameraModel::
 camera_status_changed( bool status )
 {
-    mParams.mbCameraStatus = status;
+    mCameraProperty.mbCameraStatus = status;
 }
 
 unsigned int
@@ -259,7 +383,12 @@ save() const
     QJsonObject modelJson = PBNodeDataModel::save();
 
     QJsonObject cParams;
-    cParams[ "camera_id" ] = mParams.miCameraID;
+    cParams[ "camera_id" ] = mCameraProperty.miCameraID;
+    cParams[ "brightness" ] = miBrightness;
+    cParams[ "gain" ] = miGain;
+    cParams[ "exposure" ] = miExposure;
+    cParams[ "auto_exposure" ] = mbAutoExposure;
+    cParams[ "auto_wb" ] = mbAutoWB;
     modelJson[ "cParams" ] = cParams;
 
     return modelJson;
@@ -282,12 +411,65 @@ restore(const QJsonObject &p)
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType> >( prop );
             typedProp->getData().miCurrentIndex = typedProp->getData().mslEnumNames.indexOf( v.toString() );
 
-            mParams.miCameraID = v.toInt();
+            mCameraProperty.miCameraID = v.toInt();
         }
 
-        mpEmbeddedWidget->set_params( mParams );
+        mpEmbeddedWidget->set_camera_property( mCameraProperty );
         if( isEnable() )
-            mpCVCameraThread->set_camera_id( mParams.miCameraID );
+            mpCVCameraThread->set_camera_id( mCameraProperty.miCameraID );
+
+        CVCameraParameters params;
+        v = paramsObj["brightness"];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "brightness"];
+            auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+            miBrightness = v.toInt();
+            typedProp->getData().miValue = miBrightness;
+            params.miBrightness = miBrightness;
+        }
+
+        v = paramsObj["gain"];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "gain" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+            miGain = v.toInt();
+            typedProp->getData().miValue = miGain;
+            params.miGain = miGain;
+        }
+
+        v = paramsObj[ "auto_wb" ];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "auto_wb" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+            mbAutoWB = v.toBool();
+            typedProp->getData() = mbAutoWB;
+            params.miAutoWB = mbAutoWB ? 1 : 0;
+        }
+
+        v = paramsObj[ "auto_exposure" ];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "auto_exposure" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+            mbAutoExposure = v.toBool();
+            typedProp->getData() = mbAutoExposure;
+            params.miAutoExposure = mbAutoExposure ? 3 : 1;
+        }
+
+        v = paramsObj[" exposure" ];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "exposure" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+            miExposure = v.toInt();
+            typedProp->getData().miValue = miExposure;
+            params.miExposure = miExposure;
+
+        }
+        mpCVCameraThread->set_params( params );
     }
 }
 
@@ -306,10 +488,60 @@ setModelProperty( QString & id, const QVariant & value )
         auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
         typedProp->getData().miCurrentIndex = typedProp->getData().mslEnumNames.indexOf( value.toString() );
 
-        mParams.miCameraID = value.toInt();
-        mpEmbeddedWidget->set_params( mParams );
+        mCameraProperty.miCameraID = value.toInt();
+        mpEmbeddedWidget->set_camera_property( mCameraProperty );
         if( isEnable() )
-            mpCVCameraThread->set_camera_id( mParams.miCameraID );
+            mpCVCameraThread->set_camera_id( mCameraProperty.miCameraID );
+    }
+    else if( id == "brightness" )
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+        miBrightness = value.toInt();
+        typedProp->getData().miValue = miBrightness;
+
+        CVCameraParameters params = mpCVCameraThread->get_params();
+        params.miBrightness = miBrightness;
+        mpCVCameraThread->set_params( params );
+    }
+    else if( id == "gain" )
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+        miGain = value.toInt();
+        typedProp->getData().miValue = miGain;
+
+        CVCameraParameters params = mpCVCameraThread->get_params();
+        params.miGain = miGain;
+        mpCVCameraThread->set_params( params );
+    }
+    else if( id == "auto_wb" )
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+        mbAutoWB = value.toBool();
+        typedProp->getData() = mbAutoWB;
+
+        CVCameraParameters params = mpCVCameraThread->get_params();
+        params.miAutoWB = mbAutoWB ? 1 : 0;
+        mpCVCameraThread->set_params( params );
+    }
+    else if( id == "auto_exposure" )
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+        mbAutoExposure = value.toBool();
+        typedProp->getData() = mbAutoExposure;
+
+        CVCameraParameters params = mpCVCameraThread->get_params();
+        params.miAutoExposure = mbAutoExposure ? 3 : 1;
+        mpCVCameraThread->set_params( params );
+    }
+    else if( id == "exposure" )
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+        miExposure = value.toInt();
+        typedProp->getData().miValue = miExposure;
+
+        CVCameraParameters params = mpCVCameraThread->get_params();
+        params.miExposure = miExposure;
+        mpCVCameraThread->set_params( params );
     }
 }
 
@@ -322,8 +554,8 @@ enable_changed(bool enable)
     mpEmbeddedWidget->set_ready_state( !enable );
     if( enable )
     {
-        mParams.miCameraID = mpEmbeddedWidget->get_params().miCameraID;
-        mpCVCameraThread->set_camera_id(mParams.miCameraID);
+        mCameraProperty.miCameraID = mpEmbeddedWidget->get_camera_property().miCameraID;
+        mpCVCameraThread->set_camera_id(mCameraProperty.miCameraID);
     }
     else
         mpCVCameraThread->set_camera_id(-1);
@@ -368,7 +600,7 @@ em_button_clicked( int button )
         {
             prop = mMapIdToProperty[ "camera_id" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
-            typedProp->getData().miCurrentIndex = typedProp->getData().mslEnumNames.indexOf( QString::number( mpEmbeddedWidget->get_params().miCameraID ) );
+            typedProp->getData().miCurrentIndex = typedProp->getData().mslEnumNames.indexOf( QString::number( mpEmbeddedWidget->get_camera_property().miCameraID ) );
             Q_EMIT property_changed_signal( prop );
         }
     }

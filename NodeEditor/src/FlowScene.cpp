@@ -331,7 +331,7 @@ iterateOverNodeDataDependentOrder(std::function<void(NodeDataModel*)> const & vi
   auto isNodeLeaf =
     [](Node const &node, NodeDataModel const &model)
     {
-      for (unsigned int i = 0; i < model.nPorts(PortType::In); ++i)
+      for (int i = 0; i < static_cast<int>(model.nPorts(PortType::In)); ++i)
       {
         auto connections = node.nodeState().connections(PortType::In, i);
         if (!connections.empty())
@@ -577,7 +577,7 @@ saveToMemory() const
   sceneJson["connections"] = connectionJsonArray;
 
   QJsonArray anchorsJsonArray;
-  for( unsigned long i = 0; i < _anchors.size(); i++ )
+  for( int i = 0; i < static_cast<int>(_anchors.size()); i++ )
   {
     QJsonObject anchor;
     anchor["position_x"] = _anchors[i].position.x();

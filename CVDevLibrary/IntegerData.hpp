@@ -46,6 +46,13 @@ public:
         return miData;
     }
 
+    void
+    set_data( int data )
+    {
+        miData = data;
+        InformationData::set_timestamp();
+    }
+
     void set_information() override
     {
         mQSData = QString("Data Type : int \n");

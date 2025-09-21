@@ -87,14 +87,14 @@ restore(QJsonObject const &p)
 
     QJsonValue v;
     v = p[ "source" ];
-    if( !v.isUndefined() )
+    if( !v.isNull() )
         mbSource = v.toBool();
 
     QJsonObject paramsObj = p["params"].toObject();
     if( !paramsObj.isEmpty() )
     {
         v = paramsObj["caption"];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["caption"];
             auto typedProp = std::static_pointer_cast<TypedProperty<QString>>(prop);
@@ -104,7 +104,7 @@ restore(QJsonObject const &p)
         }
 
         v = paramsObj[ "enable" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "enable" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
@@ -123,7 +123,7 @@ restore(QJsonObject const &p)
         }
 
         v = paramsObj[ "minimize" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "minimize" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
@@ -133,7 +133,7 @@ restore(QJsonObject const &p)
         }
 
         v = paramsObj[ "lock_position" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "lock_position" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
@@ -143,7 +143,7 @@ restore(QJsonObject const &p)
         }
 
         v = paramsObj[ "draw_entries" ];
-        if( !v.isUndefined() )
+        if( !v.isNull() )
         {
             auto prop = mMapIdToProperty[ "draw_entries" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );

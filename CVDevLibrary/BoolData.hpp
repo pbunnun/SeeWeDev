@@ -47,6 +47,13 @@ public:
         return mbBool;
     }
 
+    void
+    set_data(bool data)
+    {
+        mbBool = data;
+        InformationData::set_timestamp();
+    }
+
     QString
     state_str() const
     {

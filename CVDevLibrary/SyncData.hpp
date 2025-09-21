@@ -47,6 +47,13 @@ public:
         return mbSync;
     }
 
+    void
+    set_data( bool data )
+    {
+        mbSync = data;
+        InformationData::set_timestamp();
+    }
+
     QString
     state_str() const
     {

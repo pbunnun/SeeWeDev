@@ -438,7 +438,7 @@ void QtMetaEnumProvider::initLocale()
             m_languageToIndex[language] = langIdx;
             QStringList territoryNames;
             int territoryIdx = 0;
-            for (QLocale::Territory territory : qAsConst(territories)) {
+            for (QLocale::Territory territory : std::as_const(territories)) {
                 territoryNames << QLocale::territoryToString(territory);
                 m_indexToTerritory[langIdx][territoryIdx] = territory;
                 m_territoryToIndex[language][territory] = territoryIdx;
@@ -460,7 +460,7 @@ void QtMetaEnumProvider::initLocale()
             m_languageToIndex[language] = langIdx;
             QStringList countryNames;
             int countryIdx = 0;
-            for (QLocale::Country country : qAsConst(countries)) {
+            for (QLocale::Country country : std::as_const(countries)) {
                 countryNames << QLocale::countryToString(country);
                 m_indexToCountry[langIdx][countryIdx] = country;
                 m_countryToIndex[language][country] = countryIdx;
@@ -5734,7 +5734,7 @@ void QtFlagPropertyManager::setFlagNames(QtProperty *property, const QStringList
 
     const auto pfit = d_ptr->m_propertyToFlags.find(property);
     if (pfit != d_ptr->m_propertyToFlags.end()) {
-        for (QtProperty *prop : qAsConst(pfit.value())) {
+        for (QtProperty *prop : std::as_const(pfit.value())) {
             if (prop) {
                 delete prop;
                 d_ptr->m_flagToProperty.remove(prop);
@@ -5774,7 +5774,7 @@ void QtFlagPropertyManager::uninitializeProperty(QtProperty *property)
 {
     const auto it = d_ptr->m_propertyToFlags.find(property);
     if (it != d_ptr->m_propertyToFlags.end()) {
-        for (QtProperty *prop : qAsConst(it.value()))  {
+        for (QtProperty *prop : std::as_const(it.value()))  {
             if (prop) {
                 d_ptr->m_flagToProperty.remove(prop);
                 delete prop;

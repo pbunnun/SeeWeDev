@@ -96,18 +96,14 @@ dataType(PortType, PortIndex portIndex) const
 
 std::shared_ptr<NodeData>
 CannyEdgeModel::
-outData(PortIndex port)
+outData(PortIndex idx)
 {
     if( isEnable() )
     {
-        if( port == 0 )
-        {
+        if( idx == 0 )
             return mpCVImageOutData;
-        }
-        else if( port == 1 )
-        {
+        else if( idx == 1 )
             return mpSyncData;
-        }
     }
     return nullptr;
 }
@@ -124,7 +120,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
         mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
-        if (d)
+        if (!d->data().empty())
         {
             mpCVImageInData = d;
             processData( mpCVImageInData, mpCVImageOutData, mParams );

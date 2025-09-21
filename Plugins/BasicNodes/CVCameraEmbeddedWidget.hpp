@@ -19,10 +19,10 @@
 #include <QWidget>
 #include <QLabel>
 
-typedef struct CVCameraParameters{
+typedef struct CVCameraProperty{
     int miCameraID{0};
     bool mbCameraStatus{false};
-} CVCameraParameters;
+} CVCameraProperty;
 
 namespace Ui {
 class CVCameraEmbeddedWidget;
@@ -37,10 +37,10 @@ public:
     ~CVCameraEmbeddedWidget();
 
     void
-    set_params( CVCameraParameters params );
+    set_camera_property( CVCameraProperty );
 
-    CVCameraParameters
-    get_params() const { return mParams; }
+    CVCameraProperty
+    get_camera_property() const { return mCameraProperty; }
 
     void
     set_ready_state( bool );
@@ -66,7 +66,7 @@ public Q_SLOTS:
     on_mpCameraIDComboBox_currentIndexChanged( int );
 
 private:
-    CVCameraParameters mParams;
+    CVCameraProperty mCameraProperty;
     QLabel * mpTransparentLabel;
     Ui::CVCameraEmbeddedWidget *ui;
 };

@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <QtCore/QObject>
 #include <QtWidgets/QSpinBox>
 #include <QtCore/QThread>
@@ -27,6 +25,7 @@
 #include <nodes/DataModelRegistry>
 #include "PBNodeDataModel.hpp"
 #include "CVImageData.hpp"
+#include "InformationData.hpp"
 #include "StdVectorNumberData.hpp"
 #include "TemplateEmbeddedWidget.hpp"
 
@@ -69,6 +68,9 @@ public:
     QWidget *
     embeddedWidget() override { return mpEmbeddedWidget; }
 
+    bool
+    resizable() const override { return true; }
+
     /*
      * Recieve signals back from QtPropertyBrowser and use this function to
      * set parameters/variables accordingly.
@@ -101,8 +103,9 @@ private Q_SLOTS:
 private:
     TemplateEmbeddedWidget * mpEmbeddedWidget;
 
-    std::shared_ptr<CVImageData> mpCVImageData;
+    std::shared_ptr< CVImageData > mpCVImageData;
     std::shared_ptr< StdVectorIntData > mpStdVectorIntData;
+    std::shared_ptr< InformationData > mpInformationData;
 
     bool mbCheckBox{ true };
     QString msDisplayText{ "ComboBox" };

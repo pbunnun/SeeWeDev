@@ -39,8 +39,8 @@ void
 CVCameraEmbeddedWidget::
 camera_status_changed( bool status )
 {
-    mParams.mbCameraStatus = status;
-    if( mParams.mbCameraStatus )
+    mCameraProperty.mbCameraStatus = status;
+    if( mCameraProperty.mbCameraStatus )
         ui->mpCameraIDComboBox->setStyleSheet( "QComboBox { background-color : green; }" );
     else
         ui->mpCameraIDComboBox->setStyleSheet( "QComboBox { background-color : yellow; }" );
@@ -56,10 +56,10 @@ set_ready_state( bool bReady )
 
 void
 CVCameraEmbeddedWidget::
-set_params(CVCameraParameters params)
+set_camera_property(CVCameraProperty property)
 {
-    mParams = params;
-    ui->mpCameraIDComboBox->setCurrentText( QString::number( mParams.miCameraID ) );
+    mCameraProperty = property;
+    ui->mpCameraIDComboBox->setCurrentText( QString::number( mCameraProperty.miCameraID ) );
 }
 
 void
@@ -84,7 +84,7 @@ void
 CVCameraEmbeddedWidget::
 on_mpCameraIDComboBox_currentIndexChanged( int )
 {
-    mParams.miCameraID = ui->mpCameraIDComboBox->currentText().toInt();
+    mCameraProperty.miCameraID = ui->mpCameraIDComboBox->currentText().toInt();
     ui->mpStartButton->setEnabled( true );
     ui->mpStopButton->setEnabled( false );
     Q_EMIT button_clicked_signal( 2 );

@@ -21,6 +21,7 @@
 #include <QtWidgets/QFileDialog>
 #include "qtvariantproperty.h"
 #include <opencv2/imgcodecs.hpp>
+#include <QFileInfo>
 
 SavingImageThread::SavingImageThread(QObject *parent) : QThread(parent)
 {
@@ -52,9 +53,18 @@ SavingImageThread::run()
         mNoImageSemaphore.acquire();
         if( mbAbort )
             continue;
-        auto filename = mFilenameQueue.dequeue();
+        int retry_counter = 0;
+        auto abs_filename = mFilenameQueue.dequeue();
+        while( QFile::exists( abs_filename ) && retry_counter < 100 )
+        {
+            QFileInfo fileinfo(abs_filename);
+            QString new_filename = fileinfo.baseName() + "-" + QDateTime::currentDateTime().toString("yyMMdd-hhmmss") + "." + fileinfo.suffix();
+            abs_filename = mqDirname.absoluteFilePath(new_filename);
+            retry_counter++;
+            msleep(10);
+        }
         auto image = mImageQueue.dequeue();
-        cv::imwrite(filename.toStdString(), image);
+        cv::imwrite(abs_filename.toStdString(), image);
         image.release();
     }
 }
@@ -95,6 +105,14 @@ SaveImageModel()
     auto propFilename = std::make_shared< TypedProperty< QString > >("Prefix Filename", propId, QMetaType::QString, msPrefix_Filename);
     mvProperty.push_back( propFilename );
     mMapIdToProperty[ propId ] = propFilename;
+
+    EnumPropertyType enumPropertyType;
+    enumPropertyType.mslEnumNames = QStringList({"jpg", "png"});
+    enumPropertyType.miCurrentIndex = 1;
+    propId = "image_format";
+    auto propImageFormat = std::make_shared< TypedProperty< EnumPropertyType > >("Image Format", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType);
+    mvProperty.push_back( propImageFormat );
+    mMapIdToProperty[ propId ] = propImageFormat;
 }
 
 unsigned int
@@ -158,9 +176,9 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         }
         else if( !mbUseProvidedFilename )
         {
-            QString filename = msPrefix_Filename + "-" + QString::number(miCounter++) + ".jpg";
             if( !mpCVImageInData->data().empty() )
             {
+                QString filename = msPrefix_Filename + "-" + QString::number(miCounter++) + "." + msImage_Format;
                 mpSavingImageThread->add_new_image( mpCVImageInData->data(), filename );
                 mpSyncData->data() = true;
                 Q_EMIT dataUpdated(0);
@@ -199,9 +217,9 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         auto sync_nd = std::dynamic_pointer_cast< SyncData >( nodeData );
         if( sync_nd->data() && mpCVImageInData )
         {
-            QString filename = msPrefix_Filename + "-" + QString::number(miCounter++) + ".jpg";
             if( !mpCVImageInData->data().empty() )
             {
+                QString filename = msPrefix_Filename + "-" + QString::number(miCounter++) + "." + msImage_Format;
                 mpSavingImageThread->add_new_image( mpCVImageInData->data(), filename );
                 mpSyncData->data() = true;
                 Q_EMIT dataUpdated(0);
@@ -226,6 +244,7 @@ save() const
         QJsonObject cParams;
         cParams["dirname"] = msDirname;
         cParams["prefix_filename"] = msPrefix_Filename;
+        cParams["image_format"] = msImage_Format;
         modelJson["cParams"] = cParams;
     }
     return modelJson;
@@ -263,6 +282,19 @@ restore( QJsonObject const &p )
             typedProp->getData() = v.toString();
             msPrefix_Filename = v.toString();
         }
+        v = paramsObj["image_format"];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty["image_format"];
+            auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >(prop);
+            int iCurrentIndex = 0;
+            if( v.toString() == "jpg" )
+                iCurrentIndex = 0;
+            else if( v.toString() == "png" )
+                iCurrentIndex = 1;
+            typedProp->getData().miCurrentIndex = iCurrentIndex;
+            msImage_Format = v.toString();
+        }
     }
 }
 
@@ -289,6 +321,15 @@ setModelProperty( QString & id, const QVariant & value )
         auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );
         typedProp->getData() = value.toString();
         msPrefix_Filename = value.toString();
+    }
+    else if( id == "image_format" )
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
+        typedProp->getData().miCurrentIndex = value.toInt();
+        if( value.toInt() == 0 )
+            msImage_Format = "jpg";
+        else if( value.toInt() == 1 )
+            msImage_Format = "png";
     }
 }
 

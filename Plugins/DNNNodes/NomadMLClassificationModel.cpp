@@ -22,6 +22,8 @@
 
 #include "qtvariantproperty.h"
 #include <QFile>
+#include <QElapsedTimer>
+
 
 NomadMLClassificationThread::NomadMLClassificationThread( QObject * parent )
     : QThread(parent)
@@ -46,11 +48,15 @@ run()
     while( !mbAbort )
     {
         mWaitingSemaphore.acquire();
-        if( !mbModelReady )
-            continue;
         if( mbAbort )
             break;
+        if( !mbModelReady )
+            continue;
         mLockMutex.lock();
+
+        QElapsedTimer etimer;
+        etimer.start();
+
         cv::Mat blob;
         cv::dnn::blobFromImage( mCVImage, blob, 1./mParams.mdInvScaleFactor, mParams.mCVSize, mParams.mdInvScaleFactor*mParams.mCVScalarMean, true );
         cv::divide(blob, mParams.mCVScalarStd, blob);
@@ -64,15 +70,17 @@ run()
             sumScores += exp(out.at<float>(idx));
         float confidence = exp(max)/sumScores;
         //qDebug() << "Got Confidence ... " << confidence << " " << maxLoc.x;
+        //qDebug() << "Elapsed Time : " << etimer.nsecsElapsed()/1000000.;
+
         QString result_information;
-        if( maxLoc.x < mvStrClasses.size() )
+        if( maxLoc.x < static_cast<int>(mvStrClasses.size()) )
         {
-            QString out_text = "Class : " + QString::fromStdString(mvStrClasses[maxLoc.x]);
-            result_information = out_text;
-            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
-            out_text = "Prob. : " + QString::number(confidence);
-            result_information += " " + out_text;
-            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 100), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+            QString out_text = "\"Class\" : \"" + QString::fromStdString(mvStrClasses[maxLoc.x] + "\"");
+            result_information = "{\n    " + out_text;
+            cv::putText(mCVImage, out_text.toStdString(), cv::Point(5, 20), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+            out_text = "\"Prob.\" : " + QString::number(confidence);
+            result_information += ",\n    " + out_text + "\n}";
+            cv::putText(mCVImage, out_text.toStdString(), cv::Point(5, 40), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
         }
         Q_EMIT result_ready( mCVImage, result_information );
         mLockMutex.unlock();
@@ -95,10 +103,10 @@ detect( const cv::Mat & in_image )
 
 bool
 NomadMLClassificationThread::
-readNet( QString & model )
+read_net( QString & model_filename )
 {
     try {
-        mNomadMLClassification = cv::dnn::readNetFromONNX(model.toStdString());
+        mNomadMLClassification = cv::dnn::readNetFromONNX(model_filename.toStdString());
         //mNomadMLClassification.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
         //mNomadMLClassification.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
         if( mvStrClasses.size() != 0 )
@@ -118,6 +126,8 @@ NomadMLClassificationThread::
     mParams = params;
     mvStrClasses = classes;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 NomadMLClassificationModel::
 NomadMLClassificationModel()
@@ -270,7 +280,10 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
         //Q_EMIT dataUpdated(2);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
+        {
+            mpInformationData->set_timestamp( d->timestamp() );
             processData( d );
+        }
     }
 }
 
@@ -356,7 +369,7 @@ late_constructor()
     {
         mpNomadMLClassificationThread = new NomadMLClassificationThread(this);
         connect( mpNomadMLClassificationThread, &NomadMLClassificationThread::result_ready, this, &NomadMLClassificationModel::received_result );
-        load_model();
+        //load_model();
         mpNomadMLClassificationThread->start();
     }
 }
@@ -388,9 +401,18 @@ load_model(bool bUpdateDisplayProperties)
             NomadMLClassificationBlobImageParameters params;
             params.mdInvScaleFactor = 255.;
 
-            int wSize, hSize;
-            fs["size"]["longest_edge"] >> wSize;
-            fs["size"]["shortest_edge"] >> hSize;
+            int wSize, hSize ;
+            std::vector<int> vSize;
+            fs["input_size"] >> vSize;
+            if( vSize.size() == 2 )
+            {
+                wSize = vSize[0];
+                hSize = vSize[1];
+            }
+            else
+            {
+                wSize = hSize = 224;
+            }
             if( wSize > 0 && hSize > 0 )
             {
                 auto prop = mMapIdToProperty["size"];
@@ -454,12 +476,26 @@ load_model(bool bUpdateDisplayProperties)
             fs["id2label"] >> str_classes;
 
             mpNomadMLClassificationThread->setParams( params, str_classes );
-        }
-        if( QFile::exists(msDNNModel_Filename) )
-        {
-            mpNomadMLClassificationThread->readNet( msDNNModel_Filename );
+
+            if( QFile::exists(msDNNModel_Filename) )
+            {
+                if( mpNomadMLClassificationThread->read_net( msDNNModel_Filename ) )
+                {
+                    auto prop = mMapIdToProperty["enable"];
+                    auto typedProp = std::static_pointer_cast< TypedProperty< bool > > (prop);
+                    typedProp->getData() = true;
+                    if( bUpdateDisplayProperties )
+                        Q_EMIT property_changed_signal(prop);
+                    return;
+                }
+            }
         }
     }
+    auto prop = mMapIdToProperty["enable"];
+    auto typedProp = std::static_pointer_cast< TypedProperty< bool > > (prop);
+    typedProp->getData() = false;
+    if( bUpdateDisplayProperties )
+        Q_EMIT property_changed_signal(prop);
 }
 
 void

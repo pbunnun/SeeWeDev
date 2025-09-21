@@ -45,10 +45,11 @@ VideoWriterThread::
 
 void
 VideoWriterThread::
-start_writer( QString filename, double fps )
+start_writer(QString filename, int max_frame_per_video, int fps )
 {
     msFilename = filename;
-    mdFPS = fps;
+    miFPS = fps;
+    miFramePerVideo = max_frame_per_video;
     miRecordingStatus = 1;
     if( !isRunning() )
         start();
@@ -58,6 +59,7 @@ void
 VideoWriterThread::
 stop_writer()
 {
+    miFrameCounter = 0;
     miRecordingStatus = 2;
     cv::Mat image;
     mqCVImage.enqueue( image );
@@ -95,6 +97,12 @@ run()
         else
         {
             mVideoWriter << image;
+            if( miFrameCounter ++ == miFramePerVideo )
+            {
+               miFrameCounter = 0;
+               mVideoWriter.release();
+               open_writer( image );
+            }
         }
     }
 }
@@ -110,12 +118,25 @@ open_writer( const cv::Mat & image )
         bColor = true;
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
     int fourcc = cv::VideoWriter::fourcc('D','I','V','X');
+    QString filename = msFilename + "V" + QString::number(miFilenameCounter) + ".avi";
+    while( QFile::exists( filename ) )
+        filename = msFilename + "V" + QString::number(miFilenameCounter++) + ".avi";
 #elif defined( __APPLE__ )
     int fourcc = cv::VideoWriter::fourcc('D','I','V','X');
+    QString filename = msFilename + "V" + QString::number(miFilenameCounter) + ".avi";
+    while( QFile::exists( filename ) )
+        filename = msFilename + "V" + QString::number(miFilenameCounter++) + ".avi";
 #elif defined( __linux__ )
-    int fourcc = cv::VideoWriter::fourcc('D','I','V','X');
+    //int fourcc = cv::VideoWriter::fourcc('D','I','V','X'); // match with avi
+    //int fourcc = cv::VideoWriter::fourcc('X','2','6','4');
+    //int fourcc = cv::VideoWriter::fourcc('H','E','V','C');
+    //int fourcc = cv::VideoWriter::fourcc('M','P','4','V');
+    int fourcc = cv::VideoWriter::fourcc('m','p','4','v');
+    QString filename = msFilename + "V" + QString::number(miFilenameCounter) + ".mp4";
+    while( QFile::exists( filename ) )
+        filename = msFilename + "V" + QString::number(miFilenameCounter++) + ".mp4";
 #endif
-    return mVideoWriter.open( msFilename.toStdString(), fourcc, mdFPS, mSize, bColor );
+    return mVideoWriter.open( filename.toStdString(), cv::CAP_FFMPEG, fourcc, miFPS, mSize, bColor );
 }
 
 void
@@ -134,18 +155,23 @@ add_image( const cv::Mat & in_image )
             }
             else
             {
-                mqCVImage.enqueue( in_image.clone() );
+                cv::Mat image;
+                in_image.copyTo( image );
+                mqCVImage.enqueue( image );
                 mWaitingSemaphore.release();
             }
         }
         else
         {
-            mqCVImage.enqueue( in_image.clone() );
+            cv::Mat image;
+            in_image.copyTo( image );
+            mqCVImage.enqueue( image );
             mWaitingSemaphore.release();
         }
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 VideoWriterModel::
 VideoWriterModel()
@@ -166,13 +192,21 @@ VideoWriterModel()
     mMapIdToProperty[ propId ] = propFileName;
 
     IntPropertyType intPropertyType;
-    intPropertyType.miMax = 60;
+    intPropertyType.miMax = 1000;
     intPropertyType.miMin = 1;
     intPropertyType.miValue = 10;
     propId = "fps";
-    auto propFPS = std::make_shared< TypedProperty<IntPropertyType> >("FPS", propId, QMetaType::Int, intPropertyType);
+    auto propFPS = std::make_shared< TypedProperty<IntPropertyType> >("Recorded FPS", propId, QMetaType::Int, intPropertyType);
     mvProperty.push_back( propFPS );
     mMapIdToProperty[ propId ] = propFPS;
+
+    intPropertyType.miMax = 10000000;
+    intPropertyType.miMin = 1;
+    intPropertyType.miValue = 1000;
+    propId = "fpv";
+    auto propFPV = std::make_shared< TypedProperty<IntPropertyType> >("Frame Per Video", propId, QMetaType::Int, intPropertyType);
+    mvProperty.push_back( propFPV );
+    mMapIdToProperty[ propId ] = propFPV;
 }
 
 unsigned int
@@ -231,7 +265,8 @@ save() const
     QJsonObject modelJson = PBNodeDataModel::save();
     QJsonObject cParams;
     cParams["output_filename"] = msOutput_Filename;
-    cParams["fps"] = static_cast<int>(mdFPS);
+    cParams["fps"] = miFPS;
+    cParams["fpv"] = miFramePerVideo;
     modelJson["cParams"] = cParams;
     return modelJson;
 }
@@ -261,7 +296,15 @@ restore( QJsonObject const &p )
             auto prop = mMapIdToProperty["fps"];
             auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >(prop);
             typedProp->getData().miValue = v.toInt();
-            mdFPS = static_cast<double>(v.toInt());
+            miFPS = v.toInt();
+        }
+        v = paramsObj["fpv"];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty["fpv"];
+            auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >(prop);
+            typedProp->getData().miValue = v.toInt();
+            miFramePerVideo = v.toInt();
         }
     }
 }
@@ -286,7 +329,13 @@ setModelProperty( QString & id, const QVariant & value )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >(prop);
         typedProp->getData().miValue = value.toInt();
-        mdFPS = static_cast<double>( value.toInt() );
+        miFPS = value.toInt();
+    }
+    else if( id == "fpv" )
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >(prop);
+        typedProp->getData().miValue = value.toInt();
+        miFramePerVideo = value.toInt();
     }
 }
 
@@ -366,11 +415,9 @@ em_button_clicked( bool checked )
             QString filename = QFileDialog::getSaveFileName(qobject_cast<QWidget *>(this),
                                                             tr("Save a video to"),
                                                             QDir::homePath(),
-                                                            tr("Video (*.avi)"));
+                                                            tr("Video (*.avi *.mp4)"));
             if( !filename.isEmpty() )
             {
-                if( !filename.endsWith( "avi", Qt::CaseInsensitive ) )
-                    filename += ".avi";
                 auto prop = mMapIdToProperty["output_filename"];
                 auto typedProp = std::static_pointer_cast< TypedProperty<QString> >(prop);
                 typedProp->getData() = filename;
@@ -382,7 +429,7 @@ em_button_clicked( bool checked )
         {
             mpEmbeddedWidget->setText("Stop");
             mpEmbeddedWidget->setStyleSheet("QPushButton { background-color : red; }");
-            mpVideoWriterThread->start_writer(msOutput_Filename, mdFPS);
+            mpVideoWriterThread->start_writer(msOutput_Filename, miFramePerVideo, miFPS);
             mbRecording = true;
         }
     }

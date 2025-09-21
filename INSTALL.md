@@ -27,6 +27,8 @@ MS Windows: tested with
         
         cuda and cudnn flags may be removed.
 
+*** Build with vcpkg pacakges may need to initialize CMake with  "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake" ***
+
 
 macOS: tested with
 

@@ -38,8 +38,11 @@ Q_SIGNALS:
     void checkbox_checked_signal( int state );
 
 private Q_SLOTS:
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
     void on_mpCheckBox_stateChanged(int state);
-
+#else
+    void on_mpCheckBox_checkStateChanged(Qt::CheckState state);
+#endif
 private:
     Ui::SobelAndScharrEmbeddedWidget *ui;
 };

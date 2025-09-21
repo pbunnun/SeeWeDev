@@ -55,7 +55,7 @@ public:
     detect( const cv::Mat & );
 
     bool
-    readNet( QString & );
+    read_net( QString & );
 
     void
     setParams( NomadMLClassificationBlobImageParameters &, std::vector< std::string > &);
@@ -120,6 +120,9 @@ public:
 
     QWidget *
     embeddedWidget() override { return nullptr; }
+
+//    bool
+//    resizable() const override { return true; }
 
     void
     setModelProperty( QString &, const QVariant & ) override;

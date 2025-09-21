@@ -23,7 +23,7 @@
 #include <nodes/DataModelRegistry>
 #include "PBNodeDataModel.hpp"
 #include "SyncData.hpp"
-#include "BoolData.h"
+#include "BoolData.hpp"
 
 #include "SyncGateEmbeddedWidget.hpp"
 

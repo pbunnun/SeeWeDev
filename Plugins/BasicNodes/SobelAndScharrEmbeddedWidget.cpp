@@ -26,12 +26,17 @@ SobelAndScharrEmbeddedWidget::~SobelAndScharrEmbeddedWidget()
 {
     delete ui;
 }
-
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
 void SobelAndScharrEmbeddedWidget::on_mpCheckBox_stateChanged(int state)
 {
     Q_EMIT checkbox_checked_signal( state );
 }
-
+#else
+void SobelAndScharrEmbeddedWidget::on_mpCheckBox_checkStateChanged(Qt::CheckState state)
+{
+    Q_EMIT checkbox_checked_signal( state );
+}
+#endif
 void SobelAndScharrEmbeddedWidget::change_enable_checkbox(const bool enable)
 {
     ui->mpCheckBox->setEnabled(enable);

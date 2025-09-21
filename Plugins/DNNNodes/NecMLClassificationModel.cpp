@@ -22,6 +22,7 @@
 
 #include "qtvariantproperty.h"
 #include <QFile>
+#include <QElapsedTimer>
 
 NecMLClassificationThread::NecMLClassificationThread( QObject * parent )
     : QThread(parent)
@@ -51,6 +52,10 @@ run()
         if( mbAbort )
             break;
         mLockMutex.lock();
+
+        QElapsedTimer etimer;
+        etimer.start();
+
         cv::Mat blob;
         cv::dnn::blobFromImage( mCVImage, blob, 1./mParams.mdInvScaleFactor, mParams.mCVSize, mParams.mdInvScaleFactor*mParams.mCVScalarMean, true );
         cv::divide(blob, mParams.mCVScalarStd, blob);
@@ -64,15 +69,17 @@ run()
             sumScores += exp(out.at<float>(idx));
         float confidence = exp(max)/sumScores;
         //qDebug() << "Got Confidence ... " << confidence << " " << maxLoc.x;
+        qDebug() << "Elapsed Time : " << etimer.nsecsElapsed()/1000000.;
+
         QString result_information;
         if( maxLoc.x < mvStrClasses.size() )
         {
-            QString out_text = "Class : " + QString::fromStdString(mvStrClasses[maxLoc.x]);
-            result_information = out_text;
-            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
-            out_text = "Prob. : " + QString::number(confidence);
-            result_information += " " + out_text;
-            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 100), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+            QString out_text = "\"Class\" : \"" + QString::fromStdString(mvStrClasses[maxLoc.x] + "\"");
+            result_information = "{\n    " + out_text;
+            cv::putText(mCVImage, out_text.toStdString(), cv::Point(5, 20), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+            out_text = "\"Prob.\" : \"" + QString::number(confidence) + "\"";
+            result_information += ",\n    " + out_text + "\n}";
+            cv::putText(mCVImage, out_text.toStdString(), cv::Point(5, 40), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
         }
         Q_EMIT result_ready( mCVImage, result_information );
         mLockMutex.unlock();
@@ -445,7 +452,7 @@ load_model(bool bUpdateDisplayProperties)
                 typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType> >( prop );
                 typedProp->getData().mdValue = vStd[2];
                 params.mCVScalarStd[2] = vStd[2];
-                 if( bUpdateDisplayProperties )
+                if( bUpdateDisplayProperties )
                     Q_EMIT property_changed_signal(prop);
             }
 
@@ -453,12 +460,25 @@ load_model(bool bUpdateDisplayProperties)
             fs["idx_to_class"] >> str_classes;
 
             mpNecMLClassificationThread->setParams( params, str_classes );
-        }
-        if( QFile::exists(msDNNModel_Filename) )
-        {
-            mpNecMLClassificationThread->readNet( msDNNModel_Filename );
+            if( QFile::exists(msDNNModel_Filename) )
+            {
+                if( mpNecMLClassificationThread->readNet( msDNNModel_Filename ) )
+                {
+                    auto prop = mMapIdToProperty["enable"];
+                    auto typedProp = std::static_pointer_cast< TypedProperty< bool > > (prop);
+                    typedProp->getData() = true;
+                    if( bUpdateDisplayProperties )
+                        Q_EMIT property_changed_signal(prop);
+                    return;
+                }
+            }
         }
     }
+    auto prop = mMapIdToProperty["enable"];
+    auto typedProp = std::static_pointer_cast< TypedProperty< bool > > (prop);
+    typedProp->getData() = false;
+    if( bUpdateDisplayProperties )
+        Q_EMIT property_changed_signal(prop);
 }
 
 void

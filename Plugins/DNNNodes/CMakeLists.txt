@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 project(DNNNodes LANGUAGES CXX)
 
@@ -21,8 +21,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
 
 file(GLOB CPP_FILES *.cpp)
@@ -35,12 +34,15 @@ add_library(${PROJECT_NAME} SHARED
     resources/dnn_resources.qrc
 )
 
-# Required on Unix OS family to be able to be linked into shared libraries.
+# ---- MODIFIED THIS SECTION ----
+# Replaced RUNTIME_OUTPUT_DIRECTORY with LIBRARY_OUTPUT_DIRECTORY to ensure
+# the plugin is built into the correct subfolder for local execution.
 set_target_properties(${PROJECT_NAME}
                       PROPERTIES
                       POSITION_INDEPENDENT_CODE ON
-                      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
+                      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
                       )
+# -----------------------------
 
 add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DQT_NO_KEYWORDS)
 
@@ -48,10 +50,16 @@ include_directories(${CVDevLibrary_INCLUDE_DIRS})
 
 target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
-    ${OpenCV_LIBS})
+    ${OpenCV_LIBS}
+)
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E rename
-    "$<TARGET_FILE:${PROJECT_NAME}>"
-    "${CMAKE_BINARY_DIR}/CVDev/plugins/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
-    )
+# ---- MODIFIED SECTION FOR CPACK ----
+# The old 'add_custom_command' has been removed.
+#
+# This install command places the compiled plugin library (.so file) into the
+# application's dedicated plugins directory upon installation.
+install(TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION bin/cvdev_plugins
+    COMPONENT Runtime
+)
+# ------------------------------------

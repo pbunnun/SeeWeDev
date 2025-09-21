@@ -68,6 +68,9 @@ public Q_SLOTS:
     void
     on_mpComboBox_currentIndexChanged( int );
 
+    void
+    on_mpSendButton_clicked();
+
 private:
     Ui::TemplateEmbeddedWidget *ui;
 };

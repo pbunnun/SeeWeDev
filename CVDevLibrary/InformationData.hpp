@@ -43,9 +43,22 @@ public:
     virtual void
     set_information() {};
 
-    void set_information(const QString& inf)
+    void
+    set_information(const QString& inf)
     {
         mQSData = inf;
+    }
+
+    void
+    set_timestamp( long int timestamp )
+    {
+        miMillisecsSinceEpoch = timestamp;
+    }
+
+    void
+    set_timestamp()
+    {
+        miMillisecsSinceEpoch = QDateTime::currentMSecsSinceEpoch();
     }
 
     QString
@@ -54,9 +67,15 @@ public:
         return mQSData;
     }
 
-protected:
-    QString mQSData;
+    long int
+    timestamp() const
+    {
+        return miMillisecsSinceEpoch;
+    }
 
+protected:
+    QString mQSData{};
+    long int miMillisecsSinceEpoch;
 };
 
 #endif // INFORMATIONDATA_HPP

@@ -66,7 +66,7 @@ void SyncGateEmbeddedWidget::set_out1_Checkbox(const bool state)
 {
     ui->mpOut1Checkbox->setCheckState(state? Qt::Checked : Qt::Unchecked);
 }
-
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
 void SyncGateEmbeddedWidget::on_mpIn0Checkbox_stateChanged(int state)
 {
     Q_EMIT checkbox_checked_signal(0,state);
@@ -86,3 +86,24 @@ void SyncGateEmbeddedWidget::on_mpOut1Checkbox_stateChanged(int state)
 {
     Q_EMIT checkbox_checked_signal(3,state);
 }
+#else
+void SyncGateEmbeddedWidget::on_mpIn0Checkbox_checkStateChanged(Qt::CheckState state)
+{
+    Q_EMIT checkbox_checked_signal(0,state);
+}
+
+void SyncGateEmbeddedWidget::on_mpIn1Checkbox_checkStateChanged(Qt::CheckState state)
+{
+    Q_EMIT checkbox_checked_signal(1,state);
+}
+
+void SyncGateEmbeddedWidget::on_mpOut0Checkbox_checkStateChanged(Qt::CheckState state)
+{
+    Q_EMIT checkbox_checked_signal(2,state);
+}
+
+void SyncGateEmbeddedWidget::on_mpOut1Checkbox_checkStateChanged(Qt::CheckState state)
+{
+    Q_EMIT checkbox_checked_signal(3,state);
+}
+#endif

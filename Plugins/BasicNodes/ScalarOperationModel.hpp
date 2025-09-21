@@ -26,7 +26,7 @@
 #include "IntegerData.hpp"
 #include "FloatData.hpp"
 #include "DoubleData.hpp"
-#include "BoolData.h"
+#include "BoolData.hpp"
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;

@@ -13,12 +13,12 @@
 //limitations under the License.
 
 #include "PluginInterface.hpp"
-#include <QDir>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QMessageBox>
+#include <QStandardPaths>
 
-#include "BoolData.h"
+#include "BoolData.hpp"
 #include "CVImageData.hpp"
 #include "CVPointData.hpp"
 #include "CVRectData.hpp"
@@ -28,6 +28,7 @@
 #include "IntegerData.hpp"
 #include "StdStringData.hpp"
 #include "StdVectorNumberData.hpp"
+#include "SyncData.hpp"
 
 #include "InformationData.hpp"
 
@@ -53,7 +54,7 @@ void add_type_converters( std::shared_ptr< DataModelRegistry > model_regs )
     model_regs->registerTypeConverter( std::make_pair( rect_nodedata->type(), inf_nodedata->type() ), converter);
 
     auto size_nodedata = std::make_shared<CVSizeData>();
-    model_regs->registerTypeConverter( std::make_pair( rect_nodedata->type(), inf_nodedata->type() ), converter);
+    model_regs->registerTypeConverter( std::make_pair( size_nodedata->type(), inf_nodedata->type() ), converter);
 
     auto double_nodedata = std::make_shared<DoubleData>();
     model_regs->registerTypeConverter( std::make_pair( double_nodedata->type(), inf_nodedata->type() ), converter);
@@ -69,12 +70,14 @@ void add_type_converters( std::shared_ptr< DataModelRegistry > model_regs )
 
     auto std_vec_nodedata = std::make_shared<StdVectorIntData>();
     model_regs->registerTypeConverter( std::make_pair( std_vec_nodedata->type(), inf_nodedata->type() ), converter);
+
+    auto sync_nodedata = std::make_shared<SyncData>();
+    model_regs->registerTypeConverter( std::make_pair( sync_nodedata->type(), inf_nodedata->type() ), converter);
+
 }
 
-void load_plugins( std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader * > & plugins_list )
+void load_plugins_from_dir(std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader * > & plugins_list, QDir pluginsDir )
 {
-    QDir pluginsDir = QDir(QCoreApplication::applicationDirPath());
-    pluginsDir.cd( "plugins" );
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
     const auto entryList = pluginsDir.entryList( QStringList() << "*.dll", QDir::Files);
 #elif defined( __APPLE__ )
@@ -85,11 +88,11 @@ void load_plugins( std::shared_ptr< DataModelRegistry > model_regs, QList< QPlug
     for(const QString & filename : entryList )
     {
         QPluginLoader * loader = new QPluginLoader(pluginsDir.absoluteFilePath(filename));
-        qDebug() << "Found Files : " << filename;
+        qInfo() << "Found Files : " << filename;
         QObject *plugin = loader->instance();
         if( plugin )
         {
-            qDebug() << "Load Plugins : " << filename;
+            qInfo() << "Load Plugins : " << filename;
             auto plugin_interface = qobject_cast<PluginInterface *>( plugin );
             if( plugin_interface )
             {
@@ -110,19 +113,30 @@ void load_plugins( std::shared_ptr< DataModelRegistry > model_regs, QList< QPlug
         }
         else
         {
-            qDebug() << loader->errorString();
+            qCritical() << loader->errorString();
         }
     }
-
 }
 
-void load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QString filename, QList< QPluginLoader *> & plugins_list )
+void load_plugins( std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader * > & plugins_list )
+{
+    QDir pluginsDir = QDir(QCoreApplication::applicationDirPath());
+    pluginsDir.cd( "cvdev_plugins" );
+    load_plugins_from_dir( model_regs, plugins_list, pluginsDir );
+
+    pluginsDir = QDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)+"/.CVDev/cvdev_plugins");
+    if( !pluginsDir.exists() )
+        pluginsDir.mkpath(".");
+    load_plugins_from_dir( model_regs, plugins_list, pluginsDir );
+}
+
+void load_plugin(std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader *> & plugins_list , QString filename)
 {
    QPluginLoader * loader = new QPluginLoader(filename);
    QObject *plugin = loader->instance();
    if( plugin )
    {
-       qDebug() << "Load Plugins : " << filename;
+       qInfo() << "Load Plugins : " << filename;
        auto plugin_interface = qobject_cast<PluginInterface *>( plugin );
        if( plugin_interface )
        {
@@ -143,6 +157,6 @@ void load_plugin( std::shared_ptr< DataModelRegistry > model_regs, QString filen
    }
    else
    {
-       qDebug() << loader->errorString();
+       qCritical() << loader->errorString();
    }
 }
