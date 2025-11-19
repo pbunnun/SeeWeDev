@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 //limitations under the License.
 
 #include "MathConditionEmbeddedWidget.hpp"
+#include <QLineEdit>
+#include <QComboBox>
 #include "ui_MathConditionEmbeddedWidget.h"
 #include <QDebug>
 
@@ -21,6 +23,9 @@ MathConditionEmbeddedWidget::MathConditionEmbeddedWidget( QWidget *parent )
       ui( new Ui::MathConditionEmbeddedWidget )
 {
     ui->setupUi( this );
+    connect(ui->mpConditionComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MathConditionEmbeddedWidget::condition_combo_box_current_index_changed);
+    connect(ui->mpConditionNumber, &QLineEdit::textChanged, this, &MathConditionEmbeddedWidget::condition_number_text_changed);
+
     ui->mpConditionNumber->setValidator( new QDoubleValidator(this) );
 }
 
@@ -31,14 +36,14 @@ MathConditionEmbeddedWidget::~MathConditionEmbeddedWidget()
 
 void
 MathConditionEmbeddedWidget::
-on_mpConditionNumber_textChanged( const QString & text )
+condition_number_text_changed( const QString & text )
 {
     Q_EMIT condition_changed_signal( ui->mpConditionComboBox->currentIndex(), text );
 }
 
 void
 MathConditionEmbeddedWidget::
-on_mpConditionComboBox_currentIndexChanged( int idx )
+condition_combo_box_current_index_changed( int idx )
 {
     Q_EMIT condition_changed_signal( idx, ui->mpConditionNumber->text() );
 }

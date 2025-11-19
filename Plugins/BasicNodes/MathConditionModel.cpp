@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,12 +13,16 @@
 //limitations under the License.
 
 #include "MathConditionModel.hpp"
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include "IntegerData.hpp"
+
+const QString MathConditionModel::_category = QString( "Math Operation" );
+
+const QString MathConditionModel::_model_name = QString( "Condition" );
 
 MathConditionModel::
 MathConditionModel()
-    : PBNodeDataModel( _model_name ),
+    : PBNodeDelegateModel( _model_name ),
       // PBNodeDataModel( model's name, is it enable at start? )
       mpEmbeddedWidget( new MathConditionEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
 {
@@ -56,7 +60,7 @@ nPorts( PortType portType ) const
 
 NodeDataType
 MathConditionModel::
-dataType(PortType portType, PortIndex portIndex) const
+dataType(PortType portType, PortIndex) const
 {
     if( portType == PortType::Out )
         return SyncData().type();
@@ -68,7 +72,7 @@ dataType(PortType portType, PortIndex portIndex) const
 
 std::shared_ptr<NodeData>
 MathConditionModel::
-outData(PortIndex index)
+outData(PortIndex)
 {
     if( isEnable() )
         return mpSyncData;
@@ -141,9 +145,9 @@ MathConditionModel::
 save() const
 {
     /*
-     * If save() was overrided, PBNodeDataModel::save() must be called explicitely.
+     * If save() was overrided, PBNodeDelegateModel::save() must be called explicitely.
      */
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams[ "cond_combobox_id" ] = miConditionIndex;
@@ -156,12 +160,12 @@ save() const
 
 void
 MathConditionModel::
-restore(const QJsonObject &p)
+load(const QJsonObject &p)
 {
     /*
-     * If restore() was overrided, PBNodeDataModel::restore() must be called explicitely.
+     * If load() was overridden, PBNodeDelegateModel::load() must be called explicitely.
      */
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
     late_constructor();
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
@@ -197,7 +201,7 @@ void
 MathConditionModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -245,9 +249,7 @@ em_changed( int cond_idx, QString number )
         stringTypedProp->getData() = msConditionNumber;
         Q_EMIT property_changed_signal( prop );
     }
-    Q_EMIT embeddedWidgetStatusUpdated();
+    Q_EMIT embeddedWidgetSizeUpdated();
 }
 
-const QString MathConditionModel::_category = QString( "Math Operation" );
 
-const QString MathConditionModel::_model_name = QString( "Condition" );

@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -15,12 +15,19 @@
 #include "CVImageLoaderEmbeddedWidget.hpp"
 #include "ui_CVImageLoaderEmbeddedWidget.h"
 #include <QDebug>
+#include <QPushButton>
 
 CVImageLoaderEmbeddedWidget::CVImageLoaderEmbeddedWidget(QWidget *parent)
     : QWidget(parent),
     ui(new Ui::CVImageLoaderEmbeddedWidget)
 {
     ui->setupUi(this);
+    
+    connect(ui->mpForwardButton, &QPushButton::clicked, this, &CVImageLoaderEmbeddedWidget::forward_button_clicked);
+    connect(ui->mpBackwardButton, &QPushButton::clicked, this, &CVImageLoaderEmbeddedWidget::backward_button_clicked);
+    connect(ui->mpPlayPauseButton, &QPushButton::clicked, this, &CVImageLoaderEmbeddedWidget::play_pause_button_clicked);
+    connect(ui->mpOpenButton, &QPushButton::clicked, this, &CVImageLoaderEmbeddedWidget::open_button_clicked);
+    connect(ui->mpFilenameButton, &QPushButton::clicked, this, &CVImageLoaderEmbeddedWidget::filename_button_clicked);
 }
 
 CVImageLoaderEmbeddedWidget::~CVImageLoaderEmbeddedWidget()
@@ -38,7 +45,7 @@ set_filename( QString filename )
 
 void
 CVImageLoaderEmbeddedWidget::
-on_mpBackwardButton_clicked()
+backward_button_clicked()
 {
     Q_EMIT button_clicked_signal( 0 );
 }
@@ -46,14 +53,14 @@ on_mpBackwardButton_clicked()
 
 void
 CVImageLoaderEmbeddedWidget::
-on_mpOpenButton_clicked()
+open_button_clicked()
 {
     Q_EMIT button_clicked_signal( 1 );
 }
 
 void
 CVImageLoaderEmbeddedWidget::
-on_mpPlayPauseButton_clicked()
+play_pause_button_clicked()
 {
     if( ui->mpPlayPauseButton->isChecked() )
         Q_EMIT button_clicked_signal( 2 );
@@ -63,14 +70,14 @@ on_mpPlayPauseButton_clicked()
 
 void
 CVImageLoaderEmbeddedWidget::
-on_mpForwardButton_clicked()
+forward_button_clicked()
 {
     Q_EMIT button_clicked_signal( 4 );
 }
 
 void
 CVImageLoaderEmbeddedWidget::
-on_mpFilenameButton_clicked()
+filename_button_clicked()
 {
     Q_EMIT button_clicked_signal( 5 );
 }
@@ -98,4 +105,20 @@ CVImageLoaderEmbeddedWidget::
 set_flip_pause( bool pause )
 {
     ui->mpPlayPauseButton->setChecked( pause );
+}
+
+void
+CVImageLoaderEmbeddedWidget::
+revert_play_pause_state()
+{
+    // Toggle the button state back to what it was before the click
+    ui->mpPlayPauseButton->setChecked( !ui->mpPlayPauseButton->isChecked() );
+}
+
+void
+CVImageLoaderEmbeddedWidget::
+resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    Q_EMIT widget_resized_signal();
 }

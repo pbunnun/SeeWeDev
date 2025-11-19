@@ -1,5 +1,8 @@
 <?xml version="1.0" ?>
 <RCC version="1.0">
+    <qresource prefix="/">
+        <file>NodeEditor.png</file> 
+    </qresource>
     <qresource prefix="icons/tango">
         <file alias="index.theme">tango/index.theme</file>
 		<file alias="16x16/address-book-new.png">tango/16x16/actions/address-book-new.png</file>

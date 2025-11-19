@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,24 +14,35 @@
 
 #include "CombineSyncModel.hpp"
 
-#include "nodes/DataModelRegistry"
 #include "SyncData.hpp"
-#include "SyncData.hpp"
-#include "qtvariantproperty.h"
+#include "CombineSyncEmbeddedWidget.hpp"
+#include "qtvariantproperty_p.h"
+
+const QString CombineSyncModel::_category = QString( "Utility" );
+
+const QString CombineSyncModel::_model_name = QString( "Combine Sync" );
 
 CombineSyncModel::
 CombineSyncModel()
-    : PBNodeDataModel( _model_name ),
-    mpEmbeddedWidget( new QComboBox(qobject_cast<QWidget *>(this)) )
+    : PBNodeDelegateModel( _model_name ),
+    mpEmbeddedWidget( new CombineSyncEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
 {
     mpSyncData = std::make_shared< SyncData >( );
-    mpSyncData_1 = std::make_shared< SyncData >( );
-    mpSyncData_2 = std::make_shared< SyncData >( );
+    
+    // Initialize vectors with default size of 2
+    miInputSize = 2;
+    mvbReady.resize(miInputSize, false);
+    mvSyncValues.resize(miInputSize, false);
 
-    mpEmbeddedWidget->addItem("AND");
-    mpEmbeddedWidget->addItem("OR");
-    connect(mpEmbeddedWidget, &QComboBox::currentTextChanged, this, &CombineSyncModel::combine_operation_changed);
+    // Connect widget signals
+    connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::operation_changed_signal, 
+            this, &CombineSyncModel::combine_operation_changed);
+    connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::input_size_changed_signal, 
+            this, &CombineSyncModel::input_size_changed);
+    connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::reset_clicked_signal, 
+            this, &CombineSyncModel::reset_clicked);
 
+    // Properties
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList({"AND", "OR"});
     enumPropertyType.miCurrentIndex = 0;
@@ -39,6 +50,16 @@ CombineSyncModel()
     auto propComboBox = std::make_shared< TypedProperty< EnumPropertyType > >("Condition", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType);
     mvProperty.push_back( propComboBox );
     mMapIdToProperty[ propId ] = propComboBox;
+
+    // Input size property
+    IntPropertyType intPropertyType;
+    intPropertyType.miValue = miInputSize;
+    intPropertyType.miMin = 2;
+    intPropertyType.miMax = 10;
+    QString propId2 = "input_size";
+    auto propInputSize = std::make_shared< TypedProperty< IntPropertyType > >("Input Size", propId2, QMetaType::Int, intPropertyType);
+    mvProperty.push_back( propInputSize );
+    mMapIdToProperty[ propId2 ] = propInputSize;
 }
 
 unsigned int
@@ -46,7 +67,7 @@ CombineSyncModel::
 nPorts(PortType portType) const
 {
     if( portType == PortType::In )
-        return 3;
+        return miInputSize;
     else if( portType == PortType::Out )
         return 1;
     else
@@ -76,48 +97,65 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
 {
     if( !isEnable() )
         return;
-    if(portIndex == 0)
+    
+    // Ensure portIndex is valid
+    if( portIndex >= miInputSize )
+        return;
+
+    auto d = std::dynamic_pointer_cast< SyncData >( nodeData );
+    if( d )
     {
-        auto d = std::dynamic_pointer_cast< SyncData >( nodeData );
-        if( d )
-        {
-            mpSyncData_1 = d;
-            mbReady_1 = true;
-//            qDebug() << " Port 0 " << d->data();
-        }
+        // Store the bool value, not the shared pointer
+        mvSyncValues[portIndex] = d->data();
+        mvbReady[portIndex] = true;
     }
-    else if(portIndex == 1)
+
+    // Check if all inputs are ready
+    bool allReady = true;
+    for( unsigned int i = 0; i < miInputSize; ++i )
     {
-        auto d = std::dynamic_pointer_cast< SyncData >( nodeData );
-        if( d )
+        if( !mvbReady[i] )
         {
-            mpSyncData_2 = d;
-            mbReady_2 = true;
-//            qDebug() << " Port 1 " << d->data();
+            allReady = false;
+            break;
         }
     }
 
-    if(portIndex == 2)
+    if( allReady )
     {
-        auto d = std::dynamic_pointer_cast< SyncData >( nodeData );
-        if( d && d->data() )
-        //if( mpSyncData_1 && mpSyncData_2 )
+        // Reset ready flags
+        std::fill(mvbReady.begin(), mvbReady.end(), false);
+
+        // Compute the combined result
+        bool result;
+        if( mCombineCondition == CombineCondition_AND )
         {
-            mbReady_1 = mbReady_2 = false;
-            if( mCombineCondition == CombineCondition_OR )
-                mpSyncData->data() = mpSyncData_1->data() || mpSyncData_2->data();
-            else if( mCombineCondition == CombineCondition_AND )
-                mpSyncData->data() = mpSyncData_1->data() && mpSyncData_2->data();
-            updateAllOutputPorts();
+            // AND: all must be true
+            result = true;
+            for( unsigned int i = 0; i < miInputSize; ++i )
+            {
+                if( !mvSyncValues[i] )
+                {
+                    result = false;
+                    break;
+                }
+            }
         }
-    }
-    else if( mbReady_1 && mbReady_2 )
-    {
-        mbReady_1 = mbReady_2 = false;
-        if( mCombineCondition == CombineCondition_OR )
-            mpSyncData->data() = mpSyncData_1->data() || mpSyncData_2->data();
-        else if( mCombineCondition == CombineCondition_AND )
-            mpSyncData->data() = mpSyncData_1->data() && mpSyncData_2->data();
+        else // CombineCondition_OR
+        {
+            // OR: at least one must be true
+            result = false;
+            for( unsigned int i = 0; i < miInputSize; ++i )
+            {
+                if( mvSyncValues[i] )
+                {
+                    result = true;
+                    break;
+                }
+            }
+        }
+
+        mpSyncData->data() = result;
         updateAllOutputPorts();
     }
 }
@@ -142,14 +180,66 @@ combine_operation_changed(const QString & cond)
     Q_EMIT property_changed_signal( prop );
 }
 
+void
+CombineSyncModel::
+input_size_changed(int size)
+{
+    if( size < 2 )
+        size = 2;
+    
+    unsigned int newSize = static_cast<unsigned int>(size);
+    
+    // Handle port count changes
+    if( newSize > miInputSize )
+    {
+        // Adding ports
+        portsAboutToBeInserted(PortType::In, miInputSize, newSize - 1);
+        miInputSize = newSize;
+        mvbReady.resize(miInputSize, false);
+        mvSyncValues.resize(miInputSize, false);
+        portsInserted();
+    }
+    else if( newSize < miInputSize )
+    {
+        // Removing ports
+        portsAboutToBeDeleted(PortType::In, newSize, miInputSize - 1);
+        miInputSize = newSize;
+        mvbReady.resize(miInputSize, false);
+        mvSyncValues.resize(miInputSize, false);
+        portsDeleted();
+    }
+
+    // Update property
+    auto prop = mMapIdToProperty["input_size"];
+    auto typedProp = std::static_pointer_cast< TypedProperty<IntPropertyType> >(prop);
+    typedProp->getData().miValue = size;
+
+    Q_EMIT property_changed_signal( prop );
+    
+    // Notify that the embedded widget size may have changed (triggers geometry recalculation)
+    Q_EMIT embeddedWidgetSizeUpdated();
+}
+
+void
+CombineSyncModel::
+reset_clicked()
+{
+    // Reset all ready states to false
+    std::fill(mvbReady.begin(), mvbReady.end(), false);
+    
+    // Reset all sync values to false
+    std::fill(mvSyncValues.begin(), mvSyncValues.end(), false);
+}
+
 QJsonObject
 CombineSyncModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams["combine_cond"] = mCombineCondition;
+    cParams["input_size"] = static_cast<int>(miInputSize);
 
     modelJson["cParams"] = cParams;
 
@@ -158,10 +248,9 @@ save() const
 
 void
 CombineSyncModel::
-restore(const QJsonObject &p)
+load(const QJsonObject &p)
 {
-    PBNodeDataModel::restore(p);
-    late_constructor();
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -174,7 +263,25 @@ restore(const QJsonObject &p)
             typedProp->getData().miCurrentIndex = v.toInt();
 
             mCombineCondition = (CombineCondition)v.toInt();
-            mpEmbeddedWidget->setCurrentIndex( v.toInt() );
+            mpEmbeddedWidget->set_operation(v.toInt());
+        }
+
+        v = paramsObj["input_size"];
+        if( !v.isNull() )
+        {
+            int size = v.toInt();
+            if( size < 2 )
+                size = 2;
+
+            miInputSize = static_cast<unsigned int>(size);
+            mvbReady.resize(miInputSize, false);
+            mvSyncValues.resize(miInputSize, false);
+
+            auto prop = mMapIdToProperty["input_size"];
+            auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+            typedProp->getData().miValue = size;
+
+            mpEmbeddedWidget->set_input_size(size);
         }
     }
 }
@@ -183,18 +290,54 @@ void
 CombineSyncModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
-    auto prop = mMapIdToProperty[ id ];
     if( id == "combine_cond" )
     {
+        auto prop = mMapIdToProperty[ id ];
         auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > > (prop);
         typedProp->getData().miCurrentIndex = value.toInt();
 
-        mpEmbeddedWidget->setCurrentIndex( value.toInt() );
+        mCombineCondition = (CombineCondition)value.toInt();
+        mpEmbeddedWidget->set_operation(value.toInt());
+    }
+    else if( id == "input_size" )
+    {
+        int size = value.toInt();
+        if( size < 2 )
+            size = 2;
+
+        auto prop = mMapIdToProperty[ id ];
+        auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > > (prop);
+        typedProp->getData().miValue = size;
+
+        mpEmbeddedWidget->set_input_size(size);
+        
+        // Update internal state with proper port notifications
+        unsigned int newSize = static_cast<unsigned int>(size);
+        
+        if( newSize > miInputSize )
+        {
+            // Adding ports
+            portsAboutToBeInserted(PortType::In, miInputSize, newSize - 1);
+            miInputSize = newSize;
+            mvbReady.resize(miInputSize, false);
+            mvSyncValues.resize(miInputSize, false);
+            portsInserted();
+        }
+        else if( newSize < miInputSize )
+        {
+            // Removing ports
+            portsAboutToBeDeleted(PortType::In, newSize, miInputSize - 1);
+            miInputSize = newSize;
+            mvbReady.resize(miInputSize, false);
+            mvSyncValues.resize(miInputSize, false);
+            portsDeleted();
+        }
+        
+        // Notify that the embedded widget size may have changed
+        Q_EMIT embeddedWidgetSizeUpdated();
     }
 }
 
-const QString CombineSyncModel::_category = QString( "Utility" );
 
-const QString CombineSyncModel::_model_name = QString( "Combine Sync" );

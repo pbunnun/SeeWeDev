@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,15 +14,17 @@
 
 #include "ExternalCommandModel.hpp"
 
-#include "nodes/DataModelRegistry"
 #include "CVImageData.hpp"
 #include "SyncData.hpp"
-#include "Connection"
 #include <QProcess>
+
+const QString ExternalCommandModel::_category = QString( "Utility" );
+
+const QString ExternalCommandModel::_model_name = QString( "Call External Command" );
 
 ExternalCommandModel::
 ExternalCommandModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     QString propId = "ext_command";
     auto propCommand = std::make_shared< TypedProperty< QString > >( "External Command", propId, QMetaType::QString, msExternalCommand);
@@ -82,7 +84,7 @@ QJsonObject
 ExternalCommandModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
     cParams["ext_command"] = msExternalCommand;
     cParams["arguments"] = msArguments;
@@ -93,9 +95,9 @@ save() const
 
 void
 ExternalCommandModel::
-restore( QJsonObject const &p )
+load(QJsonObject const &p)
 {
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -125,7 +127,7 @@ void
 ExternalCommandModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -148,6 +150,4 @@ setModelProperty( QString & id, const QVariant & value )
     }
 }
 
-const QString ExternalCommandModel::_category = QString( "Utility" );
 
-const QString ExternalCommandModel::_model_name = QString( "Call External Command" );

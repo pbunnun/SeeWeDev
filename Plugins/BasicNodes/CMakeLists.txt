@@ -21,7 +21,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 COMPONENTS Widgets OpenGL REQUIRED)
+find_package(Qt6 COMPONENTS Widgets OpenGL OpenGLWidgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
 
 if( Qt6_FOUND )
@@ -49,18 +49,12 @@ add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DQT_NO_KEYWORDS)
 
 include_directories(${CVDevLibrary_INCLUDE_DIRS})
 
-if( Qt6_FOUND )
-    target_link_libraries(${PROJECT_NAME}
-        CVDevLibrary
-        ${OpenCV_LIBS}
-        Qt6::OpenGLWidgets
-        )
-else()
-    target_link_libraries(${PROJECT_NAME}
-        CVDevLibrary
-        ${OpenCV_LIBS}
-        )
-endif()
+target_link_libraries(${PROJECT_NAME}
+    CVDevLibrary
+    ${OpenCV_LIBS}
+    ${ZENOH_LIBRARIES}
+    Qt6::OpenGLWidgets
+    )
 
 # ---- MODIFIED SECTION FOR CPACK ----
 # The old 'add_custom_command' has been removed.

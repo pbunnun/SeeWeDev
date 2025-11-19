@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,13 +16,16 @@
 
 #include <QDebug> //for debugging using qDebug()
 
-#include <nodes/DataModelRegistry>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
+
+const QString DataGeneratorModel::_category = QString( "Number Operation" );
+
+const QString DataGeneratorModel::_model_name = QString( "Data Generator" );
 
 DataGeneratorModel::
 DataGeneratorModel()
-    : PBNodeDataModel( _model_name ),
+    : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget( new DataGeneratorEmbeddedWidget ),
       _minPixmap( ":DataGenerator.png" )
 {
@@ -91,7 +94,7 @@ QJsonObject
 DataGeneratorModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams["comboboxIndex"] = mpEmbeddedWidget->get_combobox_index();
@@ -103,9 +106,9 @@ save() const
 
 void
 DataGeneratorModel::
-restore(QJsonObject const& p)
+load(QJsonObject const& p)
 {
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -251,9 +254,7 @@ processData(const int& dataType, const QString& input,
     }
 }
 
-const QString DataGeneratorModel::_category = QString( "Number Operation" );
 
-const QString DataGeneratorModel::_model_name = QString( "Data Generator" );
 
 const std::string StringFormat::Placeholder::placeholder_str = "?s?";
 const std::string StringFormat::Placeholder::placeholder_int = "?i?";

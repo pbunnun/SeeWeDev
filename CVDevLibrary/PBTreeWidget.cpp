@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include <QDebug>
 #include <QMouseEvent>
 #include <QDrag>
+#include <QApplication>
 
 PBTreeWidget::PBTreeWidget(QWidget *parent) : QTreeWidget(parent)
 {
@@ -27,21 +28,46 @@ void
 PBTreeWidget::
 mousePressEvent(QMouseEvent *event)
 {
-    QTreeWidget::mousePressEvent(event);
-
-    if( event->button() == Qt::LeftButton )
+    if (event->button() == Qt::LeftButton)
     {
-        auto dragItem = this->itemAt(event->pos());
-        if( dragItem )
-        {
-            QMimeData *mime = new QMimeData;
-            mime->setText(dragItem->text(0));
-            QDrag *drag = new QDrag(this);
-            drag->setMimeData(mime);
-            drag->setPixmap(dragItem->icon(0).pixmap(32,32));
-            drag->setHotSpot(QPoint(drag->pixmap().width()/2, drag->pixmap().height()/2));
-            drag->exec(Qt::MoveAction);
-        }
+        // Store the position for drag distance calculation
+        mDragStartPosition = event->pos();
+    }
+    
+    // Let base class handle the event (selection, expansion, etc.)
+    QTreeWidget::mousePressEvent(event);
+}
+
+void
+PBTreeWidget::
+mouseMoveEvent(QMouseEvent *event)
+{
+    // Only start drag if left button is pressed and moved beyond threshold
+    if (!(event->buttons() & Qt::LeftButton))
+    {
+        QTreeWidget::mouseMoveEvent(event);
+        return;
+    }
+    
+    // Check if mouse moved beyond drag start distance
+    if ((event->pos() - mDragStartPosition).manhattanLength() 
+        < QApplication::startDragDistance())
+    {
+        QTreeWidget::mouseMoveEvent(event);
+        return;
+    }
+    
+    // Now initiate drag operation
+    auto dragItem = this->itemAt(mDragStartPosition);
+    if (dragItem)
+    {
+        QMimeData *mime = new QMimeData;
+        mime->setText(dragItem->text(0));
+        QDrag *drag = new QDrag(this);
+        drag->setMimeData(mime);
+        drag->setPixmap(dragItem->icon(0).pixmap(32,32));
+        drag->setHotSpot(QPoint(drag->pixmap().width()/2, drag->pixmap().height()/2));
+        drag->exec(Qt::MoveAction);
     }
 }
 

@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,13 +16,16 @@
 
 #include <QDebug> //for debugging using qDebug()
 
-#include <nodes/DataModelRegistry>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
+
+const QString ScalarOperationModel::_category = QString( "Number Operation" );
+
+const QString ScalarOperationModel::_model_name = QString( "Scalar Operation" );
 
 ScalarOperationModel::
 ScalarOperationModel()
-    : PBNodeDataModel( _model_name ),
+    : PBNodeDelegateModel( _model_name ),
       _minPixmap( ":ScalarOperation.png" )
 {
     mpInformationData = std::make_shared< InformationData >();
@@ -112,7 +115,7 @@ QJsonObject
 ScalarOperationModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams["operator"] = mParams.miOperator;
@@ -123,9 +126,9 @@ save() const
 
 void
 ScalarOperationModel::
-restore(QJsonObject const& p)
+load(QJsonObject const& p)
 {
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -146,7 +149,7 @@ void
 ScalarOperationModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -267,6 +270,4 @@ processData(std::shared_ptr< InformationData > (&in)[2], std::shared_ptr<Informa
     }
 }
 
-const QString ScalarOperationModel::_category = QString( "Number Operation" );
 
-const QString ScalarOperationModel::_model_name = QString( "Scalar Operation" );

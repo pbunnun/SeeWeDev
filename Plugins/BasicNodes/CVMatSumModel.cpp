@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -19,9 +19,13 @@
 #include <QDir>
 #include <QVariant>
 
+const QString CVMatSumModel::_category = QString( "cv::Mat Operations" );
+
+const QString CVMatSumModel::_model_name = QString( "CV Sum" );
+
 CVMatSumModel::
 CVMatSumModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
       // PBNodeDataModel( model's name, is it enable at start? )
 {
     mpIntegerData = std::make_shared< IntegerData >();
@@ -69,21 +73,21 @@ CVMatSumModel::
 save() const
 {
     /*
-     * If save() was overrided, PBNodeDataModel::save() must be called explicitely.
+     * If save() was overrided, PBNodeDelegateModel::save() must be called explicitely.
      */
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     return modelJson;
 }
 
 void
 CVMatSumModel::
-restore(const QJsonObject &p)
+load(const QJsonObject &p)
 {
     /*
-     * If restore() was overrided, PBNodeDataModel::restore() must be called explicitely.
+     * If load() was overridden, PBNodeDelegateModel::load() must be called explicitely.
      */
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
 }
 
@@ -91,7 +95,7 @@ void
 CVMatSumModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 }
 
 void
@@ -113,6 +117,4 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
     }
 }
 
-const QString CVMatSumModel::_category = QString( "cv::Mat Operations" );
 
-const QString CVMatSumModel::_model_name = QString( "Sum" );

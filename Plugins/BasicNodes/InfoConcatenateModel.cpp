@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,14 +14,17 @@
 
 #include "InfoConcatenateModel.hpp"
 
-#include "nodes/DataModelRegistry"
-#include "internal/Connection.hpp"
 #include "InformationData.hpp"
 #include "SyncData.hpp"
+#include <QtNodes/internal/ConnectionIdUtils.hpp>
+
+const QString InfoConcatenateModel::_category = QString( "Utility" );
+
+const QString InfoConcatenateModel::_model_name = QString( "Info Concatenate" );
 
 InfoConcatenateModel::
 InfoConcatenateModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     mpInformationData = std::make_shared< InformationData >( );
     mpInformationData_1 = std::make_shared< InformationData >( );
@@ -32,7 +35,7 @@ QJsonObject
 InfoConcatenateModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
     cParams["use_sync_signal"] = mbUseSyncSignal;
     modelJson["cParams"] = cParams;
@@ -41,9 +44,9 @@ save() const
 
 void
 InfoConcatenateModel::
-restore( QJsonObject const &p )
+load(QJsonObject const &p)
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -90,7 +93,7 @@ dataType( PortType portType, PortIndex portIndex) const
 
 std::shared_ptr<NodeData>
 InfoConcatenateModel::
-outData(PortIndex portIndex)
+outData(PortIndex )
 {
     std::shared_ptr<NodeData> result;
     if( isEnable() )
@@ -149,20 +152,18 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
 
 void
 InfoConcatenateModel::
-inputConnectionCreated(QtNodes::Connection const& conx)
+inputConnectionCreated(QtNodes::ConnectionId const& conx)
 {
-    if( conx.getPortIndex(PortType::In) == 2 )
+    if( QtNodes::getPortIndex(PortType::In, conx) == 2 )
         mbUseSyncSignal = true;
 }
 
 void
 InfoConcatenateModel::
-inputConnectionDeleted(QtNodes::Connection const& conx)
+inputConnectionDeleted(QtNodes::ConnectionId const& conx)
 {
-    if( conx.getPortIndex(PortType::In) == 2 )
+    if( QtNodes::getPortIndex(PortType::In, conx) == 2 )
         mbUseSyncSignal = false;
 }
 
-const QString InfoConcatenateModel::_category = QString( "Utility" );
 
-const QString InfoConcatenateModel::_model_name = QString( "Info Concatenate" );

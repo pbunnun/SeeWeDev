@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -17,11 +17,15 @@
 #include <QEvent>
 #include <QDir>
 #include <QVariant>
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
+
+const QString NotSyncDataModel::_category = QString( "Utility" );
+
+const QString NotSyncDataModel::_model_name = QString( "Not Sync" );
 
 NotSyncDataModel::
 NotSyncDataModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
       // PBNodeDataModel( model's name, is it enable at start? )
 {
     mpSyncData = std::make_shared< SyncData >();
@@ -67,21 +71,21 @@ NotSyncDataModel::
 save() const
 {
     /*
-     * If save() was overrided, PBNodeDataModel::save() must be called explicitely.
+     * If save() was overrided, PBNodeDelegateModel::save() must be called explicitely.
      */
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     return modelJson;
 }
 
 void
 NotSyncDataModel::
-restore(const QJsonObject &p)
+load(const QJsonObject &p)
 {
     /*
-     * If restore() was overrided, PBNodeDataModel::restore() must be called explicitely.
+     * If load() was overridden, PBNodeDelegateModel::load() must be called explicitely.
      */
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
 }
 
@@ -89,7 +93,7 @@ void
 NotSyncDataModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 }
 
 void
@@ -110,6 +114,4 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
     }
 }
 
-const QString NotSyncDataModel::_category = QString( "Utility" );
 
-const QString NotSyncDataModel::_model_name = QString( "Not Sync" );

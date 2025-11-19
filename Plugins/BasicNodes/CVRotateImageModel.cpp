@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -19,11 +19,15 @@
 #include <QEvent>
 #include <QDir>
 #include <QVariant>
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
+
+const QString CVRotateImageModel::_category = QString( "Image Operation" );
+
+const QString CVRotateImageModel::_model_name = QString( "CV Rotate" );
 
 CVRotateImageModel::
 CVRotateImageModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );
@@ -99,9 +103,9 @@ CVRotateImageModel::
 save() const
 {
     /*
-     * If save() was overrided, PBNodeDataModel::save() must be called explicitely.
+     * If save() was overrided, PBNodeDelegateModel::save() must be called explicitely.
      */
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams[ "angle" ] = mdAngle;
@@ -113,12 +117,12 @@ save() const
 
 void
 CVRotateImageModel::
-restore(const QJsonObject &p)
+load(const QJsonObject &p)
 {
     /*
-     * If restore() was overrided, PBNodeDataModel::restore() must be called explicitely.
+     * If load() was overridden, PBNodeDelegateModel::load() must be called explicitely.
      */
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -140,7 +144,7 @@ void
 CVRotateImageModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -176,6 +180,4 @@ processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData
     }
 }
 
-const QString CVRotateImageModel::_category = QString( "Image Operation" );
 
-const QString CVRotateImageModel::_model_name = QString( "Rotate" );

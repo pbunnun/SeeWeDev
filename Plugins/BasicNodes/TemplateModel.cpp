@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -19,11 +19,15 @@
 #include <QEvent>
 #include <QDir>
 #include <QVariant>
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
+
+const QString TemplateModel::_category = QString( "Template Category" );
+
+const QString TemplateModel::_model_name = QString( "Template Model" );
 
 TemplateModel::
 TemplateModel()
-    : PBNodeDataModel( _model_name ),
+    : PBNodeDelegateModel( _model_name ),
       // PBNodeDataModel( model's name, is it enable at start? )
       mpEmbeddedWidget( new TemplateEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
 {
@@ -192,9 +196,9 @@ TemplateModel::
 save() const
 {
     /*
-     * If save() was overrided, PBNodeDataModel::save() must be called explicitely.
+     * If save() was overrided, PBNodeDelegateModel::save() must be called explicitely.
      */
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams[ "combobox_text" ] = mpEmbeddedWidget->get_combobox_text();
@@ -213,12 +217,12 @@ save() const
 
 void
 TemplateModel::
-restore(const QJsonObject &p)
+load(const QJsonObject &p)
 {
     /*
-     * If restore() was overrided, PBNodeDataModel::restore() must be called explicitely.
+     * If load() was overridden, PBNodeDelegateModel::load() must be called explicitely.
      */
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
     late_constructor();
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
@@ -294,7 +298,7 @@ void
 TemplateModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -351,7 +355,7 @@ void
 TemplateModel::
 enable_changed(bool enable)
 {
-    PBNodeDataModel::enable_changed( enable );
+    PBNodeDelegateModel::enable_changed( enable );
     mpEmbeddedWidget->set_active_button( enable );
     if( enable )
     {
@@ -372,8 +376,20 @@ void
 TemplateModel::
 em_button_clicked( int button )
 {
+    DEBUG_LOG_INFO() << "[em_button_clicked] button:" << button << "isSelected:" << isSelected();
+    
+    // If node is not selected, select it first and block the interaction
+    // User needs to click again when node is selected to perform the action
+    if (!isSelected())
+    {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Node not selected, requesting selection";
+        Q_EMIT selection_request_signal();
+        return;
+    }
+    
     if( button == 0 ) //Start
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Start button - enabling node";
         auto prop = mMapIdToProperty[ "enable" ];
         /*
          * Update internal property.
@@ -391,6 +407,7 @@ em_button_clicked( int button )
     }
     else if( button == 1 ) //Stop
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Stop button - disabling node";
         auto prop = mMapIdToProperty[ "enable" ];
         auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
         typedProp->getData() = false;
@@ -400,6 +417,7 @@ em_button_clicked( int button )
     }
     else if( button == 2 )
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Button 2 - update spinbox value";
         auto prop = mMapIdToProperty[ "spinbox_id" ];
         auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
         typedProp->getData().miValue = mpEmbeddedWidget->get_spinbox()->value();
@@ -407,6 +425,7 @@ em_button_clicked( int button )
     }
     else if( button == 3 )
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Button 3 - update combobox value";
         auto prop = mMapIdToProperty[ "combobox_id" ];
         auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
         typedProp->getData().miCurrentIndex = typedProp->getData().mslEnumNames.indexOf( mpEmbeddedWidget->get_combobox_text() );
@@ -414,12 +433,11 @@ em_button_clicked( int button )
     }
     else if( button == 4 )
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Button 4 - update all output ports";
         updateAllOutputPorts();
     }
     // Notify node's NodeGraphicsObject to redraw itself.
-    Q_EMIT embeddedWidgetStatusUpdated();
+    Q_EMIT embeddedWidgetSizeUpdated();
 }
 
-const QString TemplateModel::_category = QString( "Template Category" );
 
-const QString TemplateModel::_model_name = QString( "Template Model" );

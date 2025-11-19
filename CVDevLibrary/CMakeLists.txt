@@ -37,7 +37,10 @@ add_library(${PROJECT_NAME} SHARED
 
 add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DCVDEV_LIBRARY)
 
-include_directories(${NodeEditor_INCLUDE_DIRS} ${QtPropertyBrowserLibrary_INCLUDE_DIRS})
+include_directories(
+    ${CMAKE_SOURCE_DIR}/NodeEditor/include
+    ${QtPropertyBrowserLibrary_INCLUDE_DIRS}
+)
 
 # Required on Unix OS family to be able to be linked into shared libraries.
 set_target_properties(${PROJECT_NAME}
@@ -46,13 +49,13 @@ set_target_properties(${PROJECT_NAME}
                       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/)
 
 target_link_libraries(${PROJECT_NAME}
-    NodeEditor
+    QtNodes
     QtPropertyBrowserLibrary
     ${OpenCV_LIBS}
     )
 
 set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}
-    ${NodeEditor_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/NodeEditor/include
     ${QtPropertyBrowserLibrary_INCLUDE_DIRS}
     CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 

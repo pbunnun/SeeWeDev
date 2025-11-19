@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,9 +14,13 @@
 
 #include "TimerModel.hpp"
 
+const QString TimerModel::_category = QString( "Utility" );
+
+const QString TimerModel::_model_name = QString( "Timer" );
+
 TimerModel::
 TimerModel()
-    : PBNodeDataModel( _model_name, true )
+    : PBNodeDelegateModel( _model_name, true )
 {
     mpSyncData = std::make_shared< SyncData >();
 
@@ -73,7 +77,7 @@ QJsonObject
 TimerModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams[ "interval" ] = miMillisecondInterval;
@@ -85,9 +89,9 @@ save() const
 
 void
 TimerModel::
-restore( QJsonObject const & p )
+load( QJsonObject const & p )
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -109,7 +113,7 @@ void
 TimerModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -135,6 +139,4 @@ enable_changed( bool enable )
         mpTimer->stop();
 }
 
-const QString TimerModel::_category = QString( "Utility" );
 
-const QString TimerModel::_model_name = QString( "Timer" );

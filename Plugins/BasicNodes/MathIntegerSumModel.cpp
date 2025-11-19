@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,13 +14,16 @@
 
 #include "MathIntegerSumModel.hpp"
 
-#include "nodes/DataModelRegistry"
 #include "IntegerData.hpp"
 #include "SyncData.hpp"
 
+const QString MathIntegerSumModel::_category = QString( "Math Operation" );
+
+const QString MathIntegerSumModel::_model_name = QString( "Sum Integer" );
+
 MathIntegerSumModel::
 MathIntegerSumModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     mpIntegerData = std::make_shared< IntegerData >( );
 }
@@ -61,7 +64,7 @@ dataType( PortType portType, PortIndex portIndex) const
 
 std::shared_ptr<NodeData>
 MathIntegerSumModel::
-outData(PortIndex portIndex)
+outData(PortIndex)
 {
     std::shared_ptr<NodeData> result;
     if( isEnable() )
@@ -98,6 +101,4 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     }
 }
 
-const QString MathIntegerSumModel::_category = QString( "Math Operation" );
 
-const QString MathIntegerSumModel::_model_name = QString( "Sum Integer" );

@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,16 +14,31 @@
 
 #include "InformationDisplayModel.hpp"
 
-#include "nodes/DataModelRegistry"
 #include "InformationData.hpp"
 #include "SyncData.hpp"
 
+const QString InformationDisplayModel::_category = QString( "Output" );
+
+const QString InformationDisplayModel::_model_name = QString( "Info Display" );
+
 InformationDisplayModel::
 InformationDisplayModel()
-    : PBNodeDataModel( _model_name ),
+    : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget( new InformationDisplayEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
 {
+    IntPropertyType intPropertyType;
+    intPropertyType.miMax = 2000;
+    intPropertyType.miMin = 10;
+    intPropertyType.miValue = miMaxLineCount;
+    QString propId = "max_line_count";
+    auto propMaxLineCount = std::make_shared< TypedProperty< IntPropertyType > >( "Max Line Count", propId, QMetaType::Int, intPropertyType );
+    mvProperty.push_back( propMaxLineCount );
+    mMapIdToProperty[ propId ] = propMaxLineCount;
 
+    mpEmbeddedWidget->setMaxLineCount(miMaxLineCount);
+
+    connect( mpEmbeddedWidget, &InformationDisplayEmbeddedWidget::widgetClicked, 
+        this, &InformationDisplayModel::selection_request_signal);
 }
 
 unsigned int
@@ -62,13 +77,9 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         auto d = std::dynamic_pointer_cast< InformationData >( nodeData );
         if( d )
         {
-            //if( !d->info().isEmpty() ) // Don't remember why this????
-            {
-                //mpInformationData = d;
-                d->set_information();
-                mpEmbeddedWidget->appendPlainText("............................................\n");
-                mpEmbeddedWidget->appendPlainText( d->info() );
-            }
+            d->set_information();
+            mpEmbeddedWidget->appendPlainText("............................................\n");
+            mpEmbeddedWidget->appendPlainText( d->info() );
         }
     }
     else if(portIndex == 1)
@@ -81,6 +92,21 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     }
 }
 
-const QString InformationDisplayModel::_category = QString( "Output" );
+void
+InformationDisplayModel::
+setModelProperty( QString & id, const QVariant & value )
+{
+    PBNodeDelegateModel::setModelProperty( id, value );
 
-const QString InformationDisplayModel::_model_name = QString( "Info Display" );
+    if( id == "max_line_count" )
+    {
+        auto prop = mMapIdToProperty[ id ];
+        auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >(prop);
+        typedProp->getData().miValue = value.toInt();
+
+        miMaxLineCount = value.toInt();
+        mpEmbeddedWidget->setMaxLineCount(miMaxLineCount);
+    }
+}
+
+

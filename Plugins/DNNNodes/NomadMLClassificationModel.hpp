@@ -1,4 +1,4 @@
-﻿//Copyright © 2022, NECTEC, all rights reserved
+﻿//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -12,8 +12,29 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-#ifndef NOMADMLCLASSIFICATIONMODEL_HPP
-#define NOMADMLCLASSIFICATIONMODEL_HPP
+/**
+ * @file NomadMLClassificationModel.hpp
+ * @brief NOMAD machine learning image classification model.
+ *
+ * This file implements a specialized DNN-based image classifier for NOMAD
+ * (specific project/organization) applications. Similar to NecML, it provides
+ * multi-class image classification with standardized ImageNet preprocessing.
+ *
+ * **Key Differences from NecML:**
+ * - Project-specific model architecture or training
+ * - Potentially different class sets
+ * - Same preprocessing pipeline (ImageNet normalization)
+ * - Compatible output format
+ *
+ * **Typical Applications:**
+ * - Custom object categorization
+ * - Specialized domain classification
+ * - Quality assessment
+ * - Pattern recognition
+ *
+ * @see NecMLClassificationModel
+ * @see OnnxClassificationDNNModel
+ */
 
 #pragma once
 
@@ -22,8 +43,7 @@
 #include <QtCore/QSemaphore>
 #include <QtCore/QMutex>
 
-#include <nodes/DataModelRegistry>
-#include "PBNodeDataModel.hpp"
+#include "PBNodeDelegateModel.hpp"
 
 #include "CVImageData.hpp"
 #include "SyncData.hpp"
@@ -35,13 +55,30 @@ using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
 
+/**
+ * @struct NomadMLClassificationBlobImageParameters
+ * @brief Image preprocessing parameters for NOMAD ML classification.
+ *
+ * Identical to NecML preprocessing - follows ImageNet normalization standards.
+ *
+ * @see NecMLClassificationBlobImageParameters
+ */
 typedef struct NomadMLClassificationBlobImageParameters{
-    double mdInvScaleFactor{255.};
-    cv::Size mCVSize{ cv::Size(224,224) };
-    cv::Scalar mCVScalarMean{ cv::Scalar(0.485, 0.456, 0.406) };
-    cv::Scalar mCVScalarStd{ cv::Scalar(0.229, 0.224, 0.225) };
+    double mdInvScaleFactor{255.};                                ///< Normalize to [0,1]
+    cv::Size mCVSize{ cv::Size(224,224) };                        ///< Network input size
+    cv::Scalar mCVScalarMean{ cv::Scalar(0.485, 0.456, 0.406) };  ///< ImageNet mean (RGB)
+    cv::Scalar mCVScalarStd{ cv::Scalar(0.229, 0.224, 0.225) };   ///< ImageNet std (RGB)
 } NomadMLClassificationBlobImageParameters;
 
+/**
+ * @class NomadMLClassificationThread
+ * @brief Worker thread for asynchronous NOMAD ML classification.
+ *
+ * Identical functionality to NecMLClassificationThread with NOMAD-specific models.
+ *
+ * @see NecMLClassificationThread
+ * @see NomadMLClassificationModel
+ */
 class NomadMLClassificationThread : public QThread
 {
     Q_OBJECT
@@ -84,9 +121,31 @@ private:
     NomadMLClassificationBlobImageParameters mParams;
 };
 
-/// The model dictates the number of inputs and outputs for the Node.
-/// In this example it has no logic.
-class NomadMLClassificationModel : public PBNodeDataModel
+/**
+ * @class NomadMLClassificationModel
+ * @brief Node model for NOMAD ML image classification.
+ *
+ * Provides the same functionality as NecMLClassificationModel but for
+ * NOMAD-specific trained models. Supports custom class sets with
+ * standardized preprocessing.
+ *
+ * **Input Ports:**
+ * 1. **CVImageData** - Input image to classify
+ *
+ * **Output Ports:**
+ * 1. **CVImageData** - Annotated image with class label
+ * 2. **SyncData** - Synchronization signal
+ * 3. **InformationData** - Class name string
+ *
+ * **Properties:** (Same as NecML)
+ * - model_filename
+ * - config_filename (class labels)
+ * - Preprocessing parameters
+ *
+ * @see NecMLClassificationModel (for detailed documentation)
+ * @see NomadMLClassificationThread
+ */
+class NomadMLClassificationModel : public PBNodeDelegateModel
 {
     Q_OBJECT
 
@@ -104,7 +163,7 @@ public:
     save() const override;
 
     void
-    restore(QJsonObject const &p) override;
+    restore(QJsonObject const &p);
 
     unsigned int
     nPorts(PortType portType) const override;
@@ -121,8 +180,8 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
-//    bool
-//    resizable() const override { return true; }
+    bool
+    resizable() const override { return false; }
 
     void
     setModelProperty( QString &, const QVariant & ) override;
@@ -131,7 +190,6 @@ public:
     late_constructor() override;
 
     static const QString _category;
-
     static const QString _model_name;
 
 private Q_SLOTS:
@@ -151,4 +209,3 @@ private:
     void processData(const std::shared_ptr< CVImageData > & in);
     void load_model(bool bUpdateDisplayProperties = false);
 };
-#endif

@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,13 +14,16 @@
 
 #include "MathConvertToIntModel.hpp"
 
-#include "nodes/DataModelRegistry"
 #include "IntegerData.hpp"
 #include "SyncData.hpp"
 
+const QString MathConvertToIntModel::_category = QString( "Math Operation" );
+
+const QString MathConvertToIntModel::_model_name = QString( "Convert to Integer" );
+
 MathConvertToIntModel::
 MathConvertToIntModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     mpIntegerData = std::make_shared< IntegerData >( );
 }
@@ -39,7 +42,7 @@ nPorts(PortType portType) const
 
 NodeDataType
 MathConvertToIntModel::
-dataType( PortType portType, PortIndex portIndex) const
+dataType( PortType portType, PortIndex) const
 {
     if( portType == PortType::In )
     {
@@ -54,7 +57,7 @@ dataType( PortType portType, PortIndex portIndex) const
 
 std::shared_ptr<NodeData>
 MathConvertToIntModel::
-outData(PortIndex portIndex)
+outData(PortIndex)
 {
     std::shared_ptr<NodeData> result;
     if( isEnable() )
@@ -85,6 +88,4 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     }
 }
 
-const QString MathConvertToIntModel::_category = QString( "Math Operation" );
 
-const QString MathConvertToIntModel::_model_name = QString( "Convert to Integer" );

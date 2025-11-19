@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -20,13 +20,16 @@
 
 #include <QtWidgets/QFileDialog>
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
+const QString CVImagePropertiesModel::_category = QString( "Output" );
+
+const QString CVImagePropertiesModel::_model_name = QString( "CV Image Properties" );
+
 CVImagePropertiesModel::
 CVImagePropertiesModel()
-    : PBNodeDataModel( _model_name ),
+    : PBNodeDelegateModel( _model_name ),
       _minPixmap(":ImageDisplay.png")
 {
     QString propId = "image_name";
@@ -110,7 +113,7 @@ QJsonObject
 CVImagePropertiesModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams["imageName"] = QString::fromStdString(mProps.msImageName);
@@ -122,9 +125,9 @@ save() const
 
 void
 CVImagePropertiesModel::
-restore(QJsonObject const& p)
+load(QJsonObject const& p)
 {
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -154,7 +157,7 @@ void
 CVImagePropertiesModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -252,6 +255,4 @@ processData(const std::shared_ptr< CVImageData > & in, CVImagePropertiesProperti
     typedProp->getData() = QString("%1").arg(isContinuous);
 }
 
-const QString CVImagePropertiesModel::_category = QString( "Output" );
 
-const QString CVImagePropertiesModel::_model_name = QString( "CV Image Properties" );

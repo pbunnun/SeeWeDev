@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -20,15 +20,18 @@
 
 #include <QtWidgets/QFileDialog>
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 
+const QString Test_SharpenModel::_category = QString("Template Category");
+
+const QString Test_SharpenModel::_model_name = QString("Test_Sharpen");
+
 Test_SharpenModel::Test_SharpenModel()
-    : PBNodeDataModel(_model_name),
+    : PBNodeDelegateModel(_model_name),
       _minPixmap(":Test_Sharpen.png")
 {
     mpCVImageData = std::make_shared<CVImageData>(cv::Mat());
@@ -80,14 +83,14 @@ void Test_SharpenModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
         if(d && d->data().type()==CV_8UC3)
         {
             //mpCVImageInData = d;
-            cv::Mat CVTestSharpenImage = d->data().clone();
-            uint row = CVTestSharpenImage.rows;
-            uint col = CVTestSharpenImage.cols*CVTestSharpenImage.channels();
+            cv::Mat testSharpenImage = d->data().clone();
+            uint row = testSharpenImage.rows;
+            uint col = testSharpenImage.cols*testSharpenImage.channels();
             for(uint i=1; i<row-1; i++)
             {
-                uchar *pu = CVTestSharpenImage.ptr<uchar>(i-1);
-                uchar *pm = CVTestSharpenImage.ptr<uchar>(i);
-                uchar *pl = CVTestSharpenImage.ptr<uchar>(i+1);
+                uchar *pu = testSharpenImage.ptr<uchar>(i-1);
+                uchar *pm = testSharpenImage.ptr<uchar>(i);
+                uchar *pl = testSharpenImage.ptr<uchar>(i+1);
                 for(uint j=1; j<col-1; j++)
                 {
                     pm[j] = cv::saturate_cast<uchar>(-1*pu[j-1] -1*pu[j] -1*pu[j+1]
@@ -97,7 +100,8 @@ void Test_SharpenModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
                 }
             }
             //code for borders
-            mpCVImageData->set_image(CVTestSharpenImage);
+            // Move the computed image into the node data to avoid an extra deep copy
+            mpCVImageData->set_image(std::move(testSharpenImage));
         }
         else
         {
@@ -107,5 +111,3 @@ void Test_SharpenModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
     Q_EMIT dataUpdated(0);
 }
 
-const QString Test_SharpenModel::_category = QString("Template Category");
-const QString Test_SharpenModel::_model_name = QString("Test_Sharpen");

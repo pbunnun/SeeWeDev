@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -36,8 +36,9 @@ std::shared_ptr<QtNodes::NodeData> converter(std::shared_ptr<QtNodes::NodeData> 
 {
     return node_type;
 }
-
-void add_type_converters( std::shared_ptr< DataModelRegistry > model_regs )
+/*
+// TODO NodeEditor v3 Migration: Updated to use NodeDelegateModelRegistry
+void add_type_converters( std::shared_ptr< NodeDelegateModelRegistry > model_regs )
 {
     auto inf_nodedata = std::make_shared<InformationData>();
 
@@ -75,8 +76,9 @@ void add_type_converters( std::shared_ptr< DataModelRegistry > model_regs )
     model_regs->registerTypeConverter( std::make_pair( sync_nodedata->type(), inf_nodedata->type() ), converter);
 
 }
-
-void load_plugins_from_dir(std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader * > & plugins_list, QDir pluginsDir )
+*/
+// TODO NodeEditor v3 Migration: Updated to use NodeDelegateModelRegistry
+void load_plugins_from_dir(std::shared_ptr< NodeDelegateModelRegistry > model_regs, QList< QPluginLoader * > & plugins_list, QDir pluginsDir )
 {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
     const auto entryList = pluginsDir.entryList( QStringList() << "*.dll", QDir::Files);
@@ -118,19 +120,21 @@ void load_plugins_from_dir(std::shared_ptr< DataModelRegistry > model_regs, QLis
     }
 }
 
-void load_plugins( std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader * > & plugins_list )
+// TODO NodeEditor v3 Migration: Updated to use NodeDelegateModelRegistry
+void load_plugins( std::shared_ptr< NodeDelegateModelRegistry > model_regs, QList< QPluginLoader * > & plugins_list )
 {
     QDir pluginsDir = QDir(QCoreApplication::applicationDirPath());
     pluginsDir.cd( "cvdev_plugins" );
     load_plugins_from_dir( model_regs, plugins_list, pluginsDir );
 
-    pluginsDir = QDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)+"/.CVDev/cvdev_plugins");
+    pluginsDir = QDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)+"/.CVDevPro/cvdev_plugins");
     if( !pluginsDir.exists() )
         pluginsDir.mkpath(".");
     load_plugins_from_dir( model_regs, plugins_list, pluginsDir );
 }
 
-void load_plugin(std::shared_ptr< DataModelRegistry > model_regs, QList< QPluginLoader *> & plugins_list , QString filename)
+// TODO NodeEditor v3 Migration: Updated to use NodeDelegateModelRegistry
+void load_plugin(std::shared_ptr< NodeDelegateModelRegistry > model_regs, QList< QPluginLoader *> & plugins_list , QString filename)
 {
    QPluginLoader * loader = new QPluginLoader(filename);
    QObject *plugin = loader->instance();

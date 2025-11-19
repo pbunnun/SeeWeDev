@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -12,8 +12,7 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-#ifndef CVDEVLIBRARY_HPP
-#define CVDEVLIBRARY_HPP
+#pragma once
 
 #include <QtCore/QtGlobal>
 
@@ -22,5 +21,3 @@
 #else
 #  define CVDEVSHAREDLIB_EXPORT Q_DECL_IMPORT
 #endif
-
-#endif // CVDEVLIBRARY_HPP

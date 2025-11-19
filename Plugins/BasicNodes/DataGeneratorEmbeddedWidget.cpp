@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,14 +13,21 @@
 //limitations under the License.
 
 #include "DataGeneratorEmbeddedWidget.hpp"
+#include <QComboBox>
+#include <QPlainTextEdit>
 #include "ui_DataGeneratorEmbeddedWidget.h"
 #include <QDebug>
+
+const QStringList DataGeneratorEmbeddedWidget::comboxboxStringList = {"int", "float", "double", "bool", "std::string", "cv::Rect", "cv::Point", "cv::Scalar"};
 
 DataGeneratorEmbeddedWidget::DataGeneratorEmbeddedWidget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::DataGeneratorEmbeddedWidget)
 {
     ui->setupUi(this);
+    connect(ui->mpComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &DataGeneratorEmbeddedWidget::combo_box_current_index_changed);
+    connect(ui->mpPlainTextEdit, &QPlainTextEdit::textChanged, this, &DataGeneratorEmbeddedWidget::plain_text_edit_text_changed);
+
     ui->mpPlainTextEdit->setMaximumBlockCount(100);
     ui->mpPlainTextEdit->setReadOnly(false);
 }
@@ -30,12 +37,12 @@ DataGeneratorEmbeddedWidget::~DataGeneratorEmbeddedWidget()
     delete ui;
 }
 
-void DataGeneratorEmbeddedWidget::on_mpComboBox_currentIndexChanged( int )
+void DataGeneratorEmbeddedWidget::combo_box_current_index_changed( int )
 {
     Q_EMIT widget_clicked_signal();
 }
 
-void DataGeneratorEmbeddedWidget::on_mpPlainTextEdit_textChanged()
+void DataGeneratorEmbeddedWidget::plain_text_edit_text_changed()
 {
     Q_EMIT widget_clicked_signal();
 }
@@ -65,5 +72,3 @@ void DataGeneratorEmbeddedWidget::set_text_input(const QString &input)
     ui->mpPlainTextEdit->setPlainText(input);
 }
 
-const QStringList DataGeneratorEmbeddedWidget::comboxboxStringList =
-{"int", "float", "double", "bool", "std::string", "cv::Rect", "cv::Point", "cv::Scalar"};

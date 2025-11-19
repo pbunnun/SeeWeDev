@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -22,7 +22,11 @@
 #include <QtCore/QTime>
 #include <QtWidgets/QFileDialog>
 #include <QVariant>
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
+
+const QString CVCameraModel::_category = QString( "Source" );
+
+const QString CVCameraModel::_model_name = QString( "CV Camera" );
 
 CVCameraThread:: CVCameraThread(QObject *parent, std::shared_ptr< CVImageData > pCVImageData)
     : QThread(parent), mpCVImageData( pCVImageData )
@@ -229,7 +233,7 @@ check_camera()
 
 CVCameraModel::
 CVCameraModel()
-    : PBNodeDataModel( _model_name, true ),
+    : PBNodeDelegateModel( _model_name, true ),
       mpEmbeddedWidget( new CVCameraEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
@@ -380,7 +384,7 @@ QJsonObject
 CVCameraModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams[ "camera_id" ] = mCameraProperty.miCameraID;
@@ -396,9 +400,9 @@ save() const
 
 void
 CVCameraModel::
-restore(const QJsonObject &p)
+load(const QJsonObject &p)
 {
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
     late_constructor();
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
@@ -477,7 +481,7 @@ void
 CVCameraModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -549,7 +553,7 @@ void
 CVCameraModel::
 enable_changed(bool enable)
 {
-    PBNodeDataModel::enable_changed( enable );
+    PBNodeDelegateModel::enable_changed( enable );
 
     mpEmbeddedWidget->set_ready_state( !enable );
     if( enable )
@@ -565,7 +569,7 @@ void
 CVCameraModel::
 late_constructor()
 {
-    if( !mpCVCameraThread )
+    if( start_late_constructor() )
     {
         mpCVCameraThread = new CVCameraThread(this, mpCVImageData);
         connect( mpCVCameraThread, &CVCameraThread::image_ready, this, &CVCameraModel::received_image );
@@ -578,8 +582,28 @@ void
 CVCameraModel::
 em_button_clicked( int button )
 {
+    DEBUG_LOG_INFO() << "[em_button_clicked] button:" << button << "isSelected:" << isSelected();
+    
+    // If node is not selected, select it first and block the interaction
+    // User needs to click again when node is selected to perform the action
+    if (!isSelected())
+    {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Node not selected, requesting selection";
+        
+        // Restore the widget state to reflect the actual enable state
+        // since the button handlers already changed it before emitting the signal
+        auto prop = mMapIdToProperty[ "enable" ];
+        auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+        bool currentEnableState = typedProp->getData();
+        mpEmbeddedWidget->set_ready_state( !currentEnableState );
+        
+        Q_EMIT selection_request_signal();
+        return;
+    }
+    
     if( button == 0 ) //Start
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Start button";
         auto prop = mMapIdToProperty[ "enable" ];
         auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
         typedProp->getData() = true;
@@ -589,6 +613,7 @@ em_button_clicked( int button )
     }
     else //Stop
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Stop button";
         auto prop = mMapIdToProperty[ "enable" ];
         auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
         typedProp->getData() = false;
@@ -598,26 +623,25 @@ em_button_clicked( int button )
 
         if( button == 2 )
         {
+            DEBUG_LOG_INFO() << "[em_button_clicked] Update camera ID";
             prop = mMapIdToProperty[ "camera_id" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
             typedProp->getData().miCurrentIndex = typedProp->getData().mslEnumNames.indexOf( QString::number( mpEmbeddedWidget->get_camera_property().miCameraID ) );
             Q_EMIT property_changed_signal( prop );
         }
     }
-    // Notify node's NodeGraphicsObject to redraw itself.
-    Q_EMIT embeddedWidgetStatusUpdated();
+    
+    Q_EMIT embeddedWidgetSizeUpdated();
 }
 
 void
 CVCameraModel::
 setSelected( bool selected )
 {
-    PBNodeDataModel::setSelected( selected );
+    PBNodeDelegateModel::setSelected( selected );
     //The second method is to uncomment the following line and comment mpEmbeddedWidget->set_active above.
     //The embedded widget will not accept any mouse interaction unless the node is selected.
     //mpEmbeddedWidget->set_active( selected );
 }
 
-const QString CVCameraModel::_category = QString( "Source" );
 
-const QString CVCameraModel::_model_name = QString( "CV Camera" );

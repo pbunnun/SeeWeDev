@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -19,18 +19,33 @@
 
 #include <QtWidgets/QFileDialog>
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
+const QString CVImageDisplayModel::_category = QString( "Output" );
+
+const QString CVImageDisplayModel::_model_name = QString( "CV Image Display" );
+
 CVImageDisplayModel::
 CVImageDisplayModel()
-    : PBNodeDataModel( _model_name ),
+    : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget( new PBImageDisplayWidget(qobject_cast<QWidget *>(this)) )
 {
     mpEmbeddedWidget->installEventFilter( this );
     mpEmbeddedWidget->resize(640, 480);
     mpSyncData = std::make_shared<SyncData>( true );
+
+    // Make the minimize property read-only for display nodes
+    auto minimizePropId = QString("minimize");
+    auto minimizeProp = std::make_shared< TypedProperty< bool > >( "Minimize", minimizePropId, QMetaType::Bool, false, "Common", true );
+    // Find and replace the minimize property in the vector
+    for (size_t i = 0; i < mvProperty.size(); ++i) {
+        if (mvProperty[i]->getID() == minimizePropId) {
+            mvProperty[i] = minimizeProp;
+            break;
+        }
+    }
+    mMapIdToProperty[ minimizePropId ] = minimizeProp;
 
     SizePropertyType sizePropertyType;
     sizePropertyType.miWidth = 0;
@@ -117,12 +132,29 @@ void
 CVImageDisplayModel::
 display_image()
 {
+    // Don't try to display when node is minimized - the widget may not be visible
+    // Also check if the widget itself is valid and visible
+    if (isMinimize() || !mpEmbeddedWidget || !mpEmbeddedWidget->isVisible())
+        return;
+    
     mpEmbeddedWidget->Display( mCVImageDisplay );
 
     if( mCVImageDisplay.cols != miImageWidth || mCVImageDisplay.rows != miImageHeight )
     {
         miImageWidth = mCVImageDisplay.cols;
         miImageHeight = mCVImageDisplay.rows;
+
+        // Update the widget size to match the new image aspect ratio
+        if (mpEmbeddedWidget && miImageWidth > 0 && miImageHeight > 0)
+        {
+            // Calculate new height based on current width and new aspect ratio
+            int currentWidth = mpEmbeddedWidget->width();
+            double aspectRatio = static_cast<double>(miImageHeight) / static_cast<double>(miImageWidth);
+            int newHeight = static_cast<int>(currentWidth * aspectRatio);
+            
+            // Resize the widget to match the aspect ratio
+            mpEmbeddedWidget->resize(currentWidth, newHeight);
+        }
 
         auto prop = mMapIdToProperty["image_size"];
         auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );
@@ -145,6 +177,4 @@ display_image()
     }
 }
 
-const QString CVImageDisplayModel::_category = QString( "Output" );
 
-const QString CVImageDisplayModel::_model_name = QString( "CV Image Display" );

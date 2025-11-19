@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
 //limitations under the License.
 
 #include "NodeDataTimerEmbeddedWidget.hpp"
+#include <QSpinBox>
+#include <QPushButton>
+#include <QComboBox>
 #include "ui_NodeDataTimerEmbeddedWidget.h"
 
 NodeDataTimerEmbeddedWidget::NodeDataTimerEmbeddedWidget(QWidget *parent) :
@@ -21,6 +24,14 @@ NodeDataTimerEmbeddedWidget::NodeDataTimerEmbeddedWidget(QWidget *parent) :
     mpQTimer(new QTimer)
 {
     ui->setupUi(this);
+    setMinimumSize(242, 131); // Prevent resize smaller than default
+    connect(ui->mpSecondSpinbox, QOverload<int>::of(&QSpinBox::valueChanged), this, &NodeDataTimerEmbeddedWidget::second_spinbox_value_changed);
+    connect(ui->mpMillisecondSpinbox, QOverload<int>::of(&QSpinBox::valueChanged), this, &NodeDataTimerEmbeddedWidget::millisecond_spinbox_value_changed);
+    connect(ui->mpPFComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &NodeDataTimerEmbeddedWidget::pf_combo_box_current_index_changed);
+    connect(ui->mpStartButton, &QPushButton::clicked, this, &NodeDataTimerEmbeddedWidget::start_button_clicked);
+    connect(ui->mpStopButton, &QPushButton::clicked, this, &NodeDataTimerEmbeddedWidget::stop_button_clicked);
+    connect(ui->mpResetButton, &QPushButton::clicked, this, &NodeDataTimerEmbeddedWidget::reset_button_clicked);
+
     ui->mpSecondSpinbox->setMinimum(0);
     ui->mpSecondSpinbox->setValue(0);
     ui->mpMillisecondSpinbox->setMinimum(1);
@@ -40,24 +51,24 @@ NodeDataTimerEmbeddedWidget::~NodeDataTimerEmbeddedWidget()
     delete ui;
 }
 
-void NodeDataTimerEmbeddedWidget::on_mpSecondSpinbox_valueChanged(int duration)
+void NodeDataTimerEmbeddedWidget::second_spinbox_value_changed(int duration)
 {
     miPeriod = duration*1000 + ui->mpMillisecondSpinbox->value();
     this->set_pf_labels(ui->mpPFComboBox->currentIndex());
 }
 
-void NodeDataTimerEmbeddedWidget::on_mpMillisecondSpinbox_valueChanged(int duration)
+void NodeDataTimerEmbeddedWidget::millisecond_spinbox_value_changed(int duration)
 {
     miPeriod = ui->mpSecondSpinbox->value()*1000 + duration;
     this->set_pf_labels(ui->mpPFComboBox->currentIndex());
 }
 
-void NodeDataTimerEmbeddedWidget::on_mpPFComboBox_currentIndexChanged(int index)
+void NodeDataTimerEmbeddedWidget::pf_combo_box_current_index_changed(int index)
 {
     this->set_pf_labels(index);
 }
 
-void NodeDataTimerEmbeddedWidget::on_mpStartButton_clicked()
+void NodeDataTimerEmbeddedWidget::start_button_clicked()
 {
     ui->mpStartButton->setEnabled(false);
     ui->mpStopButton->setEnabled(true);
@@ -68,7 +79,7 @@ void NodeDataTimerEmbeddedWidget::on_mpStartButton_clicked()
     this->run();
 }
 
-void NodeDataTimerEmbeddedWidget::on_mpStopButton_clicked()
+void NodeDataTimerEmbeddedWidget::stop_button_clicked()
 {
     static bool paused = false;
     static int remainingTime;
@@ -100,7 +111,7 @@ void NodeDataTimerEmbeddedWidget::on_mpStopButton_clicked()
     }
 }
 
-void NodeDataTimerEmbeddedWidget::on_mpResetButton_clicked()
+void NodeDataTimerEmbeddedWidget::reset_button_clicked()
 {
     ui->mpStartButton->setEnabled(true);
     ui->mpSecondSpinbox->setEnabled(true);

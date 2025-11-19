@@ -89,10 +89,15 @@
     <addaction name="mpActionRedo"/>
     <addaction name="mpActionSnapToGrid"/>
     <addaction name="separator"/>
-    <addaction name="mpActionCopy"/>
-    <addaction name="mpActionCut"/>
-    <addaction name="mpActionPaste"/>
-    <addaction name="mpActionDelete"/>
+    <addaction name="mpActionCopyMenuProxy"/>
+    <addaction name="mpActionCutMenuProxy"/>
+    <addaction name="mpActionPasteMenuProxy"/>
+    <addaction name="mpActionDeleteMenuProxy"/>
+    <addaction name="separator"/>
+    <addaction name="mpActionGroupNodes"/>
+    <addaction name="mpActionUngroupNodes"/>
+    <addaction name="mpActionRenameGroup"/>
+    <addaction name="mpActionChangeGroupColor"/>
     <addaction name="separator"/>
     <addaction name="mpActionLoadPlugin"/>
    </widget>
@@ -145,6 +150,27 @@
       <widget class="QLineEdit" name="mpAvailableNodeCategoryFilterLineEdit"/>
      </item>
      <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_expandCollapse">
+       <property name="spacing">
+        <number>2</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="mpExpandAllButton">
+         <property name="text">
+          <string>Expand All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="mpCollapseAllButton">
+         <property name="text">
+          <string>Collapse All</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
       <widget class="PBTreeWidget" name="mpAvailableNodeCategoryTreeView">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -156,7 +182,7 @@
         <bool>true</bool>
        </property>
        <property name="dragDropMode">
-        <enum>QAbstractItemView::DragOnly</enum>
+        <enum>QAbstractItemView::DragDropMode::DragOnly</enum>
        </property>
        <property name="headerHidden">
         <bool>true</bool>
@@ -291,6 +317,30 @@
     <string>Ctrl+S</string>
    </property>
   </action>
+  <action name="mpActionCopyMenuProxy">
+   <property name="text">
+    <string>Copy</string>
+   </property>
+   <!-- No shortcut defined here: view-local action handles Ctrl/Cmd+C -->
+  </action>
+  <action name="mpActionCutMenuProxy">
+   <property name="text">
+    <string>Cut</string>
+   </property>
+   <!-- No shortcut defined here: view-local action handles Ctrl/Cmd+X -->
+  </action>
+  <action name="mpActionPasteMenuProxy">
+   <property name="text">
+    <string>Paste</string>
+   </property>
+   <!-- No shortcut defined here: view-local action handles Ctrl/Cmd+V -->
+  </action>
+  <action name="mpActionDeleteMenuProxy">
+   <property name="text">
+    <string>Delete</string>
+   </property>
+   <!-- No shortcut defined here: view-local action handles Delete key -->
+  </action>
   <action name="mpActionLoad">
    <property name="icon">
     <iconset resource="resources/cvdevlibrary_resources.qrc">
@@ -375,18 +425,7 @@
     <string>Ctrl+N</string>
    </property>
   </action>
-  <action name="mpActionCopy">
-   <property name="icon">
-    <iconset resource="resources/cvdevlibrary_resources.qrc">
-     <normaloff>:/icons/tango/32x32/edit-copy.png</normaloff>:/icons/tango/32x32/edit-copy.png</iconset>
-   </property>
-   <property name="text">
-    <string>Copy</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+C</string>
-   </property>
-  </action>
+  <!-- mpActionCopy removed: Copy is handled by view-local actions (GraphicsView) -->
   <action name="mpActionCut">
    <property name="icon">
     <iconset resource="resources/cvdevlibrary_resources.qrc">
@@ -408,7 +447,7 @@
     <string>Paste</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+V</string>
+    <string>Paste</string>
    </property>
   </action>
   <action name="mpActionDelete">
@@ -480,7 +519,7 @@
     <string>Enable All Nodes</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+G</string>
+    <string>Ctrl+Shift+D</string>
    </property>
   </action>
   <action name="mpActionSnapToGrid">
@@ -542,6 +581,44 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+F</string>
+   </property>
+  </action>
+  <action name="mpActionGroupNodes">
+   <property name="text">
+    <string>Group Selected Nodes</string>
+   </property>
+   <property name="toolTip">
+    <string>Create a visual group from selected nodes</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+G</string>
+   </property>
+  </action>
+  <action name="mpActionUngroupNodes">
+   <property name="text">
+    <string>Ungroup</string>
+   </property>
+   <property name="toolTip">
+    <string>Dissolve the group containing selected nodes</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+G</string>
+   </property>
+  </action>
+  <action name="mpActionRenameGroup">
+   <property name="text">
+    <string>Rename Group...</string>
+   </property>
+   <property name="toolTip">
+    <string>Rename the group containing selected node</string>
+   </property>
+  </action>
+  <action name="mpActionChangeGroupColor">
+   <property name="text">
+    <string>Change Group Color...</string>
+   </property>
+   <property name="toolTip">
+    <string>Change the color of the group containing selected node</string>
    </property>
   </action>
  </widget>

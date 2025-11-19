@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,15 +14,18 @@
 
 #include "TextRecognitionDNNModel.hpp"
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
 #include <opencv2/imgproc.hpp>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include <QFile>
 #include <fstream>
+
+const QString TextRecognitionDNNModel::_category = QString("DNN");
+
+const QString TextRecognitionDNNModel::_model_name = QString( "Text Recognition Model" );
 
 TextRecognitionThread::TextRecognitionThread( QObject * parent )
     : QThread(parent)
@@ -126,7 +129,7 @@ setParams(QString & vocabulary_filename)
 
 TextRecognitionDNNModel::
 TextRecognitionDNNModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >(true);
@@ -232,7 +235,7 @@ QJsonObject
 TextRecognitionDNNModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
     cParams["model_filename"] = msModel_Filename;
     cParams["vocabulary_filename"] = msVocabulary_Filename;
@@ -245,7 +248,7 @@ void
 TextRecognitionDNNModel::
 restore( QJsonObject const &p )
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load( p );
     late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
@@ -279,7 +282,7 @@ void
 TextRecognitionDNNModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
     if( !mMapIdToProperty.contains( id ) )
         return;
 
@@ -347,6 +350,4 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpTextRecognitionDNNThread->detect( in_image );
 }
 
-const QString TextRecognitionDNNModel::_category = QString("DNN");
 
-const QString TextRecognitionDNNModel::_model_name = QString( "Text Recognition Model" );

@@ -18,6 +18,8 @@
         <file>FaceDetection.png</file>
         <file>ImageDisplay.png</file>
         <file>BitwiseOperation.png</file>
+        <file>Addition.png</file>
+        <file>OverlayImage.png</file>
         <file>ImageROI.png</file>
         <file>MorphologicalTransformation.png</file>
         <file>HoughCircleTransform.png</file>

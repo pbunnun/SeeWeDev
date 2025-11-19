@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -20,9 +20,13 @@
 #include <QDir>
 #include <QVariant>
 
+const QString CVImageResizeModel::_category = QString( "Image Operation" );
+
+const QString CVImageResizeModel::_model_name = QString( "CV Resize" );
+
 CVImageResizeModel::
 CVImageResizeModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );
@@ -98,9 +102,9 @@ CVImageResizeModel::
 save() const
 {
     /*
-     * If save() was overrided, PBNodeDataModel::save() must be called explicitely.
+     * If save() was overrided, PBNodeDelegateModel::save() must be called explicitely.
      */
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams[ "width" ] = mSize.width;
@@ -113,12 +117,12 @@ save() const
 
 void
 CVImageResizeModel::
-restore(const QJsonObject &p)
+load(const QJsonObject &p)
 {
     /*
-     * If restore() was overrided, PBNodeDataModel::restore() must be called explicitely.
+     * If load() was overridden, PBNodeDelegateModel::load() must be called explicitely.
      */
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -141,7 +145,7 @@ void
 CVImageResizeModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -177,6 +181,4 @@ processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData
     }
 }
 
-const QString CVImageResizeModel::_category = QString( "Image Operation" );
 
-const QString CVImageResizeModel::_model_name = QString( "Resize" );

@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <QDebug>
+#include <cmath>
 
 PBImageDisplayWidget::
 PBImageDisplayWidget(QWidget *parent)
@@ -32,7 +33,12 @@ void
 PBImageDisplayWidget::
 Display( const cv::Mat &image )
 {
-    mCVImage = image;
+    // Don't process if the widget is not visible or image is empty
+    if (!isVisible() || image.empty())
+        return;
+        
+    // Create a deep copy to avoid race conditions with paintEvent
+    mCVImage = image.clone();
     muImageFormat = static_cast< quint8 >( mCVImage.channels() );
     if( mCVImage.cols != miImageWidth || mCVImage.rows != miImageHeight )
     {
@@ -51,6 +57,10 @@ void
 PBImageDisplayWidget::
 paintEvent( QPaintEvent * )
 {
+    // Don't paint if widget is not visible or image data is invalid
+    if (!isVisible() || mCVImage.empty() || mCVImage.data == nullptr)
+        return;
+        
     mPainter.begin( this );
     mPainter.setRenderHint(QPainter::Antialiasing);
     if( muImageFormat == 1 )
@@ -76,6 +86,23 @@ void
 PBImageDisplayWidget::
 resizeEvent( QResizeEvent * ev )
 {
+    // Enforce aspect ratio if image is loaded
+    if (miImageWidth > 0 && miImageHeight > 0)
+    {
+        double aspectRatio = static_cast<double>(miImageHeight) / static_cast<double>(miImageWidth);
+        int targetHeight = static_cast<int>(width() * aspectRatio);
+        
+        // Only adjust if the difference is significant (more than 2 pixels)
+        if (std::abs(targetHeight - height()) > 2)
+        {
+            // Block signals to avoid recursion
+            bool oldState = signalsBlocked();
+            blockSignals(true);
+            setFixedHeight(targetHeight);
+            blockSignals(oldState);
+        }
+    }
+    
     if( mCVImage.cols != 0 && mCVImage.rows != 0 )
     {
         mrScale_x = static_cast< qreal >( this->width() )/static_cast< qreal >( mCVImage.cols );
@@ -83,3 +110,4 @@ resizeEvent( QResizeEvent * ev )
     }
     ImageDisplayWidget::resizeEvent(ev);
 }
+

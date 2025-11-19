@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,15 +14,18 @@
 
 #include "NomadMLClassificationModel.hpp"
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
 #include <opencv2/imgproc.hpp>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include <QFile>
 #include <QElapsedTimer>
+
+const QString NomadMLClassificationModel::_category = QString("DNN");
+
+const QString NomadMLClassificationModel::_model_name = QString( "NomadML Classification" );
 
 
 NomadMLClassificationThread::NomadMLClassificationThread( QObject * parent )
@@ -131,7 +134,7 @@ NomadMLClassificationThread::
 
 NomadMLClassificationModel::
 NomadMLClassificationModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >( true );
@@ -292,7 +295,7 @@ QJsonObject
 NomadMLClassificationModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
     cParams["model_filename"] = msDNNModel_Filename;
     cParams["config_filename"] = msConfig_Filename;
@@ -305,7 +308,7 @@ void
 NomadMLClassificationModel::
 restore( QJsonObject const &p )
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load( p );
     late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
@@ -337,7 +340,7 @@ void
 NomadMLClassificationModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
     if( !mMapIdToProperty.contains( id ) )
         return;
 
@@ -507,6 +510,4 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpNomadMLClassificationThread->detect( in_image );
 }
 
-const QString NomadMLClassificationModel::_category = QString("DNN");
 
-const QString NomadMLClassificationModel::_model_name = QString( "NomadML Classification" );

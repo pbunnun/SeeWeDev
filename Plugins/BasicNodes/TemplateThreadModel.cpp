@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,8 +13,11 @@
 //limitations under the License.
 
 #include "TemplateThreadModel.hpp"
-#include <nodes/DataModelRegistry>
 #include <QDebug>
+
+const QString TemplateThreadModel::_category = QString("Template Category");
+
+const QString TemplateThreadModel::_model_name = QString( "Template Thread Model" );
 
 TemplateThread::TemplateThread( QObject * parent )
     : QThread(parent)
@@ -76,7 +79,7 @@ run()
 
 TemplateThreadModel::
 TemplateThreadModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
 
 }
@@ -133,7 +136,7 @@ QJsonObject
 TemplateThreadModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
 
     modelJson["cParams"] = cParams;
@@ -143,9 +146,9 @@ save() const
 
 void
 TemplateThreadModel::
-restore( QJsonObject const &p )
+load(QJsonObject const &p)
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load(p);
     late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
@@ -160,7 +163,7 @@ void
 TemplateThreadModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
     if( !mMapIdToProperty.contains( id ) )
         return;
 }
@@ -193,6 +196,4 @@ TemplateThreadModel::
 
 }
 
-const QString TemplateThreadModel::_category = QString("Template Category");
 
-const QString TemplateThreadModel::_model_name = QString( "Template Thread Model" );

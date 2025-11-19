@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -20,25 +20,29 @@
 #include <QtCore/QDir>
 #include <QtCore/QTime>
 #include <QtWidgets/QFileDialog>
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include <QMessageBox>
 #include "SyncData.hpp"
-#include "Connection"
+#include <QtNodes/internal/ConnectionIdUtils.hpp>
+
+const QString CVImageLoaderModel::_category = QString( "Source" );
+
+const QString CVImageLoaderModel::_model_name = QString( "CV Image Loader" );
 
 CVImageLoaderModel::
 CVImageLoaderModel()
-    : PBNodeDataModel( _model_name, true ),
+    : PBNodeDelegateModel( _model_name, true ),
       mpEmbeddedWidget( new CVImageLoaderEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
 
     mpEmbeddedWidget->set_active(false);
     connect( mpEmbeddedWidget, &CVImageLoaderEmbeddedWidget::button_clicked_signal, this, &CVImageLoaderModel::em_button_clicked );
+    connect( mpEmbeddedWidget, &CVImageLoaderEmbeddedWidget::widget_resized_signal, this, &CVImageLoaderModel::embeddedWidgetSizeUpdated );
     connect( &mTimer, &QTimer::timeout, this, &CVImageLoaderModel::flip_image);
 
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpInformationData = std::make_shared< InformationData >( );
-    //Example for using subclasses of InformationData
     mpCVSizeData = std::make_shared< CVSizeData >( cv::Size() );
 
     FilePathPropertyType filePathPropertyType;
@@ -185,7 +189,7 @@ QJsonObject
 CVImageLoaderModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     if( !msImageFilename.isEmpty() || !msDirname.isEmpty() )
     {
         QJsonObject cParams;
@@ -206,9 +210,9 @@ save() const
 
 void
 CVImageLoaderModel::
-restore( QJsonObject const &p )
+load(QJsonObject const &p)
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -321,13 +325,19 @@ void
 CVImageLoaderModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    DEBUG_LOG_INFO() << "[setModelProperty] id:" << id << "value:" << value;
+
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
+    {
+        DEBUG_LOG_INFO() << "[setModelProperty] Property not in map, returning";
         return;
+    }
 
     if( id == "filename" )
     {
+        DEBUG_LOG_INFO() << "[setModelProperty] Setting filename";
         auto prop = mMapIdToProperty[ id ];
         auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
         typedProp->getData().msFilename = value.toString();
@@ -337,6 +347,7 @@ setModelProperty( QString & id, const QVariant & value )
     }
     else if( id == "dirname" )
     {
+        DEBUG_LOG_INFO() << "[setModelProperty] Setting dirname";
         auto prop = mMapIdToProperty[ id ];
         auto typedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > >( prop );
         typedProp->getData().msPath = value.toString();
@@ -443,12 +454,20 @@ void
 CVImageLoaderModel::
 set_image_filename(QString & filename)
 {
+    DEBUG_LOG_INFO() << "[set_image_filename] filename:" << filename;
+    
     if( msImageFilename == filename )
+    {
+        DEBUG_LOG_INFO() << "[set_image_filename] Same filename, returning";
         return;
+    }
 
     msImageFilename = filename;
     if( !QFile::exists( msImageFilename ) )
+    {
+        DEBUG_LOG_INFO() << "[set_image_filename] File does not exist, returning";
         return;
+    }
 
     QImage qImage = QImage( msImageFilename );
 
@@ -545,6 +564,7 @@ set_image_filename(QString & filename)
     if( cvImage.data != nullptr )
     {
         QFileInfo fi(msImageFilename);
+        DEBUG_LOG_INFO() << "[set_image_filename] Setting embedded widget filename:" << fi.fileName();
         mpEmbeddedWidget->set_filename( fi.fileName() );
         mpCVImageData->set_image( cvImage );
         if( mbInfoImageSize )
@@ -584,22 +604,35 @@ void
 CVImageLoaderModel::
 em_button_clicked( int button )
 {
-    if( button == 0 )		// Backward
+    DEBUG_LOG_INFO() << "[em_button_clicked] button:" << button << "isSelected:" << isSelected();
+    
+    // If node is not selected, select it first and block the interaction
+    // User needs to click again when node is selected to perform the action
+    if (!isSelected())
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Node not selected, requesting selection";
+        
+        // Revert Play/Pause button state if it was clicked while unselected
+        if (button == 2 || button == 3)
+            mpEmbeddedWidget->revert_play_pause_state();
+        
+        Q_EMIT selection_request_signal();
+        return;
+    }
+    
+    if( button == 0 )
+    {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Backward button";
         miFilenameIndex -= 1;
         if( miFilenameIndex < 0 )
             miFilenameIndex = mvsImageFilenames.size()-1;
-        auto prop = mMapIdToProperty[ "filename" ];
-        auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
-        typedProp->getData().msFilename = mvsImageFilenames[miFilenameIndex];
-
-        if( isSelected() )
-            Q_EMIT property_changed_signal( prop );
-        else
-            set_image_filename( mvsImageFilenames[miFilenameIndex] );
+        
+        // Use the unified property change system
+        requestPropertyChange("filename", mvsImageFilenames[miFilenameIndex]);
     }
     else if( button == 1 )	// Open Directory
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Open Directory button";
         QString dir = QDir::homePath();
         if( !msImageFilename.isEmpty() )
         {
@@ -610,40 +643,33 @@ em_button_clicked( int button )
         QString path = QFileDialog::getExistingDirectory(qobject_cast<QWidget *>(this), tr("Directory"), dir);
         if( !path.isNull() )
         {
-            auto prop = mMapIdToProperty[ "dirname" ];
-            auto typedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > >( prop );
-            typedProp->getData().msPath = path;
-
-            if( isSelected() )
-                Q_EMIT property_changed_signal( prop );
-            else
-                set_dirname(path);
+            // Use the unified property change system
+            requestPropertyChange("dirname", path);
         }
     }
     else if( button == 2 )	// Auto Play
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Auto Play button";
         mTimer.start(miFlipPeriodInMillisecond);
     }
     else if( button == 3 )	// Pause
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Pause button";
         mTimer.stop();
     }
     else if( button == 4 )	// Forward
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Forward button";
         miFilenameIndex += 1;
         if( miFilenameIndex >= static_cast<int>(mvsImageFilenames.size()) )
             miFilenameIndex = 0;
-        auto prop = mMapIdToProperty[ "filename" ];
-        auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
-        typedProp->getData().msFilename = mvsImageFilenames[miFilenameIndex];
-
-        if( isSelected() )
-            Q_EMIT property_changed_signal( prop );
-        else
-            set_image_filename( mvsImageFilenames[miFilenameIndex] );
+        
+        // Use the unified property change system
+        requestPropertyChange("filename", mvsImageFilenames[miFilenameIndex]);
     }
-    else if( button == 5 )  // Open File
+    else if( button == 5 )	// Open File
     {
+        DEBUG_LOG_INFO() << "[em_button_clicked] Open File button";
         QString dir = QDir::homePath();
         if( !msImageFilename.isEmpty() )
         {
@@ -658,24 +684,15 @@ em_button_clicked( int button )
         if( !filename.isEmpty() )
         {
             mTimer.stop();
-            auto prop = mMapIdToProperty[ "filename" ];
-            auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
-            typedProp->getData().msFilename = filename;
-
-            if( isSelected() )
-                Q_EMIT property_changed_signal( prop );
-            else
-                set_image_filename( filename );
+            
+            // Use the unified property change system
+            requestPropertyChange("filename", filename);
 
             // Clear Directory Name
-            prop = mMapIdToProperty[ "dirname" ];
-            auto pathTypedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > > ( prop );
-            pathTypedProp->getData().msPath = "";
             msDirname = "";
             mvsImageFilenames.clear();
             mpEmbeddedWidget->set_active(false);
-            if( isSelected() )
-                Q_EMIT property_changed_signal( prop );
+            requestPropertyChange("dirname", QString(""));
         }
     }
 }
@@ -706,37 +723,44 @@ flip_image()
     auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
     typedProp->getData().msFilename = mvsImageFilenames[miFilenameIndex];
 
+    // Always load the image and update the widget
+    set_image_filename( mvsImageFilenames[miFilenameIndex] );
+    
+    // Also update property browser if node is selected
     if( isSelected() )
         Q_EMIT property_changed_signal( prop );
-    else
-        set_image_filename( mvsImageFilenames[miFilenameIndex] );
 
 }
 
 void
 CVImageLoaderModel::
-inputConnectionCreated(QtNodes::Connection const& conx)
+inputConnectionCreated(QtNodes::ConnectionId const& conx)
 {
-    if( conx.getPortIndex(PortType::In) == 0 )
+    if( QtNodes::getPortIndex(PortType::In, conx) == 0 )
         mbUseSyncSignal = true;
 }
 
 void
 CVImageLoaderModel::
-inputConnectionDeleted(QtNodes::Connection const& conx)
+inputConnectionDeleted(QtNodes::ConnectionId const& conx)
 {
-    if( conx.getPortIndex(PortType::In) == 0 )
+    if( QtNodes::getPortIndex(PortType::In, conx) == 0 )
         mbUseSyncSignal = false;
 }
-/*
+
 void
 CVImageLoaderModel::
-enable_changed( bool enable )
+enable_changed(bool enable)
 {
-    if( enable )
-        updateAllOutputPorts();
-}
-*/
-const QString CVImageLoaderModel::_category = QString( "Source" );
+    PBNodeDelegateModel::enable_changed(enable);
 
-const QString CVImageLoaderModel::_model_name = QString( "CV Image Loader" );
+    if (!enable) {
+        mTimer.stop(); // Stop playback if node is disabled
+        mpEmbeddedWidget->set_flip_pause(false); // Update UI state if needed
+    }
+    else {
+        // Optionally resume playback if desired, or just update outputs
+        updateAllOutputPorts();
+    }
+}
+

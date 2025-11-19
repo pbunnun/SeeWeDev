@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,61 +13,63 @@
 //limitations under the License.
 
 #include "BasicNodePlugin.hpp"
-#include "CannyEdgeModel.hpp"
-#include "RGBsetValueModel.hpp"
+#include "CVCannyEdgeModel.hpp"
+#include "CVRGBsetValueModel.hpp"
 #include "CVImageDisplayModel.hpp"
 #include "InformationDisplayModel.hpp"
 #include "CVImageLoaderModel.hpp"
-#include "CVVDOLoaderModel.hpp"
-#include "RGBtoGrayModel.hpp"
-#include "ColorSpaceModel.hpp"
+#include "CVVideoLoaderModel.hpp"
+#include "CVRGBtoGrayModel.hpp"
+#include "CVColorSpaceModel.hpp"
 #include "Test_SharpenModel.hpp"
 #include "CVCameraModel.hpp"
-#include "GaussianBlurModel.hpp"
+#include "CVGaussianBlurModel.hpp"
 #include "TemplateModel.hpp"
-#include "SobelAndScharrModel.hpp"
-#include "CreateHistogramModel.hpp"
-#include "ErodeAndDilateModel.hpp"
-#include "InvertGrayModel.hpp"
-#include "ThresholdingModel.hpp"
-#include "BlendImagesModel.hpp"
-#include "FloodFillModel.hpp"
-#include "MakeBorderModel.hpp"
-#include "BitwiseOperationModel.hpp"
-#include "ImageROIModel.hpp"
+#include "CVSobelAndScharrModel.hpp"
+#include "CVCreateHistogramModel.hpp"
+#include "CVErodeAndDilateModel.hpp"
+#include "CVInvertGrayModel.hpp"
+#include "CVThresholdingModel.hpp"
+#include "CVBlendImagesModel.hpp"
+#include "CVFloodFillModel.hpp"
+#include "CVMakeBorderModel.hpp"
+#include "CVBitwiseOperationModel.hpp"
+#include "CVAdditionModel.hpp"
+#include "CVOverlayImageModel.hpp"
 #include "CVImageROIModel.hpp"
+#include "CVImageROINewModel.hpp"
 #include "CVImagePropertiesModel.hpp"
-#include "MorphologicalTransformationModel.hpp"
-#include "HoughCircleTransfromModel.hpp"
-#include "DistanceTransformModel.hpp"
-#include "Filter2DModel.hpp"
-#include "SplitImageModel.hpp"
-#include "TemplateMatchingModel.hpp"
-#include "MatrixOperationModel.hpp"
-#include "MinMaxLocationModel.hpp"
-#include "ConnectedComponentsModel.hpp"
-#include "ConvertDepthModel.hpp"
-#include "PixelIterationModel.hpp"
+#include "CVMorphologicalTransformationModel.hpp"
+#include "CVHoughCircleTransfromModel.hpp"
+#include "CVDistanceTransformModel.hpp"
+#include "CVFilter2DModel.hpp"
+#include "CVSplitImageModel.hpp"
+#include "CVTemplateMatchingModel.hpp"
+#include "CVMatrixOperationModel.hpp"
+#include "CVMinMaxLocationModel.hpp"
+#include "CVConnectedComponentsModel.hpp"
+#include "CVConvertDepthModel.hpp"
+#include "CVPixelIterationModel.hpp"
 #include "ScalarOperationModel.hpp"
 #include "DataGeneratorModel.hpp"
 #include "SyncGateModel.hpp"
-#include "NormalizationModel.hpp"
-#include "WatershedModel.hpp"
-#include "ColorMapModel.hpp"
+#include "CVNormalizationModel.hpp"
+#include "CVWatershedModel.hpp"
+#include "CVColorMapModel.hpp"
 #include "TimerModel.hpp"
 #include "NodeDataTimerModel.hpp"
-#include "VideoWriterModel.hpp"
+#include "CVVideoWriterModel.hpp"
 #include "CVRotateImageModel.hpp"
 #include "CVImageResizeModel.hpp"
 #include "InfoConcatenateModel.hpp"
-#include "SaveImageModel.hpp"
+#include "CVSaveImageModel.hpp"
 #include "CVImageInRangeModel.hpp"
 #include "ExternalCommandModel.hpp"
 #include "NotSyncDataModel.hpp"
 #include "MathIntegerSumModel.hpp"
-#include "FindContourModel.hpp"
-#include "DrawContourModel.hpp"
-#include "FindAndDrawContourModel.hpp"
+#include "CVFindContourModel.hpp"
+#include "CVDrawContourModel.hpp"
+#include "CVFindAndDrawContourModel.hpp"
 #include "CVMatSumModel.hpp"
 //#include "CVCameraCalibrationModel.hpp"
 #include "MathConditionModel.hpp"
@@ -76,7 +78,7 @@
 
 //#include "FaceDetectionModel.hpp"
 
-QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< DataModelRegistry > model_regs )
+QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModelRegistry > model_regs )
 {
     QStringList duplicate_model_names;
 
@@ -87,48 +89,50 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< DataModelRegist
 
     registerModel< CVCameraModel >( model_regs, duplicate_model_names );
     registerModel< CVImageLoaderModel >( model_regs, duplicate_model_names );
-    registerModel< CVVDOLoaderModel >( model_regs, duplicate_model_names );
+    registerModel< CVVideoLoaderModel >( model_regs, duplicate_model_names );
 
-    registerModel< BitwiseOperationModel >( model_regs, duplicate_model_names );
-    registerModel< BlendImagesModel >( model_regs, duplicate_model_names );
-    registerModel< CannyEdgeModel >( model_regs, duplicate_model_names );
-    registerModel< ColorMapModel >( model_regs, duplicate_model_names );
-    registerModel< ColorSpaceModel >( model_regs, duplicate_model_names );
-    registerModel< ConnectedComponentsModel >( model_regs, duplicate_model_names );
-    registerModel< ConvertDepthModel >( model_regs, duplicate_model_names );
-    registerModel< CreateHistogramModel >( model_regs, duplicate_model_names );
+    registerModel< CVBitwiseOperationModel >( model_regs, duplicate_model_names );
+    registerModel< CVAdditionModel >( model_regs, duplicate_model_names );
+    registerModel< CVOverlayImageModel >( model_regs, duplicate_model_names );
+    registerModel< CVBlendImagesModel >( model_regs, duplicate_model_names );
+    registerModel< CVCannyEdgeModel >( model_regs, duplicate_model_names );
+    registerModel< CVColorMapModel >( model_regs, duplicate_model_names );
+    registerModel< CVColorSpaceModel >( model_regs, duplicate_model_names );
+    registerModel< CVConnectedComponentsModel >( model_regs, duplicate_model_names );
+    registerModel< CVConvertDepthModel >( model_regs, duplicate_model_names );
+    registerModel< CVCreateHistogramModel >( model_regs, duplicate_model_names );
     registerModel< DataGeneratorModel >( model_regs, duplicate_model_names );
-    registerModel< DistanceTransformModel >( model_regs, duplicate_model_names );
-    registerModel< ErodeAndDilateModel >( model_regs, duplicate_model_names );
-//    registerModel< FaceDetectionModel >( model_regs, duplicate_model_names );
-    registerModel< Filter2DModel >( model_regs, duplicate_model_names );
-    registerModel< FloodFillModel >( model_regs, duplicate_model_names );
-    registerModel< GaussianBlurModel >( model_regs, duplicate_model_names );
-    registerModel< HoughCircleTransformModel >( model_regs, duplicate_model_names );
-    registerModel< ImageROIModel >( model_regs, duplicate_model_names );
-    registerModel< CVImageROIModel > ( model_regs, duplicate_model_names );
+    registerModel< CVDistanceTransformModel >( model_regs, duplicate_model_names );
+    registerModel< CVErodeAndDilateModel >( model_regs, duplicate_model_names );
+//    registerModel< CVFaceDetectionModel >( model_regs, duplicate_model_names );
+    registerModel< CVFilter2DModel >( model_regs, duplicate_model_names );
+    registerModel< CVFloodFillModel >( model_regs, duplicate_model_names );
+    registerModel< CVGaussianBlurModel >( model_regs, duplicate_model_names );
+    registerModel< CVHoughCircleTransformModel >( model_regs, duplicate_model_names );
+    registerModel< CVImageROIModel >( model_regs, duplicate_model_names );
+    registerModel< CVImageROINewModel > ( model_regs, duplicate_model_names );
     registerModel< CVImageResizeModel > ( model_regs, duplicate_model_names );
-    registerModel< InvertGrayModel >( model_regs, duplicate_model_names );
-    registerModel< MakeBorderModel >( model_regs, duplicate_model_names );
-    registerModel< MatrixOperationModel >( model_regs, duplicate_model_names );
-    registerModel< MinMaxLocationModel >( model_regs, duplicate_model_names );
-    registerModel< MorphologicalTransformationModel >( model_regs, duplicate_model_names );
-    registerModel< NormalizationModel >(model_regs, duplicate_model_names);
-    registerModel< PixelIterationModel >(model_regs, duplicate_model_names);
-    registerModel< RGBsetValueModel >(model_regs, duplicate_model_names);
-    registerModel< RGBtoGrayModel >( model_regs, duplicate_model_names );
+    registerModel< CVInvertGrayModel >( model_regs, duplicate_model_names );
+    registerModel< CVMakeBorderModel >( model_regs, duplicate_model_names );
+    registerModel< CVMatrixOperationModel >( model_regs, duplicate_model_names );
+    registerModel< CVMinMaxLocationModel >( model_regs, duplicate_model_names );
+    registerModel< CVMorphologicalTransformationModel >( model_regs, duplicate_model_names );
+    registerModel< CVNormalizationModel >(model_regs, duplicate_model_names);
+    registerModel< CVPixelIterationModel >(model_regs, duplicate_model_names);
+    registerModel< CVRGBsetValueModel >(model_regs, duplicate_model_names);
+    registerModel< CVRGBtoGrayModel >( model_regs, duplicate_model_names );
     registerModel< ScalarOperationModel >( model_regs, duplicate_model_names );
-    registerModel< SobelAndScharrModel >( model_regs, duplicate_model_names );
-    registerModel< SplitImageModel >( model_regs, duplicate_model_names );
+    registerModel< CVSobelAndScharrModel >( model_regs, duplicate_model_names );
+    registerModel< CVSplitImageModel >( model_regs, duplicate_model_names );
     registerModel< SyncGateModel >( model_regs, duplicate_model_names );
-    registerModel< TemplateMatchingModel >( model_regs, duplicate_model_names );
-    registerModel< ThresholdingModel >( model_regs, duplicate_model_names );
-    registerModel< WatershedModel >( model_regs, duplicate_model_names );
+    registerModel< CVTemplateMatchingModel >( model_regs, duplicate_model_names );
+    registerModel< CVThresholdingModel >( model_regs, duplicate_model_names );
+    registerModel< CVWatershedModel >( model_regs, duplicate_model_names );
     registerModel< TimerModel >( model_regs, duplicate_model_names );
-    registerModel< VideoWriterModel >( model_regs, duplicate_model_names );
+    registerModel< CVVideoWriterModel >( model_regs, duplicate_model_names );
     registerModel< CVRotateImageModel >( model_regs, duplicate_model_names );
     registerModel< InfoConcatenateModel >( model_regs, duplicate_model_names );
-    registerModel< SaveImageModel >( model_regs, duplicate_model_names );
+    registerModel< CVSaveImageModel >( model_regs, duplicate_model_names );
     registerModel< CVImageInRangeModel >( model_regs, duplicate_model_names );
     registerModel< TemplateModel >( model_regs, duplicate_model_names );
     registerModel< Test_SharpenModel >( model_regs, duplicate_model_names );
@@ -136,9 +140,9 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< DataModelRegist
     registerModel< ExternalCommandModel >( model_regs, duplicate_model_names );
     registerModel< NotSyncDataModel >( model_regs, duplicate_model_names );
     registerModel< MathIntegerSumModel >( model_regs, duplicate_model_names );
-    registerModel< DrawContourModel >( model_regs, duplicate_model_names );
-    registerModel< FindContourModel >( model_regs, duplicate_model_names );
-    registerModel< FindAndDrawContourModel >( model_regs, duplicate_model_names );
+    registerModel< CVDrawContourModel >( model_regs, duplicate_model_names );
+    registerModel< CVFindContourModel >( model_regs, duplicate_model_names );
+    registerModel< CVFindAndDrawContourModel >( model_regs, duplicate_model_names );
     registerModel< CVMatSumModel >( model_regs, duplicate_model_names );
     registerModel< MathConditionModel >( model_regs, duplicate_model_names );
     registerModel< MathConvertToIntModel >( model_regs, duplicate_model_names );

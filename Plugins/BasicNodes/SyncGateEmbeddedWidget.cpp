@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 //limitations under the License.
 
 #include "SyncGateEmbeddedWidget.hpp"
+#include <QCheckBox>
 #include "ui_SyncGateEmbeddedWidget.h"
 
 SyncGateEmbeddedWidget::SyncGateEmbeddedWidget(QWidget *parent) :
@@ -20,6 +21,18 @@ SyncGateEmbeddedWidget::SyncGateEmbeddedWidget(QWidget *parent) :
     ui(new Ui::SyncGateEmbeddedWidget)
 {
     ui->setupUi(this);
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
+    connect(ui->mpIn0Checkbox, QOverload<int>::of(&QCheckBox::stateChanged), this, &SyncGateEmbeddedWidget::in0_checkbox_state_changed);
+    connect(ui->mpIn1Checkbox, QOverload<int>::of(&QCheckBox::stateChanged), this, &SyncGateEmbeddedWidget::in1_checkbox_state_changed);
+    connect(ui->mpOut0Checkbox, QOverload<int>::of(&QCheckBox::stateChanged), this, &SyncGateEmbeddedWidget::out0_checkbox_state_changed);
+    connect(ui->mpOut1Checkbox, QOverload<int>::of(&QCheckBox::stateChanged), this, &SyncGateEmbeddedWidget::out1_checkbox_state_changed);
+#else
+    connect(ui->mpIn0Checkbox, &QCheckBox::checkStateChanged, this, &SyncGateEmbeddedWidget::in0_checkbox_check_state_changed);
+    connect(ui->mpIn1Checkbox, &QCheckBox::checkStateChanged, this, &SyncGateEmbeddedWidget::in1_checkbox_check_state_changed);
+    connect(ui->mpOut0Checkbox, &QCheckBox::checkStateChanged, this, &SyncGateEmbeddedWidget::out0_checkbox_check_state_changed);
+    connect(ui->mpOut1Checkbox, &QCheckBox::checkStateChanged, this, &SyncGateEmbeddedWidget::out1_checkbox_check_state_changed);
+#endif
+
 }
 
 SyncGateEmbeddedWidget::~SyncGateEmbeddedWidget()
@@ -67,42 +80,42 @@ void SyncGateEmbeddedWidget::set_out1_Checkbox(const bool state)
     ui->mpOut1Checkbox->setCheckState(state? Qt::Checked : Qt::Unchecked);
 }
 #if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
-void SyncGateEmbeddedWidget::on_mpIn0Checkbox_stateChanged(int state)
+void SyncGateEmbeddedWidget::in0_checkbox_state_changed(int state)
 {
     Q_EMIT checkbox_checked_signal(0,state);
 }
 
-void SyncGateEmbeddedWidget::on_mpIn1Checkbox_stateChanged(int state)
+void SyncGateEmbeddedWidget::in1_checkbox_state_changed(int state)
 {
     Q_EMIT checkbox_checked_signal(1,state);
 }
 
-void SyncGateEmbeddedWidget::on_mpOut0Checkbox_stateChanged(int state)
+void SyncGateEmbeddedWidget::out0_checkbox_state_changed(int state)
 {
     Q_EMIT checkbox_checked_signal(2,state);
 }
 
-void SyncGateEmbeddedWidget::on_mpOut1Checkbox_stateChanged(int state)
+void SyncGateEmbeddedWidget::out1_checkbox_state_changed(int state)
 {
     Q_EMIT checkbox_checked_signal(3,state);
 }
 #else
-void SyncGateEmbeddedWidget::on_mpIn0Checkbox_checkStateChanged(Qt::CheckState state)
+void SyncGateEmbeddedWidget::in0_checkbox_check_state_changed(Qt::CheckState state)
 {
     Q_EMIT checkbox_checked_signal(0,state);
 }
 
-void SyncGateEmbeddedWidget::on_mpIn1Checkbox_checkStateChanged(Qt::CheckState state)
+void SyncGateEmbeddedWidget::in1_checkbox_check_state_changed(Qt::CheckState state)
 {
     Q_EMIT checkbox_checked_signal(1,state);
 }
 
-void SyncGateEmbeddedWidget::on_mpOut0Checkbox_checkStateChanged(Qt::CheckState state)
+void SyncGateEmbeddedWidget::out0_checkbox_check_state_changed(Qt::CheckState state)
 {
     Q_EMIT checkbox_checked_signal(2,state);
 }
 
-void SyncGateEmbeddedWidget::on_mpOut1Checkbox_checkStateChanged(Qt::CheckState state)
+void SyncGateEmbeddedWidget::out1_checkbox_check_state_changed(Qt::CheckState state)
 {
     Q_EMIT checkbox_checked_signal(3,state);
 }

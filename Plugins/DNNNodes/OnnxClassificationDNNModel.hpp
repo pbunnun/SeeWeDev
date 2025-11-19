@@ -1,4 +1,4 @@
-﻿//Copyright © 2022, NECTEC, all rights reserved
+﻿//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -12,8 +12,40 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-#ifndef ONNXCLASSIFICATIONDNNMODEL_HPP
-#define ONNXCLASSIFICATIONDNNMODEL_HPP
+/**
+ * @file OnnxClassificationDNNModel.hpp
+ * @brief ONNX-based image classification model.
+ *
+ * This file implements a DNN-based image classifier using ONNX (Open Neural
+ * Network Exchange) format models. ONNX provides framework-independent model
+ * deployment, allowing models trained in PyTorch, TensorFlow, or other
+ * frameworks to be used in OpenCV.
+ *
+ * **ONNX Format Advantages:**
+ * - Framework independence (PyTorch, TensorFlow, Keras, etc.)
+ * - Standardized model format
+ * - Optimized inference engines
+ * - Wide hardware support
+ * - Easy model portability
+ *
+ * **Supported Architectures:**
+ * - ResNet (18, 34, 50, 101, 152)
+ * - MobileNet (V2, V3)
+ * - EfficientNet
+ * - VGG (16, 19)
+ * - DenseNet
+ * - Custom trained models
+ *
+ * **Key Applications:**
+ * - ImageNet classification (1000 classes)
+ * - Custom object categorization
+ * - Transfer learning applications
+ * - Production deployment of trained models
+ *
+ * @see NecMLClassificationModel
+ * @see cv::dnn::readNetFromONNX()
+ * @see https://onnx.ai/
+ */
 
 #pragma once
 
@@ -22,8 +54,7 @@
 #include <QtCore/QSemaphore>
 #include <QtCore/QMutex>
 
-#include <nodes/DataModelRegistry>
-#include "PBNodeDataModel.hpp"
+#include "PBNodeDelegateModel.hpp"
 
 #include "CVImageData.hpp"
 #include "SyncData.hpp"
@@ -35,13 +66,34 @@ using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
 
+/**
+ * @struct OnnxClassificationDNNBlobImageParameters
+ * @brief Image preprocessing parameters for ONNX classification.
+ *
+ * Standard ImageNet preprocessing for ONNX models.
+ *
+ * @see NecMLClassificationBlobImageParameters
+ */
 typedef struct OnnxClassificationDNNBlobImageParameters{
-    double mdInvScaleFactor{255.};
-    cv::Size mCVSize{ cv::Size(224,224) };
-    cv::Scalar mCVScalarMean{ cv::Scalar(0.485, 0.456, 0.406) };
-    cv::Scalar mCVScalarStd{ cv::Scalar(0.229, 0.224, 0.225) };
+    double mdInvScaleFactor{255.};                                ///< Scale to [0,1]
+    cv::Size mCVSize{ cv::Size(224,224) };                        ///< Network input size
+    cv::Scalar mCVScalarMean{ cv::Scalar(0.485, 0.456, 0.406) };  ///< ImageNet mean
+    cv::Scalar mCVScalarStd{ cv::Scalar(0.229, 0.224, 0.225) };   ///< ImageNet std
 } OnnxClassificationDNNBlobImageParameters;
 
+/**
+ * @class OnnxClassificationDNNThread
+ * @brief Worker thread for asynchronous ONNX classification.
+ *
+ * Performs image classification using ONNX models in a separate thread.
+ *
+ * **ONNX Model Loading:**
+ * @code
+ * cv::dnn::Net net = cv::dnn::readNetFromONNX("model.onnx");
+ * @endcode
+ *
+ * @see OnnxClassificationDNNModel
+ */
 class OnnxClassificationDNNThread : public QThread
 {
     Q_OBJECT
@@ -54,6 +106,12 @@ public:
     void
     detect( const cv::Mat & );
 
+    /**
+     * @brief Loads ONNX model and class labels.
+     * @param Model file path (.onnx).
+     * @param Classes file path (.txt, one class per line).
+     * @return true if successful.
+     */
     bool
     readNet( QString & , QString & );
 
@@ -84,9 +142,55 @@ private:
     OnnxClassificationDNNBlobImageParameters mParams;
 };
 
-/// The model dictates the number of inputs and outputs for the Node.
-/// In this example it has no logic.
-class OnnxClassificationDNNModel : public PBNodeDataModel
+/**
+ * @class OnnxClassificationDNNModel
+ * @brief Node model for ONNX-based image classification.
+ *
+ * Provides framework-independent image classification using ONNX models.
+ * Compatible with models exported from PyTorch, TensorFlow, Keras, etc.
+ *
+ * **Input Ports:**
+ * 1. **CVImageData** - Input image to classify
+ *
+ * **Output Ports:**
+ * 1. **CVImageData** - Annotated image with class label
+ * 2. **SyncData** - Synchronization signal
+ *
+ * **Properties:**
+ * - **model_filename:** Path to .onnx model file
+ * - **classes_filename:** Path to class names .txt file
+ * - **Preprocessing parameters** (size, mean, std)
+ *
+ * **Example ONNX Export (PyTorch):**
+ * @code
+ * import torch
+ * model = torchvision.models.resnet50(pretrained=True)
+ * dummy_input = torch.randn(1, 3, 224, 224)
+ * torch.onnx.export(model, dummy_input, "resnet50.onnx")
+ * @endcode
+ *
+ * **Example ONNX Export (TensorFlow/Keras):**
+ * @code
+ * import tf2onnx
+ * import onnx
+ * onnx_model, _ = tf2onnx.convert.from_keras(model)
+ * onnx.save(onnx_model, "model.onnx")
+ * @endcode
+ *
+ * **Pre-trained Models:**
+ * - ONNX Model Zoo: https://github.com/onnx/models
+ * - ImageNet classifiers (ResNet, MobileNet, etc.)
+ * - Custom trained models
+ *
+ * **Performance:**
+ * - Similar to native OpenCV models
+ * - GPU acceleration supported
+ * - ONNX Runtime provides optimizations
+ *
+ * @see OnnxClassificationDNNThread
+ * @see cv::dnn::readNetFromONNX()
+ */
+class OnnxClassificationDNNModel : public PBNodeDelegateModel
 {
     Q_OBJECT
 
@@ -104,7 +208,7 @@ public:
     save() const override;
 
     void
-    restore(QJsonObject const &p) override;
+    restore(QJsonObject const &p);
 
     unsigned int
     nPorts(PortType portType) const override;
@@ -128,7 +232,6 @@ public:
     late_constructor() override;
 
     static const QString _category;
-
     static const QString _model_name;
 
 private Q_SLOTS:
@@ -147,4 +250,3 @@ private:
     void processData(const std::shared_ptr< CVImageData > & in);
     void load_model();
 };
-#endif

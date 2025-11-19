@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,14 +16,17 @@
 
 #include <QDebug> //for debugging using qDebug()
 
-#include <nodes/DataModelRegistry>
 
 #include <opencv2/imgproc.hpp>
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
+
+const QString CVImageInRangeModel::_category = QString( "Image Modification" );
+
+const QString CVImageInRangeModel::_model_name = QString( "CV In Range" );
 
 CVImageInRangeModel::
 CVImageInRangeModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpIntegerData = std::make_shared< IntegerData >( int() );
@@ -127,7 +130,7 @@ QJsonObject
 CVImageInRangeModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams["thresholdType"] = mParams.miThresholdType;
@@ -140,9 +143,9 @@ save() const
 
 void
 CVImageInRangeModel::
-restore(QJsonObject const& p)
+load(QJsonObject const& p)
 {
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -181,7 +184,7 @@ void
 CVImageInRangeModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -260,7 +263,7 @@ setModelProperty( QString & id, const QVariant & value )
 void
 CVImageInRangeModel::
 processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & outImage,
-            std::shared_ptr<IntegerData> &outInt, const InRangeParameters & params)
+            std::shared_ptr<IntegerData> &outInt, const InRangeParameters & )
 {
     cv::Mat& in_image = in->data();
     /*
@@ -288,6 +291,4 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageDa
     outInt->data() = 0;
 }
 
-const QString CVImageInRangeModel::_category = QString( "Image Modification" );
 
-const QString CVImageInRangeModel::_model_name = QString( "In Range" );

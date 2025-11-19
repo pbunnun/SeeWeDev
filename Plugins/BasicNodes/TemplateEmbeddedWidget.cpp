@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
 //limitations under the License.
 
 #include "TemplateEmbeddedWidget.hpp"
+#include <QSpinBox>
+#include <QPushButton>
+#include <QComboBox>
 #include "ui_TemplateEmbeddedWidget.h"
 #include <QDebug>
 
@@ -21,6 +24,13 @@ TemplateEmbeddedWidget::TemplateEmbeddedWidget( QWidget *parent )
       ui( new Ui::TemplateEmbeddedWidget )
 {
     ui->setupUi( this );
+    setMinimumSize(158, 122); // Prevent resize smaller than default
+    connect(ui->mpStartButton, &QPushButton::clicked, this, &TemplateEmbeddedWidget::start_button_clicked);
+    connect(ui->mpStopButton, &QPushButton::clicked, this, &TemplateEmbeddedWidget::stop_button_clicked);
+    connect(ui->mpSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &TemplateEmbeddedWidget::spin_box_value_changed);
+    connect(ui->mpComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &TemplateEmbeddedWidget::combo_box_current_index_changed);
+    connect(ui->mpSendButton, &QPushButton::clicked, this, &TemplateEmbeddedWidget::send_button_clicked);
+
 }
 
 TemplateEmbeddedWidget::~TemplateEmbeddedWidget()
@@ -30,7 +40,7 @@ TemplateEmbeddedWidget::~TemplateEmbeddedWidget()
 
 void
 TemplateEmbeddedWidget::
-on_mpStartButton_clicked()
+start_button_clicked()
 {
     ui->mpStopButton->setEnabled( true );
     ui->mpStartButton->setEnabled( false );
@@ -39,7 +49,7 @@ on_mpStartButton_clicked()
 
 void
 TemplateEmbeddedWidget::
-on_mpStopButton_clicked()
+stop_button_clicked()
 {
     ui->mpStartButton->setEnabled( true );
     ui->mpStopButton->setEnabled( false );
@@ -48,7 +58,7 @@ on_mpStopButton_clicked()
 
 void
 TemplateEmbeddedWidget::
-on_mpSpinBox_valueChanged( int value )
+spin_box_value_changed( int value )
 {
     qDebug() << "SpinBox : changed value to " << value;
     Q_EMIT button_clicked_signal( 2 );
@@ -56,7 +66,7 @@ on_mpSpinBox_valueChanged( int value )
 
 void
 TemplateEmbeddedWidget::
-on_mpComboBox_currentIndexChanged( int idx )
+combo_box_current_index_changed( int idx )
 {
     qDebug() << "ComboBox : current index is " << idx;
     Q_EMIT button_clicked_signal( 3 );
@@ -64,7 +74,7 @@ on_mpComboBox_currentIndexChanged( int idx )
 
 void
 TemplateEmbeddedWidget::
-on_mpSendButton_clicked()
+send_button_clicked()
 {
     Q_EMIT button_clicked_signal( 4 );
 }
@@ -121,4 +131,12 @@ TemplateEmbeddedWidget::
 set_display_text( QString value )
 {
     ui->mpDisplayText->setText( value );
+}
+
+void
+TemplateEmbeddedWidget::
+resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    Q_EMIT widget_resized_signal();
 }

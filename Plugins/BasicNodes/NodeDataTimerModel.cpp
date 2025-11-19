@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,14 +16,17 @@
 
 #include <QDebug> //for debugging using qDebug()
 
-#include <nodes/DataModelRegistry>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include "InformationData.hpp"
+
+const QString NodeDataTimerModel::_category = QString( "Source" );
+
+const QString NodeDataTimerModel::_model_name = QString( "NodeData Timer" );
 
 NodeDataTimerModel::
 NodeDataTimerModel()
-    : PBNodeDataModel( _model_name, true ),
+    : PBNodeDelegateModel( _model_name, true ),
       mpEmbeddedWidget(new NodeDataTimerEmbeddedWidget),
       _minPixmap( ":NodeDataTimer.png" )
 {
@@ -114,7 +117,7 @@ QJsonObject
 NodeDataTimerModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams["second"] = mpEmbeddedWidget->get_second_spinbox();
@@ -128,9 +131,9 @@ save() const
 
 void
 NodeDataTimerModel::
-restore(QJsonObject const& p)
+load(QJsonObject const& p)
 {
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -190,6 +193,4 @@ void NodeDataTimerModel::em_timeout()
 }
 
 
-const QString NodeDataTimerModel::_category = QString( "Source" );
 
-const QString NodeDataTimerModel::_model_name = QString( "NodeData Timer" );

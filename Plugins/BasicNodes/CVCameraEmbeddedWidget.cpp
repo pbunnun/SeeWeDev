@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 //limitations under the License.
 
 #include "CVCameraEmbeddedWidget.hpp"
+#include <QComboBox>
+#include <QPushButton>
 #include "ui_CVCameraEmbeddedWidget.h"
 #include <QDebug>
 
@@ -21,6 +23,10 @@ CVCameraEmbeddedWidget::CVCameraEmbeddedWidget(QWidget *parent)
       ui(new Ui::CVCameraEmbeddedWidget)
 {
     ui->setupUi(this);
+    connect(ui->mpStartButton, &QPushButton::clicked, this, &CVCameraEmbeddedWidget::start_button_clicked);
+    connect(ui->mpStopButton, &QPushButton::clicked, this, &CVCameraEmbeddedWidget::stop_button_clicked);
+    connect(ui->mpCameraIDComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &CVCameraEmbeddedWidget::camera_id_combo_box_current_index_changed);
+
 
     ui->mpCameraIDComboBox->setStyleSheet("QComboBox { background-color : yellow; }");
 
@@ -64,7 +70,7 @@ set_camera_property(CVCameraProperty property)
 
 void
 CVCameraEmbeddedWidget::
-on_mpStartButton_clicked()
+start_button_clicked()
 {
     ui->mpStopButton->setEnabled( true );
     ui->mpStartButton->setEnabled( false );
@@ -73,7 +79,7 @@ on_mpStartButton_clicked()
 
 void
 CVCameraEmbeddedWidget::
-on_mpStopButton_clicked()
+stop_button_clicked()
 {
     ui->mpStartButton->setEnabled( true );
     ui->mpStopButton->setEnabled( false );
@@ -82,7 +88,7 @@ on_mpStopButton_clicked()
 
 void
 CVCameraEmbeddedWidget::
-on_mpCameraIDComboBox_currentIndexChanged( int )
+camera_id_combo_box_current_index_changed( int )
 {
     mCameraProperty.miCameraID = ui->mpCameraIDComboBox->currentText().toInt();
     ui->mpStartButton->setEnabled( true );

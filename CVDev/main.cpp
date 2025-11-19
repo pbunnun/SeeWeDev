@@ -25,11 +25,16 @@
 #include <QTextStream>
 #include <QMutex>
 #include <QDateTime>
+#include <QStandardPaths>
+#include <QLoggingCategory>
 
 //#define __SAVE_LOG__
+//#define __ENABLE_DEBUG_LOG_INFO__
+//#define __ENABLE_DEBUG_LOG_WARNING__
+
+#define __CHECK_LICENSE_KEY__
 
 #if defined (__SAVE_LOG__)
-#include <QStandardPaths>
 
 QMutex lLockMutex;
 QFile lLogFile;
@@ -38,27 +43,8 @@ void messageHandler(QtMsgType type, const QMessageLogContext &context, const QSt
 {
     QMutexLocker locker(&lLockMutex);
 
-    QString message;
-    switch (type) {
-    case QtDebugMsg:
-        message = QString("Debug: %1").arg(msg);
-        break;
-    case QtInfoMsg:
-        message = QString("Info: %1").arg(msg);
-        break;
-    case QtWarningMsg:
-        message = QString("Warning: %1").arg(msg);
-        break;
-    case QtCriticalMsg:
-        message = QString("Critical: %1").arg(msg);
-        break;
-    case QtFatalMsg:
-        message = QString("Fatal: %1").arg(msg);
-        break;
-    }
-
     QTextStream out(&lLogFile);
-    out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz ") << message << "\n";
+    out << msg << "\n";
     out.flush();
 }
 #endif
@@ -74,8 +60,8 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName("NECTEC");
     QCoreApplication::setApplicationName("CVDev");
 
-#if defined( __SAVE_LOG__)
     QString homePath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+#if defined( __SAVE_LOG__)
     QDir logDir(homePath + "/.CVDev/log");
     if( !logDir.exists() )
         logDir.mkpath(".");
@@ -93,6 +79,16 @@ int main(int argc, char *argv[])
     qInstallMessageHandler(messageHandler);
 #endif   // __SAVE_LOG__
 
+    // Configure debug logging - must set both rules together
+#if defined(__ENABLE_DEBUG_LOG_INFO__) && defined(__ENABLE_DEBUG_LOG_WARNING__)
+    QLoggingCategory::setFilterRules("DebugLogging.info=true\nDebugLogging.warning=true");
+#elif defined(__ENABLE_DEBUG_LOG_INFO__)
+    QLoggingCategory::setFilterRules("DebugLogging.info=true\nDebugLogging.warning=false");
+#elif defined(__ENABLE_DEBUG_LOG_WARNING__)
+    QLoggingCategory::setFilterRules("DebugLogging.info=false\nDebugLogging.warning=true");
+#else
+    QLoggingCategory::setFilterRules("DebugLogging.info=false\nDebugLogging.warning=false");
+#endif
 
     MainWindow window;
     window.show();

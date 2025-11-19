@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,13 +16,16 @@
 
 #include <QDebug> //for debugging using qDebug()
 
-#include <nodes/DataModelRegistry>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
+
+const QString SyncGateModel::_category = QString( "Number Operation" );
+
+const QString SyncGateModel::_model_name = QString( "Sync Gate" );
 
 SyncGateModel::
 SyncGateModel()
-    : PBNodeDataModel( _model_name ),
+    : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget( new SyncGateEmbeddedWidget ),
       _minPixmap( ":SyncGate.png" )
 {
@@ -205,7 +208,7 @@ QJsonObject
 SyncGateModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
 
     QJsonObject cParams;
     cParams["operation"] = mParams.miOperation;
@@ -220,9 +223,9 @@ save() const
 
 void
 SyncGateModel::
-restore(QJsonObject const& p)
+load(QJsonObject const& p)
 {
-    PBNodeDataModel::restore(p);
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -279,7 +282,7 @@ void
 SyncGateModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
 
     if( !mMapIdToProperty.contains( id ) )
         return;
@@ -437,6 +440,4 @@ processData(const std::shared_ptr<SyncData> (&inSync)[2], const std::shared_ptr<
     }
 }
 
-const QString SyncGateModel::_category = QString( "Number Operation" );
 
-const QString SyncGateModel::_model_name = QString( "Sync Gate" );
