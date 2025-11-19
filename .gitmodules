@@ -1,0 +1,3 @@
+[submodule "QtPropertyBrowserLibrary"]
+	path = QtPropertyBrowserLibrary
+	url = https://github.com/pbunnun/QtPropertyBrowserLibrary.git
