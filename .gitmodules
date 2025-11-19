@@ -1,3 +1,7 @@
 [submodule "QtPropertyBrowserLibrary"]
 	path = QtPropertyBrowserLibrary
 	url = https://github.com/pbunnun/QtPropertyBrowserLibrary.git
+[submodule "NodeEditor"]
+	path = NodeEditor
+	url = https://github.com/pbunnun/NodeEditor.git
+	branch = Work4CVDev
