@@ -145,6 +145,18 @@ public:
     void setMinimized(bool minimized) { mMinimized = minimized; }
 
     /**
+     * @brief Gets the locked state
+     * @return bool True if group position is locked
+     */
+    bool isLocked() const { return mLocked; }
+
+    /**
+     * @brief Sets the locked state
+     * @param locked True to lock position, false to unlock
+     */
+    void setLocked(bool locked) { mLocked = locked; }
+
+    /**
      * @brief Adds a node to the group
      * @param nodeId ID of the node to add
      * @return bool True if node was added, false if already present
@@ -250,4 +262,5 @@ private:
     QColor mColor{100, 150, 200, 80};   ///< Background color (default: semi-transparent blue)
     std::set<NodeId> mNodes;             ///< Member node IDs
     bool mMinimized{false};              ///< Minimized state
+    bool mLocked{false};                 ///< Position lock state
 };

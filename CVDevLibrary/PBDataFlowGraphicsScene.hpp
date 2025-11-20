@@ -473,14 +473,29 @@ protected:
 
 private Q_SLOTS:
     /**
+     * @brief Handles group movement start (mouse press on group)
+     * @param groupId The ID of the group being moved
+     * 
+     * Captures original positions of all nodes in the group for undo/redo.
+     */
+    void onGroupMoveStarted(GroupId groupId);
+
+    /**
      * @brief Handles group dragging by moving all member nodes
      * @param groupId ID of the group being moved
      * @param delta Movement delta in scene coordinates
      * 
-     * Moves all nodes in the group by the specified delta, maintaining
-     * their relative positions.
+     * Applies snap-to-grid if enabled and moves all nodes in the group.
      */
     void onGroupMoved(GroupId groupId, QPointF delta);
+    
+    /**
+     * @brief Handles group movement end (mouse release)
+     * @param groupId The ID of the group that finished moving
+     * 
+     * Creates and pushes MoveGroupCommand to undo stack if positions changed.
+     */
+    void onGroupMoveFinished(GroupId groupId);
     
     /**
      * @brief Handles toggling group minimize state
@@ -489,6 +504,16 @@ private Q_SLOTS:
      * Toggles the minimized state and updates node visibility.
      */
     void onToggleGroupMinimize(GroupId groupId);
+    
+    /**
+     * @brief Handles group lock toggle
+     * @param groupId ID of the group
+     * @param locked New lock state
+     * 
+     * When locked, all member nodes are locked. When unlocked, 
+     * member nodes return to their individual lock states.
+     */
+    void onGroupLockToggled(GroupId groupId, bool locked);
     
     /**
      * @brief Handles ungroup request from context menu
@@ -541,4 +566,14 @@ private:
      * @brief Map of group graphics items
      */
     std::map<GroupId, PBNodeGroupGraphicsItem*> mGroupItems;
+
+    // Resize tracking state
+    bool mbResizingNodes{false};
+    QPointF mResizeStartScenePos;
+    std::map<QtNodes::NodeId, QSize> mResizeOrigSizes;
+    
+    // Group movement tracking state for undo/redo
+    bool mbMovingGroup{false};
+    GroupId mMovingGroupId{InvalidGroupId};
+    std::map<QtNodes::NodeId, QPointF> mGroupOrigPositions;
 };

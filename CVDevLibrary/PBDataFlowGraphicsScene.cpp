@@ -21,6 +21,10 @@
 #include "PBDataFlowGraphModel.hpp"
 #include "PBNodeGroupGraphicsItem.hpp"
 #include "PBFlowGraphicsView.hpp"
+#include "ResizeNodeCommand.hpp"
+#include "MoveGroupCommand.hpp"
+#include "GroupLockCommand.hpp"
+#include "ToggleGroupMinimizeCommand.hpp"
 
 #include <QtNodes/internal/DataFlowGraphModel.hpp>
 #include <QtNodes/internal/AbstractNodeGeometry.hpp>
@@ -113,7 +117,48 @@ void PBDataFlowGraphicsScene::installCustomGeometry()
 
 void PBDataFlowGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
-    // Check if any locked nodes are being moved - prevent the event entirely
+    // If resizing nodes, apply delta with grid snapping
+    if (mbResizingNodes && (QApplication::mouseButtons() & Qt::LeftButton)) {
+        QPointF delta = event->scenePos() - mResizeStartScenePos;
+        
+        for (const auto &p : mResizeOrigSizes) {
+            NodeId id = p.first;
+            QSize origWidgetSize = p.second;
+            
+            // Calculate new widget size
+            int newW = std::max(10, origWidgetSize.width() + static_cast<int>(delta.x()));
+            int newH = std::max(10, origWidgetSize.height() + static_cast<int>(delta.y()));
+            
+            // Apply grid snapping if enabled
+            // Note: Snapping logic might need adjustment since we are resizing widget, not node.
+            // But applying snap to the widget size is a reasonable approximation.
+            if (mbSnapToGrid && miGridSize > 0) {
+                newW = std::max(miGridSize, static_cast<int>(std::round(static_cast<double>(newW) / miGridSize)) * miGridSize);
+                newH = std::max(miGridSize, static_cast<int>(std::round(static_cast<double>(newH) / miGridSize)) * miGridSize);
+            }
+            
+            QSize newWidgetSz(newW, newH);
+            
+            // Apply size to widget directly
+            if (auto w = graphModel().nodeData<QWidget *>(id, QtNodes::NodeRole::Widget)) {
+                w->resize(newWidgetSz);
+            }
+            
+            // Trigger geometry update (recomputeSize will pick up the new widget size)
+            if (auto *ngo = nodeGraphicsObject(id)) {
+                ngo->setGeometryChanged();
+                nodeGeometry().recomputeSize(id);
+                ngo->updateQWidgetEmbedPos();
+                ngo->update();
+                ngo->moveConnections();
+            }
+        }
+        
+        event->accept();
+        return;
+    }
+    
+    // Check if any locked nodes (or nodes in locked groups) are being moved - prevent the event entirely
     auto items = selectedItems();
     for (auto *item : items) {
         if (auto *ngo = qgraphicsitem_cast<NodeGraphicsObject*>(item)) {
@@ -121,7 +166,19 @@ void PBDataFlowGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             auto *dataFlowModel = dynamic_cast<DataFlowGraphModel*>(&graphModel());
             if (dataFlowModel) {
                 auto *delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
-                if (delegateModel && delegateModel->isLockPosition()) {
+                bool lockedNode = (delegateModel && delegateModel->isLockPosition());
+
+                // Check group lock
+                bool lockedGroup = false;
+                if (auto *pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel())) {
+                    GroupId gid = pbModel->getPBNodeGroup(nodeId);
+                    if (gid != InvalidGroupId) {
+                        if (const PBNodeGroup* g = pbModel->getGroup(gid))
+                            lockedGroup = g->isLocked();
+                    }
+                }
+
+                if (lockedNode || lockedGroup) {
                     // Node is locked - don't process this event at all
                     event->ignore();
                     return;
@@ -154,6 +211,33 @@ void PBDataFlowGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 void PBDataFlowGraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
+    // If we were resizing, finalize and push undo command
+    if (mbResizingNodes) {
+        std::map<NodeId, QSize> oldWidgetSizes = mResizeOrigSizes;
+        std::map<NodeId, QSize> newWidgetSizes;
+        
+        // Capture final widget sizes
+        for (const auto &p : mResizeOrigSizes) {
+            NodeId id = p.first;
+            if (auto w = graphModel().nodeData<QWidget *>(id, QtNodes::NodeRole::Widget)) {
+                newWidgetSizes[id] = w->size();
+            }
+        }
+        
+        // Create and push undo command
+        if (!newWidgetSizes.empty()) {
+            auto *cmd = new ResizeNodeCommand(this, oldWidgetSizes, newWidgetSizes);
+            undoStack().push(cmd);
+        }
+        
+        // Clear resize state
+        mbResizingNodes = false;
+        mResizeOrigSizes.clear();
+        
+        event->accept();
+        return;
+    }
+    
     // Check if release is on any node's checkbox
     QGraphicsItem *item = itemAt(event->scenePos(), QTransform());
     
@@ -251,11 +335,22 @@ void PBDataFlowGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
         // Convert scene position to node-local coordinates
         QPointF nodePos = ngo->mapFromScene(event->scenePos());
         
-        // Check if node is locked - prevent resize handle interaction
+        // Check if node or its group is locked - prevent resize handle interaction
         auto *dataFlowModel = dynamic_cast<DataFlowGraphModel*>(&graphModel());
         if (dataFlowModel) {
             auto *delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
-            if (delegateModel && delegateModel->isLockPosition()) {
+            bool lockedNode = (delegateModel && delegateModel->isLockPosition());
+
+            bool lockedGroup = false;
+            if (auto *pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel())) {
+                GroupId gid = pbModel->getPBNodeGroup(nodeId);
+                if (gid != InvalidGroupId) {
+                    if (const PBNodeGroup* g = pbModel->getGroup(gid))
+                        lockedGroup = g->isLocked();
+                }
+            }
+
+            if (lockedNode || lockedGroup) {
                 // Check if clicking on resize handle
                 AbstractNodeGeometry &geometry = nodeGeometry();
                 QRect resizeRect = geometry.resizeHandleRect(nodeId);
@@ -265,6 +360,38 @@ void PBDataFlowGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
                     return;
                 }
             }
+        }
+        
+        // Check if clicking on resize handle
+        AbstractNodeGeometry &geometry = nodeGeometry();
+        QRect resizeRect = geometry.resizeHandleRect(nodeId);
+        if (resizeRect.contains(nodePos.toPoint())) {
+            // Start resize operation
+            mbResizingNodes = true;
+            mResizeStartScenePos = event->scenePos();
+            mResizeOrigSizes.clear();
+            
+            // If node is not selected, select it (and deselect others unless Ctrl is pressed)
+            if (!ngo->isSelected()) {
+                if (!(event->modifiers() & Qt::ControlModifier)) {
+                    clearSelection();
+                }
+                ngo->setSelected(true);
+            }
+            
+            // Capture original widget sizes for all selected nodes
+            auto selected = selectedItems();
+            for (auto *it : selected) {
+                if (auto *sngo = qgraphicsitem_cast<NodeGraphicsObject*>(it)) {
+                    NodeId id = sngo->nodeId();
+                    if (auto w = graphModel().nodeData<QWidget *>(id, QtNodes::NodeRole::Widget)) {
+                        mResizeOrigSizes[id] = w->size();
+                    }
+                }
+            }
+            
+            event->accept();
+            return;
         }
         
         // Check minimize checkbox (top-left)
@@ -428,10 +555,16 @@ updateGroupVisual(GroupId groupId)
         mGroupItems[groupId] = item;
         
         // Connect signals
+        connect(item, &PBNodeGroupGraphicsItem::groupMoveStarted,
+                this, &PBDataFlowGraphicsScene::onGroupMoveStarted);
         connect(item, &PBNodeGroupGraphicsItem::groupMoved,
                 this, &PBDataFlowGraphicsScene::onGroupMoved);
+        connect(item, &PBNodeGroupGraphicsItem::groupMoveFinished,
+                this, &PBDataFlowGraphicsScene::onGroupMoveFinished);
         connect(item, &PBNodeGroupGraphicsItem::toggleMinimizeRequested,
                 this, &PBDataFlowGraphicsScene::onToggleGroupMinimize);
+        connect(item, &PBNodeGroupGraphicsItem::lockToggled,
+                this, &PBDataFlowGraphicsScene::onGroupLockToggled);
         connect(item, &PBNodeGroupGraphicsItem::ungroupRequested,
                 this, &PBDataFlowGraphicsScene::onUngroupRequested);
         connect(item, &PBNodeGroupGraphicsItem::renameRequested,
@@ -494,18 +627,31 @@ updateGroupVisual(GroupId groupId)
     
     // Update bounds
     item->updateBounds(nodePositions, nodeSizes);
-
-    // After group bounds updated, other connections that route to the group's
-    // boundary may need to be recomputed and repainted. Ensure all
-    // connections for nodes in this group are moved so their Connection
-    // Graphics Objects update their geometry.
-    for (NodeId nodeId : group->nodes()) {
-        if (auto *ngo = nodeGraphicsObject(nodeId)) {
-            ngo->moveConnections();
-        }
-    }
 }
+void
 
+PBDataFlowGraphicsScene::
+onGroupLockToggled(GroupId groupId, bool locked)
+{
+    auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
+    if (!pbModel) {
+        return;
+    }
+    
+    const PBNodeGroup* group = pbModel->getGroup(groupId);
+    if (!group) {
+        return;
+    }
+    
+    // Make the lock toggle undoable via a command.
+    bool oldLocked = group->isLocked();
+    if (oldLocked == locked) {
+        return; // no-op
+    }
+
+    auto *cmd = new GroupLockCommand(this, groupId, oldLocked, locked);
+    undoStack().push(cmd);
+}
 void
 PBDataFlowGraphicsScene::
 updateAllGroupVisuals()
@@ -533,6 +679,32 @@ getGroupGraphicsItem(GroupId groupId) const
 
 void
 PBDataFlowGraphicsScene::
+onGroupMoveStarted(GroupId groupId)
+{
+    auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
+    if (!pbModel) {
+        return;
+    }
+    
+    const PBNodeGroup* group = pbModel->getGroup(groupId);
+    if (!group) {
+        return;
+    }
+    
+    // Capture original positions for all nodes in the group
+    mbMovingGroup = true;
+    mMovingGroupId = groupId;
+    mGroupOrigPositions.clear();
+    
+    for (NodeId nodeId : group->nodes()) {
+        if (auto* ngo = nodeGraphicsObject(nodeId)) {
+            mGroupOrigPositions[nodeId] = ngo->pos();
+        }
+    }
+}
+
+void
+PBDataFlowGraphicsScene::
 onGroupMoved(GroupId groupId, QPointF delta)
 {
     auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
@@ -550,6 +722,14 @@ onGroupMoved(GroupId groupId, QPointF delta)
         if (auto* ngo = nodeGraphicsObject(nodeId)) {
             QPointF currentPos = ngo->pos();
             QPointF newPos = currentPos + delta;
+            
+            // Apply snap-to-grid if enabled
+            if (mbSnapToGrid && miGridSize > 0) {
+                qreal xSnapped = std::round(newPos.x() / miGridSize) * miGridSize;
+                qreal ySnapped = std::round(newPos.y() / miGridSize) * miGridSize;
+                newPos = QPointF(xSnapped, ySnapped);
+            }
+            
             ngo->setPos(newPos);
             
             // Update the model with the new position
@@ -564,6 +744,59 @@ onGroupMoved(GroupId groupId, QPointF delta)
 
 void
 PBDataFlowGraphicsScene::
+onGroupMoveFinished(GroupId groupId)
+{
+    if (!mbMovingGroup || mMovingGroupId != groupId) {
+        return;
+    }
+    
+    auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
+    if (!pbModel) {
+        mbMovingGroup = false;
+        mGroupOrigPositions.clear();
+        return;
+    }
+    
+    const PBNodeGroup* group = pbModel->getGroup(groupId);
+    if (!group) {
+        mbMovingGroup = false;
+        mGroupOrigPositions.clear();
+        return;
+    }
+    
+    // Capture final positions
+    std::map<NodeId, QPointF> newPositions;
+    for (NodeId nodeId : group->nodes()) {
+        if (auto* ngo = nodeGraphicsObject(nodeId)) {
+            newPositions[nodeId] = ngo->pos();
+        }
+    }
+    
+    // Check if any position actually changed
+    bool positionsChanged = false;
+    for (const auto &p : mGroupOrigPositions) {
+        NodeId nodeId = p.first;
+        QPointF oldPos = p.second;
+        auto it = newPositions.find(nodeId);
+        if (it != newPositions.end() && it->second != oldPos) {
+            positionsChanged = true;
+            break;
+        }
+    }
+    
+    // Create and push undo command if positions changed
+    if (positionsChanged && !newPositions.empty()) {
+        auto *cmd = new MoveGroupCommand(this, groupId, mGroupOrigPositions, newPositions);
+        undoStack().push(cmd);
+    }
+    
+    // Clear movement tracking state
+    mbMovingGroup = false;
+    mGroupOrigPositions.clear();
+}
+
+void
+PBDataFlowGraphicsScene::
 onToggleGroupMinimize(GroupId groupId)
 {
     auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
@@ -571,61 +804,71 @@ onToggleGroupMinimize(GroupId groupId)
         return;
     }
     
-    // Toggle the minimized state in the model
-    if (pbModel->toggleGroupMinimized(groupId)) {
-        // The groupUpdated signal will trigger updateGroupVisual
-        // which will update node visibility and group bounds
-        updateGroupVisual(groupId);
-        
-        // Update all connections to/from nodes in this group
-        const PBNodeGroup* group = pbModel->getGroup(groupId);
-        if (group) {
-            for (NodeId nodeId : group->nodes()) {
-                // Update all connections for this node
-                auto allConnections = graphModel().allConnectionIds(nodeId);
-                for (const auto& connectionId : allConnections) {
-                    if (auto* cgo = connectionGraphicsObject(connectionId)) {
-                        // Recompute endpoints and then request a repaint. Calling
-                        // both ensures the old and new geometry areas are invalidated
-                        // and the view's background cache is refreshed, which
-                        // prevents trailing artefacts when hiding connections.
-                        cgo->move();
-                        cgo->update();
-                    }
+    const PBNodeGroup* group = pbModel->getGroup(groupId);
+    if (!group) {
+        return;
+    }
+    
+    // Get current state and calculate new state
+    bool oldMinimized = group->isMinimized();
+    bool newMinimized = !oldMinimized;
+    
+    // Create and push undo command
+    auto *cmd = new ToggleGroupMinimizeCommand(this, groupId, oldMinimized, newMinimized);
+    undoStack().push(cmd);
+    
+    // The command's redo() will call setGroupMinimized which emits groupUpdated
+    // The groupUpdated signal triggers updateGroupVisual automatically
+    // but we also need to update connections and clear artifacts
+    updateGroupVisual(groupId);
+    
+    // Update all connections to/from nodes in this group
+    if (group) {
+        for (NodeId nodeId : group->nodes()) {
+            // Update all connections for this node
+            auto allConnections = graphModel().allConnectionIds(nodeId);
+            for (const auto& connectionId : allConnections) {
+                if (auto* cgo = connectionGraphicsObject(connectionId)) {
+                    // Recompute endpoints and then request a repaint. Calling
+                    // both ensures the old and new geometry areas are invalidated
+                    // and the view's background cache is refreshed, which
+                    // prevents trailing artefacts when hiding connections.
+                    cgo->move();
+                    cgo->update();
                 }
             }
+        }
 
-            // Also force a scene-level update to ensure any background cache
-            // is repainted now that several connection items have changed.
-            this->update();
-            
-            // Additionally, update a slightly larger area around the group's
-            // bounding rect and force the view viewport to repaint that area
-            // as well. This helps clear trailing artefacts when device- or
-            // background-caching is enabled on the view.
-            PBNodeGroupGraphicsItem* groupItem = getGroupGraphicsItem(groupId);
-            if (groupItem) {
-                QRectF bounds = groupItem->sceneBoundingRect();
-                const qreal margin = 64.0; // pixels to inflate the repaint area (increased)
-                QRectF expanded = bounds.adjusted(-margin, -margin, margin, margin);
+        // Also force a scene-level update to ensure any background cache
+        // is repainted now that several connection items have changed.
+        this->update();
+        
+        // Additionally, update a slightly larger area around the group's
+        // bounding rect and force the view viewport to repaint that area
+        // as well. This helps clear trailing artefacts when device- or
+        // background-caching is enabled on the view.
+        PBNodeGroupGraphicsItem* groupItem = getGroupGraphicsItem(groupId);
+        if (groupItem) {
+            QRectF bounds = groupItem->sceneBoundingRect();
+            const qreal margin = 64.0; // pixels to inflate the repaint area (increased)
+            QRectF expanded = bounds.adjusted(-margin, -margin, margin, margin);
 
-                // Request scene to update the expanded area
-                this->update(expanded);
+            // Request scene to update the expanded area
+            this->update(expanded);
 
-                // Also request each view's viewport to update the corresponding
-                // widget rectangle so view-level caches are invalidated.
-                auto vlist = views();
-                for (QGraphicsView* v : vlist) {
-                    if (!v) continue;
-                    // Map scene rect to viewport widget coordinates
-                    QPoint tl = v->mapFromScene(expanded.topLeft());
-                    QPoint br = v->mapFromScene(expanded.bottomRight());
-                    QRect viewRect(tl, br);
-                    viewRect = viewRect.normalized();
+            // Also request each view's viewport to update the corresponding
+            // widget rectangle so view-level caches are invalidated.
+            auto vlist = views();
+            for (QGraphicsView* v : vlist) {
+                if (!v) continue;
+                // Map scene rect to viewport widget coordinates
+                QPoint tl = v->mapFromScene(expanded.topLeft());
+                QPoint br = v->mapFromScene(expanded.bottomRight());
+                QRect viewRect(tl, br);
+                viewRect = viewRect.normalized();
 
-                    if (v->viewport()) {
-                        v->viewport()->update(viewRect);
-                    }
+                if (v->viewport()) {
+                    v->viewport()->update(viewRect);
                 }
             }
         }

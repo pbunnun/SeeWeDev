@@ -89,6 +89,30 @@ public:
      * @return true if minimized, false if expanded
      */
     bool isMinimized() const { return mMinimized; }
+    
+    /**
+     * @brief Checks if the group position is locked
+     * @return true if locked, false if unlocked
+     */
+    bool isLocked() const { return mLocked; }
+    
+    /**
+     * @brief Sets the lock state
+     * @param locked True to lock position, false to unlock
+     */
+    void setLocked(bool locked) { mLocked = locked; update(); }
+    
+    /**
+     * @brief Gets the saved top-left position (used when minimized)
+     * @return The saved anchor position
+     */
+    QPointF savedTopLeft() const { return mSavedTopLeft; }
+    
+    /**
+     * @brief Sets the saved top-left position (used when minimized)
+     * @param pos The new anchor position
+     */
+    void setSavedTopLeft(const QPointF &pos) { mSavedTopLeft = pos; }
 
     /**
      * @brief Updates visual properties from group data
@@ -140,8 +164,19 @@ public:
      * @brief Size of the minimize button in top-left corner
      */
     static constexpr qreal MINIMIZE_BUTTON_SIZE = 16.0;
+    
+    /**
+     * @brief Size of the lock button next to minimize button
+     */
+    static constexpr qreal LOCK_BUTTON_SIZE = 16.0;
 
 Q_SIGNALS:
+    /**
+     * @brief Emitted when the group starts being dragged
+     * @param groupId The ID of the group being moved
+     */
+    void groupMoveStarted(GroupId groupId);
+    
     /**
      * @brief Emitted when the group is being dragged
      * @param groupId The ID of the group being moved
@@ -150,10 +185,23 @@ Q_SIGNALS:
     void groupMoved(GroupId groupId, QPointF delta);
     
     /**
+     * @brief Emitted when the group finishes being dragged
+     * @param groupId The ID of the group being moved
+     */
+    void groupMoveFinished(GroupId groupId);
+    
+    /**
      * @brief Emitted when user double-clicks to toggle minimize
      * @param groupId The ID of the group to toggle
      */
     void toggleMinimizeRequested(GroupId groupId);
+    
+    /**
+     * @brief Emitted when user clicks the lock button
+     * @param groupId The ID of the group
+     * @param locked The new lock state
+     */
+    void lockToggled(GroupId groupId, bool locked);
     
     /**
      * @brief Emitted when user requests to ungroup via context menu
@@ -262,6 +310,8 @@ private:
     QPoint mContextMenuPos;                 ///< Screen position for context menu
     bool mMinimized{false};                 ///< Minimized state
     bool mUpdatingPosition{false};          ///< Flag to prevent recursive position updates
+    bool mIsDragging{false};                ///< Flag to track if currently dragging
+    bool mLocked{false};                    ///< Position lock state
     std::map<NodeId, qreal> mSavedNodeZ;    ///< Saved z-values for member nodes when raising
     QPointF mSavedTopLeft{0.0, 0.0};        ///< Saved top-left of expanded bounds for anchoring when minimized
     bool mHasSavedTopLeft{false};           ///< Whether `mSavedTopLeft` contains a valid value

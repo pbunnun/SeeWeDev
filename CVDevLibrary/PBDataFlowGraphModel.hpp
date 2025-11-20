@@ -616,6 +616,14 @@ public:
      */
     bool toggleGroupMinimized(GroupId groupId);
 
+    /**
+     * @brief Sets the locked state of a group
+     * @param groupId ID of the group to modify
+     * @param locked True to lock position, false to unlock
+     * @return bool True if group exists and was updated
+     */
+    bool setGroupLocked(GroupId groupId, bool locked);
+
 Q_SIGNALS:
     /**
      * @brief Emitted when a group is created

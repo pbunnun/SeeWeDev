@@ -683,6 +683,21 @@ toggleGroupMinimized(GroupId groupId)
 
 bool
 PBDataFlowGraphModel::
+setGroupLocked(GroupId groupId, bool locked)
+{
+    auto it = mGroups.find(groupId);
+    if (it == mGroups.end()) {
+        return false;
+    }
+
+    it->second.setLocked(locked);
+    Q_EMIT groupUpdated(groupId);
+
+    return true;
+}
+
+bool
+PBDataFlowGraphModel::
 restoreGroup(const PBNodeGroup &group)
 {
     if (group.id() == InvalidGroupId)

@@ -76,6 +76,7 @@ void PBNodeGroupGraphicsItem::setGroup(const PBNodeGroup& group)
     mColor = group.color();
     mNodeIds = group.nodes();  // Store the node IDs
     mMinimized = group.isMinimized();  // Store minimized state
+    mLocked = group.isLocked();  // Store locked state
     
     // Update label
     mpLabel->setPlainText(mName);
@@ -261,6 +262,60 @@ void PBNodeGroupGraphicsItem::paint(QPainter* painter,
         qreal size = 5;
         painter->drawLine(cx - size, cy, cx + size, cy);  // Horizontal line
     }
+    
+    // Draw lock button at top-right corner of the group boundary
+    qreal rightMargin = PBNodeGroupGraphicsItem::PADDING_HORIZONTAL + 12;
+    QRectF lockRect(rect().width() - rightMargin - LOCK_BUTTON_SIZE,
+                    CORNER_RADIUS + 1,
+                    LOCK_BUTTON_SIZE,
+                    LOCK_BUTTON_SIZE);
+    painter->setPen(QPen(QColor(100, 100, 100), 1));
+    if (mLocked) {
+        painter->setBrush(QBrush(QColor(200, 100, 0)));  // Orange for locked
+    } else {
+        painter->setBrush(QBrush(QColor(150, 150, 150)));  // Gray for unlocked
+    }
+    painter->drawRoundedRect(lockRect, 3, 3);
+    
+    // Draw lock icon
+    painter->setPen(QPen(Qt::white, 1.2));
+    if (mLocked) {
+        // Draw closed lock: shackle (arc) + body (rect)
+        qreal shackleTop = lockRect.top() + 2;
+        qreal shackleCenterX = lockRect.center().x();
+        qreal shackleWidth = LOCK_BUTTON_SIZE * 0.35;
+        
+        // Draw shackle arc
+        QRectF shackleRect(shackleCenterX - shackleWidth / 2.0, shackleTop,
+                           shackleWidth, shackleWidth);
+        painter->drawArc(shackleRect, 0 * 16, 180 * 16);  // Top half circle
+        
+        // Draw lock body
+        qreal bodyTop = lockRect.top() + LOCK_BUTTON_SIZE * 0.45;
+        qreal bodyHeight = LOCK_BUTTON_SIZE * 0.5;
+        qreal bodyWidth = LOCK_BUTTON_SIZE * 0.5;
+        QRectF bodyRect(shackleCenterX - bodyWidth / 2.0, bodyTop,
+                        bodyWidth, bodyHeight);
+        painter->drawRect(bodyRect);
+    } else {
+        // Draw open lock: shackle arc (offset) + body (rect)
+        qreal shackleTop = lockRect.top() + 2;
+        qreal shackleCenterX = lockRect.center().x() + 1.0;  // Offset right
+        qreal shackleWidth = LOCK_BUTTON_SIZE * 0.35;
+        
+        // Draw open shackle arc
+        QRectF shackleRect(shackleCenterX - shackleWidth / 2.0, shackleTop - 1.0,
+                           shackleWidth, shackleWidth);
+        painter->drawArc(shackleRect, 45 * 16, 135 * 16);  // Partial arc, open
+        
+        // Draw lock body
+        qreal bodyTop = lockRect.top() + LOCK_BUTTON_SIZE * 0.45;
+        qreal bodyHeight = LOCK_BUTTON_SIZE * 0.5;
+        qreal bodyWidth = LOCK_BUTTON_SIZE * 0.5;
+        QRectF bodyRect(shackleCenterX - bodyWidth / 2.0 - 1.0, bodyTop,
+                        bodyWidth, bodyHeight);
+        painter->drawRect(bodyRect);
+    }
 
     // If minimized, draw group ports along left/right edges.
     if (mMinimized) {
@@ -358,11 +413,41 @@ void PBNodeGroupGraphicsItem::mousePressEvent(QGraphicsSceneMouseEvent* event)
         return;
     }
     
+    // Check if clicked on lock button (top-right corner)
+    qreal rightMargin = PBNodeGroupGraphicsItem::PADDING_HORIZONTAL + 12;
+    QRectF lockRect(rect().width() - rightMargin - LOCK_BUTTON_SIZE,
+                    CORNER_RADIUS + 1,
+                    LOCK_BUTTON_SIZE,
+                    LOCK_BUTTON_SIZE);
+    if (lockRect.contains(localPos)) {
+        mLocked = !mLocked;
+        emit lockToggled(mGroupId, mLocked);
+        update();
+        event->accept();
+        return;
+    }
+    
+    // Don't allow dragging if locked
+    if (mLocked) {
+        event->accept();
+        return;
+    }
+    
+    // Start dragging - emit signal to capture original positions
+    mIsDragging = true;
+    emit groupMoveStarted(mGroupId);
+    
     QGraphicsRectItem::mousePressEvent(event);
 }
 
 void PBNodeGroupGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
 {
+    // If we were dragging, emit finish signal
+    if (mIsDragging) {
+        mIsDragging = false;
+        emit groupMoveFinished(mGroupId);
+    }
+    
     // Accept right-click releases to prevent scene from processing them
     if (event->button() == Qt::RightButton) {
         event->accept();
@@ -374,6 +459,11 @@ void PBNodeGroupGraphicsItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
 QVariant PBNodeGroupGraphicsItem::itemChange(GraphicsItemChange change, const QVariant& value)
 {
     if (change == ItemPositionChange && scene() && !mUpdatingPosition) {
+        // Don't allow position changes if locked
+        if (mLocked) {
+            return pos();  // Return current position to prevent movement
+        }
+        
         // Calculate delta from current position
         QPointF newPos = value.toPointF();
         QPointF currentPos = pos();

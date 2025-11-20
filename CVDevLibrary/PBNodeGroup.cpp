@@ -40,6 +40,7 @@ QJsonObject PBNodeGroup::save() const
     json["name"] = mName;
     json["color"] = mColor.name(QColor::HexArgb);  // Save with alpha channel
     json["minimized"] = mMinimized;
+    json["locked"] = mLocked;
     
     // Save node IDs as array
     QJsonArray nodesArray;
@@ -74,6 +75,11 @@ void PBNodeGroup::load(const QJsonObject& json)
     // Load minimized state
     if (json.contains("minimized") && json["minimized"].isBool()) {
         mMinimized = json["minimized"].toBool();
+    }
+    
+    // Load locked state
+    if (json.contains("locked") && json["locked"].isBool()) {
+        mLocked = json["locked"].toBool();
     }
     
     // Load node IDs
