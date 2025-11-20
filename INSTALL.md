@@ -40,7 +40,15 @@ macOS: tested with
 
 Linux: tested with
 
-    - Ubuntu 18.04, 20.04
+    - Ubuntu 24.04
     
     - Raspberry Pi OS (64-bit)
 
+To test CVDev in the testing branch, you need to clone the repository with the --recursive option to get all submodules:
+
+    git clone -b With-NodeEditorV3 --recursive https://github.com/pbunnun/SeeWeDev.git
+
+How ever If you have already cloned the repository without the --recursive option, you can initialize the submodules with the following command:
+
+    git clone -b With-NodeEditorV3 https://github.com/pbunnun/SeeWeDev.git
+    git submodule update --init --recursive
