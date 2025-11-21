@@ -28,6 +28,13 @@
 
 using namespace QtNodes;
 
+namespace {
+inline bool qFuzzyComparePoint(const QPointF &a, const QPointF &b)
+{
+    return qFuzzyCompare(a.x(), b.x()) && qFuzzyCompare(a.y(), b.y());
+}
+}
+
 PBConnectionPainter::PBConnectionPainter(PBDataFlowGraphModel &graphModel)
     : mGraphModel(graphModel)
 {
@@ -237,9 +244,9 @@ QPainterPath PBConnectionPainter::cubicPath(QtNodes::ConnectionGraphicsObject co
             QPainterPath path(pathStart);
 
             // Section 1: Horizontal from output port to output boundary (if different)
-            if (!qFuzzyCompare(pathStart, outBoundaryPoint)) {
+            if (!qFuzzyComparePoint(pathStart, outBoundaryPoint)) {
                 path.lineTo(outBoundaryPoint);
-            } else if (!qFuzzyCompare(pathStart, out)) {
+            } else if (!qFuzzyComparePoint(pathStart, out)) {
                 path.lineTo(outBoundaryPoint);
             }
 
