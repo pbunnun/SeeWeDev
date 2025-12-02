@@ -8,21 +8,7 @@ const QString CVHoughLinesPointSetModel::_model_name = QString("CV Hough Lines P
 const std::string CVHoughLinesPointSetModel::color[3] = {"B", "G", "R"};
 
 void CVHoughLinesPointSetWorker::processFrame(cv::Mat input,
-                                              int linesMax,
-                                              int threshold,
-                                              double minRho,
-                                              double maxRho,
-                                              double rhoStep,
-                                              double minTheta,
-                                              double maxTheta,
-                                              double thetaStep,
-                                              bool displayLines,
-                                              bool strongestOnly,
-                                              unsigned char lineColorB,
-                                              unsigned char lineColorG,
-                                              unsigned char lineColorR,
-                                              int lineThickness,
-                                              int lineType,
+                                              CVHoughLinesPointSetParams params,
                                               FrameSharingMode mode,
                                               std::shared_ptr<CVImagePool> pool,
                                               long frameId,
@@ -66,12 +52,16 @@ void CVHoughLinesPointSetWorker::processFrame(cv::Mat input,
     std::vector<cv::Vec3f> lines; // rho, theta, votes
     if (!points.empty())
     {
-        cv::HoughLinesPointSet(points, lines, linesMax, threshold, minRho, maxRho, rhoStep, minTheta, maxTheta, thetaStep);
-        if (strongestOnly && !lines.empty())
+        double minTheta = params.mdMinThetaDeg * CV_PI / 180.0;
+        double maxTheta = params.mdMaxThetaDeg * CV_PI / 180.0;
+        double thetaStep = params.mdThetaStepDeg * CV_PI / 180.0;
+        cv::HoughLinesPointSet(points, lines, params.miLinesMax, params.miThreshold, params.mdMinRho, params.mdMaxRho, params.mdRhoStep, minTheta, maxTheta, thetaStep);
+        if (params.mbStrongestOnly && !lines.empty())
         {
-            std::sort(lines.begin(), lines.end(), [](const cv::Vec3f &a, const cv::Vec3f &b) { return a[2] > b[2]; });
-            if (static_cast<int>(lines.size()) > linesMax)
-                lines.resize(linesMax);
+            std::sort(lines.begin(), lines.end(), [](const cv::Vec3f &a, const cv::Vec3f &b)
+                      { return a[2] > b[2]; });
+            if (static_cast<int>(lines.size()) > params.miLinesMax)
+                lines.resize(params.miLinesMax);
         }
     }
 
@@ -83,7 +73,7 @@ void CVHoughLinesPointSetWorker::processFrame(cv::Mat input,
         if (handle)
         {
             cv::cvtColor(gray, handle.matrix(), cv::COLOR_GRAY2BGR);
-            if (displayLines)
+            if (params.mbDisplayLines)
             {
                 for (auto &lv : lines)
                 {
@@ -94,7 +84,7 @@ void CVHoughLinesPointSetWorker::processFrame(cv::Mat input,
                     double y0 = b * rho;
                     cv::Point pt1(cvRound(x0 + 1000 * (-b)), cvRound(y0 + 1000 * (a)));
                     cv::Point pt2(cvRound(x0 - 1000 * (-b)), cvRound(y0 - 1000 * (a)));
-                    cv::line(handle.matrix(), pt1, pt2, cv::Scalar(lineColorB, lineColorG, lineColorR), lineThickness, lineType);
+                    cv::line(handle.matrix(), pt1, pt2, cv::Scalar(params.mucLineColor[0], params.mucLineColor[1], params.mucLineColor[2]), params.miLineThickness, params.miLineType);
                 }
             }
             if (!handle.matrix().empty() && newImageData->adoptPoolFrame(std::move(handle)))
@@ -105,7 +95,7 @@ void CVHoughLinesPointSetWorker::processFrame(cv::Mat input,
     {
         cv::Mat result;
         cv::cvtColor(gray, result, cv::COLOR_GRAY2BGR);
-        if (displayLines)
+        if (params.mbDisplayLines)
         {
             for (auto &lv : lines)
             {
@@ -116,7 +106,7 @@ void CVHoughLinesPointSetWorker::processFrame(cv::Mat input,
                 double y0 = b * rho;
                 cv::Point pt1(cvRound(x0 + 1000 * (-b)), cvRound(y0 + 1000 * (a)));
                 cv::Point pt2(cvRound(x0 - 1000 * (-b)), cvRound(y0 - 1000 * (a)));
-                cv::line(result, pt1, pt2, cv::Scalar(lineColorB, lineColorG, lineColorR), lineThickness, lineType);
+                cv::line(result, pt1, pt2, cv::Scalar(params.mucLineColor[0], params.mucLineColor[1], params.mucLineColor[2]), params.miLineThickness, params.miLineType);
             }
         }
         if (result.empty())
@@ -246,6 +236,8 @@ CVHoughLinesPointSetModel::CVHoughLinesPointSetModel() : PBAsyncDataModel(_model
     auto propStrongest = std::make_shared<TypedProperty<bool>>("Strongest N Only", propId, QMetaType::Bool, mParams.mbStrongestOnly, "Display");
     mvProperty.push_back(propStrongest);
     mMapIdToProperty[propId] = propStrongest;
+
+    qRegisterMetaType<CVHoughLinesPointSetParams>("CVHoughLinesPointSetParams");
 }
 
 QJsonObject CVHoughLinesPointSetModel::save() const
@@ -567,7 +559,13 @@ void CVHoughLinesPointSetModel::dispatchPendingWork()
     double minTheta = params.mdMinThetaDeg * CV_PI / 180.0;
     double maxTheta = params.mdMaxThetaDeg * CV_PI / 180.0;
     double thetaStep = params.mdThetaStepDeg * CV_PI / 180.0;
-    QMetaObject::invokeMethod(mpWorker, "processFrame", Qt::QueuedConnection, Q_ARG(cv::Mat, input), Q_ARG(int, params.miLinesMax), Q_ARG(int, params.miThreshold), Q_ARG(double, params.mdMinRho), Q_ARG(double, params.mdMaxRho), Q_ARG(double, params.mdRhoStep), Q_ARG(double, minTheta), Q_ARG(double, maxTheta), Q_ARG(double, thetaStep), Q_ARG(bool, params.mbDisplayLines), Q_ARG(bool, params.mbStrongestOnly), Q_ARG(unsigned char, params.mucLineColor[0]), Q_ARG(unsigned char, params.mucLineColor[1]), Q_ARG(unsigned char, params.mucLineColor[2]), Q_ARG(int, params.miLineThickness), Q_ARG(int, params.miLineType), Q_ARG(FrameSharingMode, getSharingMode()), Q_ARG(std::shared_ptr<CVImagePool>, getFramePool()), Q_ARG(long, frameId), Q_ARG(QString, producerId));
+    QMetaObject::invokeMethod(mpWorker, "processFrame", Qt::QueuedConnection,
+                              Q_ARG(cv::Mat, input),
+                              Q_ARG(CVHoughLinesPointSetParams, params),
+                              Q_ARG(FrameSharingMode, getSharingMode()),
+                              Q_ARG(std::shared_ptr<CVImagePool>, getFramePool()),
+                              Q_ARG(long, frameId),
+                              Q_ARG(QString, producerId));
     setWorkerBusy(true);
 }
 

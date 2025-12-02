@@ -30,17 +30,7 @@ const std::string CVHoughLinesPModel::color[3] = {"B", "G", "R"};
 
 void CVHoughLinesPWorker::
     processFrame(cv::Mat input,
-                 double rho,
-                 double theta,
-                 int threshold,
-                 double minLineLength,
-                 double maxLineGap,
-                 bool displayLines,
-                 unsigned char lineColorB,
-                 unsigned char lineColorG,
-                 unsigned char lineColorR,
-                 int lineThickness,
-                 int lineType,
+                 CVHoughLinesPParameters params,
                  FrameSharingMode mode,
                  std::shared_ptr<CVImagePool> pool,
                  long frameId,
@@ -58,7 +48,7 @@ void CVHoughLinesPWorker::
 
     // Detect line segments using probabilistic Hough Transform
     std::vector<cv::Vec4i> lines;
-    cv::HoughLinesP(input, lines, rho, theta, threshold, minLineLength, maxLineGap);
+    cv::HoughLinesP(input, lines, params.mdRho, params.mdTheta, params.miThreshold, params.mdMinLineLength, params.mdMaxLineGap);
 
     // Create output image
     auto newImageData = std::make_shared<CVImageData>(cv::Mat());
@@ -72,15 +62,15 @@ void CVHoughLinesPWorker::
             cv::cvtColor(input, handle.matrix(), cv::COLOR_GRAY2BGR);
             
             // Draw line segments
-            if (displayLines)
+            if (params.mbDisplayLines)
             {
                 for (const cv::Vec4i& line : lines)
                 {
                     cv::line(handle.matrix(),
-                            cv::Point(line[0], line[1]),
-                            cv::Point(line[2], line[3]),
-                            cv::Scalar(lineColorB, lineColorG, lineColorR),
-                            lineThickness, lineType);
+                        cv::Point(line[0], line[1]),
+                        cv::Point(line[2], line[3]),
+                        cv::Scalar(params.mucLineColor[0], params.mucLineColor[1], params.mucLineColor[2]),
+                        params.miLineThickness, params.miLineType);
                 }
             }
             
@@ -95,15 +85,15 @@ void CVHoughLinesPWorker::
         cv::cvtColor(input, result, cv::COLOR_GRAY2BGR);
         
         // Draw line segments
-        if (displayLines)
+        if (params.mbDisplayLines)
         {
             for (const cv::Vec4i& line : lines)
             {
                 cv::line(result,
-                        cv::Point(line[0], line[1]),
-                        cv::Point(line[2], line[3]),
-                        cv::Scalar(lineColorB, lineColorG, lineColorR),
-                        lineThickness, lineType);
+                    cv::Point(line[0], line[1]),
+                    cv::Point(line[2], line[3]),
+                    cv::Scalar(params.mucLineColor[0], params.mucLineColor[1], params.mucLineColor[2]),
+                    params.miLineThickness, params.miLineType);
             }
         }
         
@@ -187,6 +177,8 @@ CVHoughLinesPModel()
     auto propLineType = std::make_shared<TypedProperty<EnumPropertyType>>("Line Type", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType, "Display");
     mvProperty.push_back(propLineType);
     mMapIdToProperty[propId] = propLineType;
+
+    qRegisterMetaType<CVHoughLinesPParameters>("CVHoughLinesPParameters");
 }
 
 QObject*
@@ -293,17 +285,7 @@ dispatchPendingWork()
     QMetaObject::invokeMethod(mpWorker, "processFrame",
                               Qt::QueuedConnection,
                               Q_ARG(cv::Mat, input.clone()),
-                              Q_ARG(double, params.mdRho),
-                              Q_ARG(double, params.mdTheta),
-                              Q_ARG(int, params.miThreshold),
-                              Q_ARG(double, params.mdMinLineLength),
-                              Q_ARG(double, params.mdMaxLineGap),
-                              Q_ARG(bool, params.mbDisplayLines),
-                              Q_ARG(unsigned char, params.mucLineColor[0]),
-                              Q_ARG(unsigned char, params.mucLineColor[1]),
-                              Q_ARG(unsigned char, params.mucLineColor[2]),
-                              Q_ARG(int, params.miLineThickness),
-                              Q_ARG(int, params.miLineType),
+                              Q_ARG(CVHoughLinesPParameters, params),
                               Q_ARG(FrameSharingMode, getSharingMode()),
                               Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
                               Q_ARG(long, frameId),
@@ -544,20 +526,11 @@ process_cached_input()
         
         std::shared_ptr<CVImagePool> poolCopy = getFramePool();
         
+        CVHoughLinesPParameters params = mParams;
         QMetaObject::invokeMethod(mpWorker, "processFrame",
                                   Qt::QueuedConnection,
                                   Q_ARG(cv::Mat, input.clone()),
-                                  Q_ARG(double, mParams.mdRho),
-                                  Q_ARG(double, mParams.mdTheta),
-                                  Q_ARG(int, mParams.miThreshold),
-                                  Q_ARG(double, mParams.mdMinLineLength),
-                                  Q_ARG(double, mParams.mdMaxLineGap),
-                                  Q_ARG(bool, mParams.mbDisplayLines),
-                                  Q_ARG(unsigned char, mParams.mucLineColor[0]),
-                                  Q_ARG(unsigned char, mParams.mucLineColor[1]),
-                                  Q_ARG(unsigned char, mParams.mucLineColor[2]),
-                                  Q_ARG(int, mParams.miLineThickness),
-                                  Q_ARG(int, mParams.miLineType),
+                                  Q_ARG(CVHoughLinesPParameters, params),
                                   Q_ARG(FrameSharingMode, getSharingMode()),
                                   Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
                                   Q_ARG(long, frameId),

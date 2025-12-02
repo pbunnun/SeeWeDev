@@ -30,24 +30,7 @@ const std::string CVHoughCircleTransformModel::color[3] = {"B", "G", "R"};
 
 void CVHoughCircleTransformWorker::
     processFrame(cv::Mat input,
-                 int houghMethod,
-                 double inverseRatio,
-                 double centerDistance,
-                 double thresholdU,
-                 double thresholdL,
-                 int radiusMin,
-                 int radiusMax,
-                 bool displayPoint,
-                 unsigned char pointColorB,
-                 unsigned char pointColorG,
-                 unsigned char pointColorR,
-                 int pointSize,
-                 bool displayCircle,
-                 unsigned char circleColorB,
-                 unsigned char circleColorG,
-                 unsigned char circleColorR,
-                 int circleThickness,
-                 int circleType,
+                 CVHoughCircleTransformParameters params,
                  FrameSharingMode mode,
                  std::shared_ptr<CVImagePool> pool,
                  long frameId,
@@ -67,13 +50,13 @@ void CVHoughCircleTransformWorker::
     std::vector<cv::Vec3f> circles;
     cv::HoughCircles(input,
                      circles,
-                     houghMethod,
-                     inverseRatio,
-                     centerDistance,
-                     thresholdU,
-                     thresholdL,
-                     radiusMin,
-                     radiusMax);
+                     params.miHoughMethod,
+                     params.mdInverseRatio,
+                     params.mdCenterDistance,
+                     params.mdThresholdU,
+                     params.mdThresholdL,
+                     params.miRadiusMin,
+                     params.miRadiusMax);
 
     // Create output image data
     auto newImageData = std::make_shared<CVImageData>(cv::Mat());
@@ -89,23 +72,23 @@ void CVHoughCircleTransformWorker::
             // Draw circles
             for (const cv::Vec3f& circle : circles)
             {
-                if (displayPoint)
+                if (params.mbDisplayPoint)
                 {
                     cv::circle(handle.matrix(),
                               cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
                               1,
-                              cv::Scalar(pointColorB, pointColorG, pointColorR),
-                              pointSize,
+                              cv::Scalar(params.mucPointColor[0], params.mucPointColor[1], params.mucPointColor[2]),
+                              params.miPointSize,
                               cv::LINE_8);
                 }
-                if (displayCircle)
+                if (params.mbDisplayCircle)
                 {
                     cv::circle(handle.matrix(),
                               cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
                               static_cast<int>(circle[2]),
-                              cv::Scalar(circleColorB, circleColorG, circleColorR),
-                              circleThickness,
-                              circleType);
+                              cv::Scalar(params.mucCircleColor[0], params.mucCircleColor[1], params.mucCircleColor[2]),
+                              params.miCircleThickness,
+                              params.miCircleType);
                 }
             }
             
@@ -122,24 +105,24 @@ void CVHoughCircleTransformWorker::
         // Draw circles
         for (const cv::Vec3f& circle : circles)
         {
-            if (displayPoint)
-            {
-                cv::circle(result,
-                          cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
-                          1,
-                          cv::Scalar(pointColorB, pointColorG, pointColorR),
-                          pointSize,
-                          cv::LINE_8);
-            }
-            if (displayCircle)
-            {
-                cv::circle(result,
-                          cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
-                          static_cast<int>(circle[2]),
-                          cv::Scalar(circleColorB, circleColorG, circleColorR),
-                          circleThickness,
-                          circleType);
-            }
+                if (params.mbDisplayPoint)
+                {
+                    cv::circle(result,
+                              cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
+                              1,
+                              cv::Scalar(params.mucPointColor[0], params.mucPointColor[1], params.mucPointColor[2]),
+                              params.miPointSize,
+                              cv::LINE_8);
+                }
+                if (params.mbDisplayCircle)
+                {
+                    cv::circle(result,
+                              cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
+                              static_cast<int>(circle[2]),
+                              cv::Scalar(params.mucCircleColor[0], params.mucCircleColor[1], params.mucCircleColor[2]),
+                              params.miCircleThickness,
+                              params.miCircleType);
+                }
         }
         
         if (result.empty())
@@ -258,6 +241,8 @@ CVHoughCircleTransformModel()
     auto propCircleType = std::make_shared<TypedProperty<EnumPropertyType>>("Circle Type", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType, "Display");
     mvProperty.push_back( propCircleType );
     mMapIdToProperty[ propId ] = propCircleType;
+
+    qRegisterMetaType<CVHoughCircleTransformParameters>("CVHoughCircleTransformParameters");
 }
 
 QObject*
@@ -368,24 +353,7 @@ dispatchPendingWork()
     QMetaObject::invokeMethod(mpWorker, "processFrame",
                               Qt::QueuedConnection,
                               Q_ARG(cv::Mat, input.clone()),
-                              Q_ARG(int, params.miHoughMethod),
-                              Q_ARG(double, params.mdInverseRatio),
-                              Q_ARG(double, params.mdCenterDistance),
-                              Q_ARG(double, params.mdThresholdU),
-                              Q_ARG(double, params.mdThresholdL),
-                              Q_ARG(int, params.miRadiusMin),
-                              Q_ARG(int, params.miRadiusMax),
-                              Q_ARG(bool, params.mbDisplayPoint),
-                              Q_ARG(unsigned char, params.mucPointColor[0]),
-                              Q_ARG(unsigned char, params.mucPointColor[1]),
-                              Q_ARG(unsigned char, params.mucPointColor[2]),
-                              Q_ARG(int, params.miPointSize),
-                              Q_ARG(bool, params.mbDisplayCircle),
-                              Q_ARG(unsigned char, params.mucCircleColor[0]),
-                              Q_ARG(unsigned char, params.mucCircleColor[1]),
-                              Q_ARG(unsigned char, params.mucCircleColor[2]),
-                              Q_ARG(int, params.miCircleThickness),
-                              Q_ARG(int, params.miCircleType),
+                              Q_ARG(CVHoughCircleTransformParameters, params),
                               Q_ARG(FrameSharingMode, getSharingMode()),
                               Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
                               Q_ARG(long, frameId),
@@ -757,30 +725,14 @@ void CVHoughCircleTransformModel::
         
         std::shared_ptr<CVImagePool> poolCopy = getFramePool();
         
+        CVHoughCircleTransformParameters params = mParams;
         QMetaObject::invokeMethod(mpWorker, "processFrame",
-                                  Qt::QueuedConnection,
-                                  Q_ARG(cv::Mat, input.clone()),
-                                  Q_ARG(int, mParams.miHoughMethod),
-                                  Q_ARG(double, mParams.mdInverseRatio),
-                                  Q_ARG(double, mParams.mdCenterDistance),
-                                  Q_ARG(double, mParams.mdThresholdU),
-                                  Q_ARG(double, mParams.mdThresholdL),
-                                  Q_ARG(int, mParams.miRadiusMin),
-                                  Q_ARG(int, mParams.miRadiusMax),
-                                  Q_ARG(bool, mParams.mbDisplayPoint),
-                                  Q_ARG(unsigned char, mParams.mucPointColor[0]),
-                                  Q_ARG(unsigned char, mParams.mucPointColor[1]),
-                                  Q_ARG(unsigned char, mParams.mucPointColor[2]),
-                                  Q_ARG(int, mParams.miPointSize),
-                                  Q_ARG(bool, mParams.mbDisplayCircle),
-                                  Q_ARG(unsigned char, mParams.mucCircleColor[0]),
-                                  Q_ARG(unsigned char, mParams.mucCircleColor[1]),
-                                  Q_ARG(unsigned char, mParams.mucCircleColor[2]),
-                                  Q_ARG(int, mParams.miCircleThickness),
-                                  Q_ARG(int, mParams.miCircleType),
-                                  Q_ARG(FrameSharingMode, getSharingMode()),
-                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
-                                  Q_ARG(long, frameId),
-                                  Q_ARG(QString, producerId));
+                      Qt::QueuedConnection,
+                      Q_ARG(cv::Mat, input.clone()),
+                      Q_ARG(CVHoughCircleTransformParameters, params),
+                      Q_ARG(FrameSharingMode, getSharingMode()),
+                      Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                      Q_ARG(long, frameId),
+                      Q_ARG(QString, producerId));
     }
 }

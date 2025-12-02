@@ -74,6 +74,11 @@ typedef struct CVErodeAndDilateParameters{
      * @see cv::BorderTypes
      */
     int miBorderType;
+
+    /**
+     * @brief Operation selector (0 = erode, 1 = dilate)
+     */
+    int miOperation;
     
     /**
      * @brief Default constructor with 3×3 rectangular kernel
@@ -83,10 +88,13 @@ typedef struct CVErodeAndDilateParameters{
           mCVSizeKernel(cv::Size(3,3)),
           mCVPointAnchor(cv::Point(-1,-1)),
           miIterations(1),
-          miBorderType(cv::BORDER_DEFAULT)
+          miBorderType(cv::BORDER_DEFAULT),
+          miOperation(0)
     {
     }
 } CVErodeAndDilateParameters;
+
+Q_DECLARE_METATYPE(CVErodeAndDilateParameters)
 
 /**
  * @class CVErodeAndDilateModel
@@ -155,14 +163,7 @@ public:
 
 public Q_SLOTS:
     void processFrame(cv::Mat input,
-                      int operation, // 0 = erode, 1 = dilate
-                      int kernelShape,
-                      int kernelWidth,
-                      int kernelHeight,
-                      int anchorX,
-                      int anchorY,
-                      int iterations,
-                      int borderType,
+                      CVErodeAndDilateParameters params,
                       FrameSharingMode mode,
                       std::shared_ptr<CVImagePool> pool,
                       long frameId,
@@ -279,7 +280,6 @@ private:
     // Pending for backpressure
     cv::Mat mPendingFrame;
     CVErodeAndDilateParameters mPendingParams;
-    int mPendingOperation {0};
 };
 
 

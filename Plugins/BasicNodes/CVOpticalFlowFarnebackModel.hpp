@@ -44,6 +44,8 @@ typedef struct CVOpticalFlowFarnebackParameters
     int miColorMapType{2};
 } CVOpticalFlowFarnebackParameters;
 
+Q_DECLARE_METATYPE(CVOpticalFlowFarnebackParameters)
+
 /**
  * @brief Worker for Farneback optical flow computation
  */
@@ -57,15 +59,7 @@ public:
 public Q_SLOTS:
     void processFrame(cv::Mat currentFrame,
                       cv::Mat previousFrame,
-                      double pyrScale,
-                      int levels,
-                      int winsize,
-                      int iterations,
-                      int polyN,
-                      double polySigma,
-                      int flags,
-                      bool showMagnitude,
-                      int colorMapType,
+                      CVOpticalFlowFarnebackParameters params,
                       FrameSharingMode mode,
                       std::shared_ptr<CVImagePool> pool,
                       long frameId,

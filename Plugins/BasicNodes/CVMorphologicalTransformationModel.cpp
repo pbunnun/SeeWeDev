@@ -30,14 +30,7 @@ const QString CVMorphologicalTransformationModel::_category = QString( "Image Mo
 const QString CVMorphologicalTransformationModel::_model_name = QString( "CV Morph Transformation" );
 
 void CVMorphologicalTransformationWorker::processFrame(cv::Mat input,
-                                                       int morphMethod,
-                                                       int kernelShape,
-                                                       int kernelWidth,
-                                                       int kernelHeight,
-                                                       int anchorX,
-                                                       int anchorY,
-                                                       int iterations,
-                                                       int borderType,
+                                                       MorphologicalTransformationParameters params,
                                                        FrameSharingMode mode,
                                                        std::shared_ptr<CVImagePool> pool,
                                                        long frameId,
@@ -55,16 +48,16 @@ void CVMorphologicalTransformationWorker::processFrame(cv::Mat input,
 
     auto newImageData = std::make_shared<CVImageData>(cv::Mat());
     bool pooled = false;
-    cv::Size ksize(kernelWidth, kernelHeight);
-    cv::Point anchor(anchorX, anchorY);
-    cv::Mat kernel = cv::getStructuringElement(kernelShape, ksize, anchor);
+    cv::Size ksize(params.mCVSizeKernel.width, params.mCVSizeKernel.height);
+    cv::Point anchor(params.mCVPointAnchor.x, params.mCVPointAnchor.y);
+    cv::Mat kernel = cv::getStructuringElement(params.miKernelShape, ksize, anchor);
 
     if (mode == FrameSharingMode::PoolMode && pool)
     {
         auto handle = pool->acquire(1, metadata);
         if (handle)
         {
-            cv::morphologyEx(input, handle.matrix(), morphMethod, kernel, anchor, iterations, borderType);
+            cv::morphologyEx(input, handle.matrix(), params.miMorphMethod, kernel, anchor, params.miIteration, params.miBorderType);
             if (!handle.matrix().empty() && newImageData->adoptPoolFrame(std::move(handle)))
                 pooled = true;
         }
@@ -72,7 +65,7 @@ void CVMorphologicalTransformationWorker::processFrame(cv::Mat input,
     if (!pooled)
     {
         cv::Mat result;
-        cv::morphologyEx(input, result, morphMethod, kernel, anchor, iterations, borderType);
+        cv::morphologyEx(input, result, params.miMorphMethod, kernel, anchor, params.miIteration, params.miBorderType);
         if (result.empty())
         {
             Q_EMIT frameReady(nullptr);
@@ -132,6 +125,8 @@ CVMorphologicalTransformationModel()
     auto propBorderType = std::make_shared< TypedProperty< EnumPropertyType > >( "Border Type", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType, "Display" );
     mvProperty.push_back( propBorderType );
     mMapIdToProperty[ propId ] = propBorderType;
+
+    qRegisterMetaType<MorphologicalTransformationParameters>("MorphologicalTransformationParameters");
 }
 
 QObject*
@@ -175,14 +170,7 @@ dispatchPendingWork()
     QMetaObject::invokeMethod(mpWorker, "processFrame",
                               Qt::QueuedConnection,
                               Q_ARG(cv::Mat, input.clone()),
-                              Q_ARG(int, params.miMorphMethod),
-                              Q_ARG(int, params.miKernelShape),
-                              Q_ARG(int, params.mCVSizeKernel.width),
-                              Q_ARG(int, params.mCVSizeKernel.height),
-                              Q_ARG(int, params.mCVPointAnchor.x),
-                              Q_ARG(int, params.mCVPointAnchor.y),
-                              Q_ARG(int, params.miIteration),
-                              Q_ARG(int, params.miBorderType),
+                              Q_ARG(MorphologicalTransformationParameters, params),
                               Q_ARG(FrameSharingMode, getSharingMode()),
                               Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
                               Q_ARG(long, frameId),
@@ -483,17 +471,11 @@ void CVMorphologicalTransformationModel::process_cached_input()
 
         std::shared_ptr<CVImagePool> poolCopy = getFramePool();
 
+        MorphologicalTransformationParameters params = mParams;
         QMetaObject::invokeMethod(mpWorker, "processFrame",
                                   Qt::QueuedConnection,
                                   Q_ARG(cv::Mat, input.clone()),
-                                  Q_ARG(int, mParams.miMorphMethod),
-                                  Q_ARG(int, mParams.miKernelShape),
-                                  Q_ARG(int, mParams.mCVSizeKernel.width),
-                                  Q_ARG(int, mParams.mCVSizeKernel.height),
-                                  Q_ARG(int, mParams.mCVPointAnchor.x),
-                                  Q_ARG(int, mParams.mCVPointAnchor.y),
-                                  Q_ARG(int, mParams.miIteration),
-                                  Q_ARG(int, mParams.miBorderType),
+                                  Q_ARG(MorphologicalTransformationParameters, params),
                                   Q_ARG(FrameSharingMode, getSharingMode()),
                                   Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
                                   Q_ARG(long, frameId),

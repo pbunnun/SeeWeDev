@@ -108,6 +108,8 @@ typedef struct MorphologicalTransformationParameters{
     }
 } MorphologicalTransformationParameters;
 
+Q_DECLARE_METATYPE(MorphologicalTransformationParameters)
+
 /**
  * @class CVMorphologicalTransformationModel
  * @brief Node model for morphological image transformations
@@ -171,14 +173,7 @@ public:
 
 public Q_SLOTS:
     void processFrame(cv::Mat input,
-                      int morphMethod,
-                      int kernelShape,
-                      int kernelWidth,
-                      int kernelHeight,
-                      int anchorX,
-                      int anchorY,
-                      int iterations,
-                      int borderType,
+                      MorphologicalTransformationParameters params,
                       FrameSharingMode mode,
                       std::shared_ptr<CVImagePool> pool,
                       long frameId,

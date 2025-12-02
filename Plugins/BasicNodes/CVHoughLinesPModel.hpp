@@ -72,6 +72,8 @@ typedef struct CVHoughLinesPParameters {
     int miLineType {cv::LINE_AA};        ///< Line type
 } CVHoughLinesPParameters;
 
+Q_DECLARE_METATYPE(CVHoughLinesPParameters)
+
 /**
  * @class CVHoughLinesPWorker
  * @brief Worker for asynchronous probabilistic line detection
@@ -84,17 +86,7 @@ public:
 
 public Q_SLOTS:
     void processFrame(cv::Mat input,
-                     double rho,
-                     double theta,
-                     int threshold,
-                     double minLineLength,
-                     double maxLineGap,
-                     bool displayLines,
-                     unsigned char lineColorB,
-                     unsigned char lineColorG,
-                     unsigned char lineColorR,
-                     int lineThickness,
-                     int lineType,
+                     CVHoughLinesPParameters params,
                      FrameSharingMode mode,
                      std::shared_ptr<CVImagePool> pool,
                      long frameId,

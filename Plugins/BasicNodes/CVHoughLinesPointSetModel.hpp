@@ -32,6 +32,8 @@ struct CVHoughLinesPointSetParams {
     int miLineType {cv::LINE_8};
 };
 
+Q_DECLARE_METATYPE(CVHoughLinesPointSetParams)
+
 class CVHoughLinesPointSetWorker : public QObject {
     Q_OBJECT
 public:
@@ -39,21 +41,7 @@ public:
 
 public Q_SLOTS:
     void processFrame(cv::Mat input,
-                      int linesMax,
-                      int threshold,
-                      double minRho,
-                      double maxRho,
-                      double rhoStep,
-                      double minTheta,
-                      double maxTheta,
-                      double thetaStep,
-                      bool displayLines,
-                      bool strongestOnly,
-                      unsigned char lineColorB,
-                      unsigned char lineColorG,
-                      unsigned char lineColorR,
-                      int lineThickness,
-                      int lineType,
+                      CVHoughLinesPointSetParams params,
                       FrameSharingMode mode,
                       std::shared_ptr<CVImagePool> pool,
                       long frameId,

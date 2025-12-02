@@ -48,6 +48,8 @@ typedef struct CVOpticalFlowPyrLKParameters
     int miTrackThickness{2};
 } CVOpticalFlowPyrLKParameters;
 
+Q_DECLARE_METATYPE(CVOpticalFlowPyrLKParameters)
+
 /**
  * @brief Worker for PyrLK sparse optical flow
  */
@@ -61,25 +63,7 @@ public:
 public Q_SLOTS:
     void processFrame(cv::Mat currentFrame,
                       cv::Mat previousFrame,
-                      bool autoDetectFeatures,
-                      int maxCorners,
-                      double qualityLevel,
-                      double minDistance,
-                      int blockSize,
-                      int winSizeWidth,
-                      int winSizeHeight,
-                      int maxLevel,
-                      int maxCount,
-                      double epsilon,
-                      int flags,
-                      double minEigThreshold,
-                      bool drawTracks,
-                      double motionScale,
-                      bool drawArrows,
-                      int trackColorB,
-                      int trackColorG,
-                      int trackColorR,
-                      int trackThickness,
+                      CVOpticalFlowPyrLKParameters params,
                       FrameSharingMode mode,
                       std::shared_ptr<CVImagePool> pool,
                       long frameId,

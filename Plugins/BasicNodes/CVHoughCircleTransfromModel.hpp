@@ -179,6 +179,8 @@ typedef struct CVHoughCircleTransformParameters{
     }
 } CVHoughCircleTransformParameters;
 
+Q_DECLARE_METATYPE(CVHoughCircleTransformParameters)
+
 /**
  * @class CVHoughCircleTransformModel
  * @brief Node for detecting circular shapes in images using the Hough Circle Transform.
@@ -340,24 +342,7 @@ public:
 
 public Q_SLOTS:
     void processFrame(cv::Mat input,
-                     int houghMethod,
-                     double inverseRatio,
-                     double centerDistance,
-                     double thresholdU,
-                     double thresholdL,
-                     int radiusMin,
-                     int radiusMax,
-                     bool displayPoint,
-                     unsigned char pointColorB,
-                     unsigned char pointColorG,
-                     unsigned char pointColorR,
-                     int pointSize,
-                     bool displayCircle,
-                     unsigned char circleColorB,
-                     unsigned char circleColorG,
-                     unsigned char circleColorR,
-                     int circleThickness,
-                     int circleType,
+                     CVHoughCircleTransformParameters params,
                      FrameSharingMode mode,
                      std::shared_ptr<CVImagePool> pool,
                      long frameId,

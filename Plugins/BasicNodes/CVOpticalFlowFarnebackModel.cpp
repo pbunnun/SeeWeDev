@@ -14,15 +14,7 @@ const QString CVOpticalFlowFarnebackModel::_model_name = QString("CV Optical Flo
 void CVOpticalFlowFarnebackWorker::processFrame(
     cv::Mat currentFrame,
     cv::Mat previousFrame,
-    double pyrScale,
-    int levels,
-    int winsize,
-    int iterations,
-    int polyN,
-    double polySigma,
-    int flags,
-    bool showMagnitude,
-    int colorMapType,
+    CVOpticalFlowFarnebackParameters params,
     FrameSharingMode mode,
     std::shared_ptr<CVImagePool> pool,
     long frameId,
@@ -58,14 +50,14 @@ void CVOpticalFlowFarnebackWorker::processFrame(
     cv::Mat flow;
     cv::calcOpticalFlowFarneback(
         prevGray, currGray, flow,
-        pyrScale, levels, winsize,
-        iterations, polyN, polySigma,
-        flags);
+        params.mdPyrScale, params.miLevels, params.miWinsize,
+        params.miIterations, params.miPolyN, params.mdPolySigma,
+        params.miFlags);
 
     // Create visualization
     cv::Mat visual;
 
-    if (showMagnitude)
+    if (params.mbShowMagnitude)
     {
         // Magnitude visualization
         cv::Mat magnitude, angle;
@@ -78,7 +70,7 @@ void CVOpticalFlowFarnebackWorker::processFrame(
         magnitude.convertTo(magnitude, CV_8U);
 
         // Apply colormap
-        cv::applyColorMap(magnitude, visual, colorMapType);
+        cv::applyColorMap(magnitude, visual, params.miColorMapType);
     }
     else
     {
@@ -206,6 +198,8 @@ CVOpticalFlowFarnebackModel::CVOpticalFlowFarnebackModel()
         "Color Map", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType, "Display");
     mvProperty.push_back(propColorMap);
     mMapIdToProperty[propId] = propColorMap;
+
+    qRegisterMetaType<CVOpticalFlowFarnebackParameters>("CVOpticalFlowFarnebackParameters");
 }
 
 QObject *CVOpticalFlowFarnebackModel::createWorker()
@@ -246,15 +240,7 @@ void CVOpticalFlowFarnebackModel::dispatchPendingWork()
                               Qt::QueuedConnection,
                               Q_ARG(cv::Mat, currentFrame.clone()),
                               Q_ARG(cv::Mat, previousFrame.clone()),
-                              Q_ARG(double, params.mdPyrScale),
-                              Q_ARG(int, params.miLevels),
-                              Q_ARG(int, params.miWinsize),
-                              Q_ARG(int, params.miIterations),
-                              Q_ARG(int, params.miPolyN),
-                              Q_ARG(double, params.mdPolySigma),
-                              Q_ARG(int, params.miFlags),
-                              Q_ARG(bool, params.mbShowMagnitude),
-                              Q_ARG(int, params.miColorMapType),
+                              Q_ARG(CVOpticalFlowFarnebackParameters, params),
                               Q_ARG(FrameSharingMode, getSharingMode()),
                               Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
                               Q_ARG(long, frameId),
@@ -302,23 +288,17 @@ void CVOpticalFlowFarnebackModel::process_cached_input()
 
         std::shared_ptr<CVImagePool> poolCopy = getFramePool();
 
+        
+        CVOpticalFlowFarnebackParameters params = mParams;
         QMetaObject::invokeMethod(mpWorker, "processFrame",
-                                  Qt::QueuedConnection,
-                                  Q_ARG(cv::Mat, currentFrame.clone()),
-                                  Q_ARG(cv::Mat, mPreviousFrame.clone()),
-                                  Q_ARG(double, mParams.mdPyrScale),
-                                  Q_ARG(int, mParams.miLevels),
-                                  Q_ARG(int, mParams.miWinsize),
-                                  Q_ARG(int, mParams.miIterations),
-                                  Q_ARG(int, mParams.miPolyN),
-                                  Q_ARG(double, mParams.mdPolySigma),
-                                  Q_ARG(int, mParams.miFlags),
-                                  Q_ARG(bool, mParams.mbShowMagnitude),
-                                  Q_ARG(int, mParams.miColorMapType),
-                                  Q_ARG(FrameSharingMode, getSharingMode()),
-                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
-                                  Q_ARG(long, frameId),
-                                  Q_ARG(QString, producerId));
+                      Qt::QueuedConnection,
+                      Q_ARG(cv::Mat, currentFrame.clone()),
+                      Q_ARG(cv::Mat, mPreviousFrame.clone()),
+                      Q_ARG(CVOpticalFlowFarnebackParameters, params),
+                      Q_ARG(FrameSharingMode, getSharingMode()),
+                      Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                      Q_ARG(long, frameId),
+                      Q_ARG(QString, producerId));
     }
 
     // Store current as previous for next iteration

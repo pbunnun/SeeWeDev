@@ -14,25 +14,7 @@ const QString CVOpticalFlowPyrLKModel::_model_name = QString("CV Optical Flow Py
 void CVOpticalFlowPyrLKWorker::processFrame(
     cv::Mat currentFrame,
     cv::Mat previousFrame,
-    bool autoDetectFeatures,
-    int maxCorners,
-    double qualityLevel,
-    double minDistance,
-    int blockSize,
-    int winSizeWidth,
-    int winSizeHeight,
-    int maxLevel,
-    int maxCount,
-    double epsilon,
-    int flags,
-    double minEigThreshold,
-    bool drawTracks,
-    double motionScale,
-    bool drawArrows,
-    int trackColorB,
-    int trackColorG,
-    int trackColorR,
-    int trackThickness,
+    CVOpticalFlowPyrLKParameters params,
     FrameSharingMode mode,
     std::shared_ptr<CVImagePool> pool,
     long frameId,
@@ -58,15 +40,15 @@ void CVOpticalFlowPyrLKWorker::processFrame(
 
     // Detect features on previous frame if requested
     std::vector<cv::Point2f> prevPoints;
-    if (autoDetectFeatures)
+    if (params.mbAutoDetectFeatures)
     {
         cv::goodFeaturesToTrack(prevGray,
                                  prevPoints,
-                                 std::max(1, maxCorners),
-                                 std::max(1e-6, qualityLevel),
-                                 std::max(0.0, minDistance),
+                                 std::max(1, params.miMaxCorners),
+                                 std::max(1e-6, params.mdQualityLevel),
+                                 std::max(0.0, params.mdMinDistance),
                                  cv::Mat(),
-                                 std::max(1, blockSize));
+                                 std::max(1, params.miBlockSize));
     }
 
     if (prevPoints.empty())
@@ -109,9 +91,9 @@ void CVOpticalFlowPyrLKWorker::processFrame(
     std::vector<uchar> status;
     std::vector<float> err;
 
-    cv::Size winSize(std::max(1, winSizeWidth), std::max(1, winSizeHeight));
+    cv::Size winSize(std::max(1, params.miWinSizeWidth), std::max(1, params.miWinSizeHeight));
     cv::TermCriteria criteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS,
-                              std::max(1, maxCount), std::max(1e-9, epsilon));
+                              std::max(1, params.miMaxCount), std::max(1e-9, params.mdEpsilon));
 
     cv::calcOpticalFlowPyrLK(prevGray,
                               currGray,
@@ -120,10 +102,10 @@ void CVOpticalFlowPyrLKWorker::processFrame(
                               status,
                               err,
                               winSize,
-                              std::max(0, maxLevel),
+                              std::max(0, params.miMaxLevel),
                               criteria,
-                              flags,
-                              std::max(0.0, minEigThreshold));
+                              params.miFlags,
+                              std::max(0.0, params.mdMinEigThreshold));
 
     // Create visualization by drawing tracks
     cv::Mat visual;
@@ -132,11 +114,11 @@ void CVOpticalFlowPyrLKWorker::processFrame(
     else
         visual = currentFrame.clone();
 
-    if (drawTracks)
+    if (params.mbDrawTracks)
     {
-        const cv::Scalar color(trackColorB, trackColorG, trackColorR);
-        const int thickness = std::max(1, trackThickness);
-        const double scale = std::max(0.1, motionScale);
+        const cv::Scalar color(params.miTrackColorB, params.miTrackColorG, params.miTrackColorR);
+        const int thickness = std::max(1, params.miTrackThickness);
+        const double scale = std::max(0.1, params.mdMotionScale);
         
         for (size_t i = 0; i < status.size(); ++i)
         {
@@ -144,7 +126,7 @@ void CVOpticalFlowPyrLKWorker::processFrame(
             {
                 cv::Point2f scaledEnd = prevPoints[i] + scale * (currPoints[i] - prevPoints[i]);
                 
-                if (drawArrows)
+                if (params.mbDrawArrows)
                 {
                     cv::arrowedLine(visual, prevPoints[i], scaledEnd, color, thickness, cv::LINE_AA, 0, 0.3);
                 }
@@ -352,6 +334,8 @@ CVOpticalFlowPyrLKModel::CVOpticalFlowPyrLKModel()
         "Track Thickness", propId, QMetaType::Int, intProp, "Display");
     mvProperty.push_back(propThick);
     mMapIdToProperty[propId] = propThick;
+    
+    qRegisterMetaType<CVOpticalFlowPyrLKParameters>("CVOpticalFlowPyrLKParameters");
 }
 
 QObject* CVOpticalFlowPyrLKModel::createWorker()
@@ -391,25 +375,7 @@ void CVOpticalFlowPyrLKModel::dispatchPendingWork()
                               Qt::QueuedConnection,
                               Q_ARG(cv::Mat, currentFrame.clone()),
                               Q_ARG(cv::Mat, previousFrame.clone()),
-                              Q_ARG(bool, params.mbAutoDetectFeatures),
-                              Q_ARG(int, params.miMaxCorners),
-                              Q_ARG(double, params.mdQualityLevel),
-                              Q_ARG(double, params.mdMinDistance),
-                              Q_ARG(int, params.miBlockSize),
-                              Q_ARG(int, params.miWinSizeWidth),
-                              Q_ARG(int, params.miWinSizeHeight),
-                              Q_ARG(int, params.miMaxLevel),
-                              Q_ARG(int, params.miMaxCount),
-                              Q_ARG(double, params.mdEpsilon),
-                              Q_ARG(int, params.miFlags),
-                              Q_ARG(double, params.mdMinEigThreshold),
-                              Q_ARG(bool, params.mbDrawTracks),
-                              Q_ARG(double, params.mdMotionScale),
-                              Q_ARG(bool, params.mbDrawArrows),
-                              Q_ARG(int, params.miTrackColorB),
-                              Q_ARG(int, params.miTrackColorG),
-                              Q_ARG(int, params.miTrackColorR),
-                              Q_ARG(int, params.miTrackThickness),
+                              Q_ARG(CVOpticalFlowPyrLKParameters, params),
                               Q_ARG(FrameSharingMode, getSharingMode()),
                               Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
                               Q_ARG(long, frameId),
@@ -453,33 +419,16 @@ void CVOpticalFlowPyrLKModel::process_cached_input()
         QString producerId = getNodeId();
         std::shared_ptr<CVImagePool> poolCopy = getFramePool();
 
+        CVOpticalFlowPyrLKParameters params = mParams;
         QMetaObject::invokeMethod(mpWorker, "processFrame",
-                                  Qt::QueuedConnection,
-                                  Q_ARG(cv::Mat, currentFrame.clone()),
-                                  Q_ARG(cv::Mat, mPreviousFrame.clone()),
-                                  Q_ARG(bool, mParams.mbAutoDetectFeatures),
-                                  Q_ARG(int, mParams.miMaxCorners),
-                                  Q_ARG(double, mParams.mdQualityLevel),
-                                  Q_ARG(double, mParams.mdMinDistance),
-                                  Q_ARG(int, mParams.miBlockSize),
-                                  Q_ARG(int, mParams.miWinSizeWidth),
-                                  Q_ARG(int, mParams.miWinSizeHeight),
-                                  Q_ARG(int, mParams.miMaxLevel),
-                                  Q_ARG(int, mParams.miMaxCount),
-                                  Q_ARG(double, mParams.mdEpsilon),
-                                  Q_ARG(int, mParams.miFlags),
-                                  Q_ARG(double, mParams.mdMinEigThreshold),
-                                  Q_ARG(bool, mParams.mbDrawTracks),
-                                  Q_ARG(double, mParams.mdMotionScale),
-                                  Q_ARG(bool, mParams.mbDrawArrows),
-                                  Q_ARG(int, mParams.miTrackColorB),
-                                  Q_ARG(int, mParams.miTrackColorG),
-                                  Q_ARG(int, mParams.miTrackColorR),
-                                  Q_ARG(int, mParams.miTrackThickness),
-                                  Q_ARG(FrameSharingMode, getSharingMode()),
-                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
-                                  Q_ARG(long, frameId),
-                                  Q_ARG(QString, producerId));
+                      Qt::QueuedConnection,
+                      Q_ARG(cv::Mat, currentFrame.clone()),
+                      Q_ARG(cv::Mat, mPreviousFrame.clone()),
+                      Q_ARG(CVOpticalFlowPyrLKParameters, params),
+                      Q_ARG(FrameSharingMode, getSharingMode()),
+                      Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                      Q_ARG(long, frameId),
+                      Q_ARG(QString, producerId));
     }
 
     // Store current as previous for next iteration
