@@ -29,9 +29,10 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 
 #include "CVImageData.hpp"
+#include "CVImagePool.hpp"
 #include "SyncData.hpp"
 
 using QtNodes::PortType;
@@ -39,6 +40,31 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
+
+/**
+ * @class CVRGBtoGrayWorker
+ * @brief Worker class for asynchronous RGB to grayscale conversion.
+ */
+class CVRGBtoGrayWorker : public QObject
+{
+    Q_OBJECT
+public:
+    CVRGBtoGrayWorker() {}
+
+public Q_SLOTS:
+    void processFrame(cv::Mat input,
+                      FrameSharingMode mode,
+                      std::shared_ptr<CVImagePool> pool,
+                      long frameId,
+                      QString producerId);
+
+Q_SIGNALS:
+    // CRITICAL: This signal MUST be declared in each worker class
+    // CANNOT be inherited from base class due to Qt MOC limitation
+    void frameReady(std::shared_ptr<CVImageData> img);
+};
 
 /**
  * @class CVRGBtoGrayModel
@@ -98,27 +124,14 @@ using QtNodes::NodeValidationState;
  */
 /// The model dictates the number of inputs and outputs for the Node.
 /// In this example it has no logic.
-class CVRGBtoGrayModel : public PBNodeDelegateModel
+class CVRGBtoGrayModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
 public:
     CVRGBtoGrayModel();
 
-    virtual
-    ~CVRGBtoGrayModel() override {}
-
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    NodeDataType
-    dataType( PortType portType, PortIndex portIndex ) const override;
-
-    std::shared_ptr< NodeData >
-    outData( PortIndex port ) override;
-
-    void
-    setInData( std::shared_ptr< NodeData > nodeData, PortIndex ) override;
+    ~CVRGBtoGrayModel() override = default;
 
     QWidget *
     embeddedWidget() override { return nullptr; }
@@ -134,24 +147,18 @@ public:
 
     static const QString _model_name;   ///< Node display name: "RGB to Gray"
 
+protected:
+    // Implement PBAsyncDataModel pure virtuals
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+
+
 private:
-    std::shared_ptr< CVImageData > mpCVImageData;   ///< Output grayscale image
-    std::shared_ptr<SyncData> mpSyncData;           ///< Synchronization signal output
+    void process_cached_input() override;
 
     QPixmap _minPixmap;                             ///< Node icon
 
-    /**
-     * @brief Performs the BGR to grayscale conversion.
-     * @param[in] in Input color image (CV_8UC3, CV_16UC3, or CV_32FC3)
-     * @param[out] out Output grayscale image (CV_8UC1, CV_16UC1, or CV_32FC1)
-     *
-     * Uses cv::cvtColor() with COLOR_BGR2GRAY conversion:
-     * @code
-     * cv::cvtColor(in->data(), out->data(), cv::COLOR_BGR2GRAY);
-     * @endcode
-     *
-     * The conversion applies the standard luminance formula:
-     * Gray = 0.299×R + 0.587×G + 0.114×B
-     */
-    void processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageData > & out );
+    // Pending data for backpressure
+    cv::Mat mPendingFrame;
 };

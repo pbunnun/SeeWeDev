@@ -13,299 +13,271 @@
 //limitations under the License.
 
 #include "CVNormalizationModel.hpp"
-
-#include <QDebug> //for debugging using qDebug()
-
-
+#include <QDebug>
+#include <QTimer>
+#include <opencv2/imgproc.hpp>
 #include "qtvariantproperty_p.h"
 
-const QString CVNormalizationModel::_category = QString( "Image Conversion" );
+const QString CVNormalizationModel::_category = QString("Image Conversion");
+const QString CVNormalizationModel::_model_name = QString("CV Normalization");
 
-const QString CVNormalizationModel::_model_name = QString( "CV Normalization" );
-
-CVNormalizationModel::
-CVNormalizationModel()
-    : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":Normalization.png" )
+void CVNormalizationWorker::processFrame(
+    cv::Mat frame,
+    double rangeMin,
+    double rangeMax,
+    int normType,
+    FrameSharingMode mode,
+    std::shared_ptr<CVImagePool> pool,
+    long frameId,
+    QString producerId)
 {
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
+    if (frame.empty())
+    {
+        Q_EMIT frameReady(nullptr);
+        return;
+    }
 
+    cv::Mat normalized;
+    cv::normalize(frame, normalized, rangeMin, rangeMax, normType);
+
+    FrameMetadata metadata;
+    metadata.producerId = producerId;
+    metadata.frameId = frameId;
+
+    auto outputImageData = std::make_shared<CVImageData>(cv::Mat());
+    bool pooled = false;
+    if (mode == FrameSharingMode::PoolMode && pool && !normalized.empty())
+    {
+        auto handle = pool->acquire(1, metadata);
+        if (handle)
+        {
+            normalized.copyTo(handle.matrix());
+            if (!handle.matrix().empty() && outputImageData->adoptPoolFrame(std::move(handle)))
+                pooled = true;
+        }
+    }
+    if (!pooled && !normalized.empty())
+    {
+        outputImageData->updateMove(std::move(normalized), metadata);
+    }
+
+    Q_EMIT frameReady(outputImageData);
+}
+
+CVNormalizationModel::CVNormalizationModel()
+    : PBAsyncDataModel(_model_name),
+      _minPixmap(":Normalization.png")
+{
     DoublePropertyType doublePropertyType;
-    doublePropertyType.mdValue = mParams.mdRangeMax;
-    doublePropertyType.mdMax = 255;
+    
     QString propId = "range_max";
-    auto propRangeMax = std::make_shared< TypedProperty< DoublePropertyType > >( "Maximum", propId, QMetaType::Double, doublePropertyType, "Operation" );
-    mvProperty.push_back( propRangeMax );
-    mMapIdToProperty[ propId ] = propRangeMax;
+    doublePropertyType.mdValue = mParams.mdRangeMax;
+    doublePropertyType.mdMax = 255.0;
+    auto propRangeMax = std::make_shared<TypedProperty<DoublePropertyType>>(
+        "Maximum", propId, QMetaType::Double, doublePropertyType, "Operation");
+    mvProperty.push_back(propRangeMax);
+    mMapIdToProperty[propId] = propRangeMax;
 
-    doublePropertyType.mdValue = mParams.mdRangeMin;
-    doublePropertyType.mdMax = 255;
     propId = "range_min";
-    auto propRangeMin = std::make_shared< TypedProperty< DoublePropertyType > >( "Minimum", propId, QMetaType::Double, doublePropertyType , "Operation");
-    mvProperty.push_back( propRangeMin );
-    mMapIdToProperty[ propId ] = propRangeMin;
+    doublePropertyType.mdValue = mParams.mdRangeMin;
+    doublePropertyType.mdMax = 255.0;
+    auto propRangeMin = std::make_shared<TypedProperty<DoublePropertyType>>(
+        "Minimum", propId, QMetaType::Double, doublePropertyType, "Operation");
+    mvProperty.push_back(propRangeMin);
+    mMapIdToProperty[propId] = propRangeMin;
 
     EnumPropertyType enumPropertyType;
-    enumPropertyType.mslEnumNames = QStringList({"NORM_L1", "NORM_L2", "NORM_INF", "NORM_L2SQR", "NORM_MINMAX", "NORM_HAMMING", "NORM_HAMMING2", "NORM_RELATIVE", "NORM_TYPE_MASK"});
+    enumPropertyType.mslEnumNames = QStringList({
+        "NORM_L1", "NORM_L2", "NORM_INF", "NORM_L2SQR", "NORM_MINMAX", 
+        "NORM_HAMMING", "NORM_HAMMING2", "NORM_RELATIVE", "NORM_TYPE_MASK"
+    });
     enumPropertyType.miCurrentIndex = 4;
     propId = "norm_type";
-    auto propThresholdType = std::make_shared< TypedProperty< EnumPropertyType > >( "Norm Type", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType, "Operation");
-    mvProperty.push_back( propThresholdType );
-    mMapIdToProperty[ propId ] = propThresholdType;
+    auto propNormType = std::make_shared<TypedProperty<EnumPropertyType>>(
+        "Norm Type", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType, "Operation");
+    mvProperty.push_back(propNormType);
+    mMapIdToProperty[propId] = propNormType;
 }
 
-unsigned int
-CVNormalizationModel::
-nPorts(PortType portType) const
+QObject* CVNormalizationModel::createWorker()
 {
-    unsigned int result = 1;
+    return new CVNormalizationWorker();
+}
 
-    switch (portType)
+void CVNormalizationModel::connectWorker(QObject* worker)
+{
+    auto* w = qobject_cast<CVNormalizationWorker*>(worker);
+    if (w)
     {
-    case PortType::In:
-        result = 3;
-        break;
-
-    case PortType::Out:
-        result = 1;
-        break;
-
-    default:
-        break;
+        connect(w, &CVNormalizationWorker::frameReady,
+                this, &PBAsyncDataModel::handleFrameReady,
+                Qt::QueuedConnection);
     }
-
-    return result;
 }
 
-
-NodeDataType
-CVNormalizationModel::
-dataType(PortType, PortIndex portIndex) const
+void CVNormalizationModel::dispatchPendingWork()
 {
-    if(portIndex == 0)
+    if (!hasPendingWork() || isShuttingDown())
+        return;
+
+    cv::Mat frame = mPendingFrame;
+    NormalizationParameters params = mPendingParams;
+    setPendingWork(false);
+
+    ensure_frame_pool(frame.cols, frame.rows, frame.type());
+
+    long frameId = getNextFrameId();
+    QString producerId = getNodeId();
+    std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+                              Qt::QueuedConnection,
+                              Q_ARG(cv::Mat, frame.clone()),
+                              Q_ARG(double, params.mdRangeMin),
+                              Q_ARG(double, params.mdRangeMax),
+                              Q_ARG(int, params.miNormType),
+                              Q_ARG(FrameSharingMode, getSharingMode()),
+                              Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                              Q_ARG(long, frameId),
+                              Q_ARG(QString, producerId));
+}
+
+void CVNormalizationModel::process_cached_input()
+{
+    if (!mpCVImageInData || mpCVImageInData->data().empty())
+        return;
+
+    // Emit sync "false" signal in next event loop
+    QTimer::singleShot(0, this, [this]() {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(1);
+    });
+
+    cv::Mat frame = mpCVImageInData->data();
+
+    if (isWorkerBusy())
     {
-        return CVImageData().type();
+        mPendingFrame = frame.clone();
+        mPendingParams = mParams;
+        setPendingWork(true);
     }
-    return DoubleData().type();
-}
-
-
-std::shared_ptr<NodeData>
-CVNormalizationModel::
-outData(PortIndex)
-{
-    if( isEnable() )
+    else
     {
-        return mpCVImageData;
+        setWorkerBusy(true);
+
+        ensure_frame_pool(frame.cols, frame.rows, frame.type());
+
+        long frameId = getNextFrameId();
+        QString producerId = getNodeId();
+        std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(cv::Mat, frame.clone()),
+                                  Q_ARG(double, mParams.mdRangeMin),
+                                  Q_ARG(double, mParams.mdRangeMax),
+                                  Q_ARG(int, mParams.miNormType),
+                                  Q_ARG(FrameSharingMode, getSharingMode()),
+                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                                  Q_ARG(long, frameId),
+                                  Q_ARG(QString, producerId));
     }
-    return nullptr;
 }
 
-void
-CVNormalizationModel::
-setInData(std::shared_ptr<NodeData> nodeData, PortIndex portIndex)
+void CVNormalizationModel::setModelProperty(QString& id, const QVariant& value)
 {
-    if (nodeData)
+    if (!mMapIdToProperty.contains(id))
+        return;
+
+    if (id == "range_max")
     {
-        if(portIndex == 0)
+        auto prop = mMapIdToProperty[id];
+        auto typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
+        typedProp->getData().mdValue = value.toDouble();
+        mParams.mdRangeMax = value.toDouble();
+    }
+    else if (id == "range_min")
+    {
+        auto prop = mMapIdToProperty[id];
+        auto typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
+        typedProp->getData().mdValue = value.toDouble();
+        mParams.mdRangeMin = value.toDouble();
+    }
+    else if (id == "norm_type")
+    {
+        auto prop = mMapIdToProperty[id];
+        auto typedProp = std::static_pointer_cast<TypedProperty<EnumPropertyType>>(prop);
+        typedProp->getData().miCurrentIndex = value.toInt();
+        
+        switch(value.toInt())
         {
-            auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
-            if (d)
-            {
-                mpCVImageInData = d;
-                processData(mpCVImageInData,mpCVImageData,mParams);
-            }
-        }
-        else
-        {
-            auto d= std::dynamic_pointer_cast<DoubleData>(nodeData);
-            if (d)
-            {
-                mapDoubleInData[portIndex-1] = d;
-                if(mapDoubleInData[0] || mapDoubleInData[1])
-                {
-                    overwrite(mapDoubleInData,mParams);
-                }
-                processData(mpCVImageInData,mpCVImageData,mParams);
-            }
+        case 0: mParams.miNormType = cv::NORM_L1; break;
+        case 1: mParams.miNormType = cv::NORM_L2; break;
+        case 2: mParams.miNormType = cv::NORM_INF; break;
+        case 3: mParams.miNormType = cv::NORM_L2SQR; break;
+        case 4: mParams.miNormType = cv::NORM_MINMAX; break;
+        case 5: mParams.miNormType = cv::NORM_HAMMING; break;
+        case 6: mParams.miNormType = cv::NORM_HAMMING2; break;
+        case 7: mParams.miNormType = cv::NORM_RELATIVE; break;
+        case 8: mParams.miNormType = cv::NORM_TYPE_MASK; break;
         }
     }
+    else
+    {
+        PBAsyncDataModel::setModelProperty(id, value);
+        return;
+    }
 
-    Q_EMIT dataUpdated(0);
+    if (mpCVImageInData && !isShuttingDown())
+        process_cached_input();
 }
 
-QJsonObject
-CVNormalizationModel::
-save() const
+QJsonObject CVNormalizationModel::save() const
 {
-    QJsonObject modelJson = PBNodeDelegateModel::save();
+    QJsonObject modelJson = PBAsyncDataModel::save();
 
     QJsonObject cParams;
-    cParams["rangeMax"] = mParams.mdRangeMax;
-    cParams["rangeMin"] = mParams.mdRangeMin;
-    cParams["normType"] = mParams.miNormType;
+    cParams["range_max"] = mParams.mdRangeMax;
+    cParams["range_min"] = mParams.mdRangeMin;
+    cParams["norm_type"] = mParams.miNormType;
     modelJson["cParams"] = cParams;
 
     return modelJson;
 }
 
-void
-CVNormalizationModel::
-load(QJsonObject const& p)
+void CVNormalizationModel::load(const QJsonObject& json)
 {
-    PBNodeDelegateModel::load(p);
+    PBAsyncDataModel::load(json);
 
-    QJsonObject paramsObj = p[ "cParams" ].toObject();
-    if( !paramsObj.isEmpty() )
+    QJsonObject paramsObj = json["cParams"].toObject();
+    if (!paramsObj.isEmpty())
     {
-        QJsonValue v = paramsObj[ "rangeMax" ];
-        if( !v.isNull() )
+        QJsonValue v = paramsObj["range_max"];
+        if (!v.isNull())
         {
-            auto prop = mMapIdToProperty[ "range_max" ];
-            auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
+            auto prop = mMapIdToProperty["range_max"];
+            auto typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
             typedProp->getData().mdValue = v.toDouble();
-
-            mParams.mdRangeMax= v.toDouble();
+            mParams.mdRangeMax = v.toDouble();
         }
-        v =  paramsObj[ "rangeMin" ];
-        if( !v.isNull() )
+        
+        v = paramsObj["range_min"];
+        if (!v.isNull())
         {
-            auto prop = mMapIdToProperty[ "range_min" ];
-            auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
+            auto prop = mMapIdToProperty["range_min"];
+            auto typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
             typedProp->getData().mdValue = v.toDouble();
-
             mParams.mdRangeMin = v.toDouble();
         }
-        v =  paramsObj[ "normType" ];
-        if( !v.isNull() )
+        
+        v = paramsObj["norm_type"];
+        if (!v.isNull())
         {
-            auto prop = mMapIdToProperty[ "norm_type" ];
-            auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
+            auto prop = mMapIdToProperty["norm_type"];
+            auto typedProp = std::static_pointer_cast<TypedProperty<EnumPropertyType>>(prop);
             typedProp->getData().miCurrentIndex = v.toInt();
-
             mParams.miNormType = v.toInt();
         }
     }
 }
-
-void
-CVNormalizationModel::
-setModelProperty( QString & id, const QVariant & value )
-{
-    PBNodeDelegateModel::setModelProperty( id, value );
-
-    if( !mMapIdToProperty.contains( id ) )
-        return;
-
-    auto prop = mMapIdToProperty[ id ];
-    if( id == "range_max" )
-    {
-        auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
-        typedProp->getData().mdValue = value.toDouble();
-
-        mParams.mdRangeMax = value.toDouble();
-    }
-    else if( id == "range_min" )
-    {
-        auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
-        typedProp->getData().mdValue = value.toDouble();
-
-        mParams.mdRangeMin = value.toDouble();
-    }
-    else if( id == "norm_type" ) //{"NORM_L1", "NORM_L2", "NORM_INF", "NORM_L2SQR", "NORM_MINMAX", "NORM_HAMMING", "NORM_HAMMING2", "NORM_RELATIVE", "NORM_TYPE_MASK"}
-    {
-        auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
-        typedProp->getData().miCurrentIndex = value.toInt();
-        switch(value.toInt()) //Only NORM_MINMAX is currently functional
-        {
-        case 0:
-            mParams.miNormType = cv::NORM_L1;
-            break;
-
-        case 1:
-            mParams.miNormType = cv::NORM_L2;
-            break;
-
-        case 2:
-            mParams.miNormType = cv::NORM_INF;
-            break;
-
-        case 3:
-            mParams.miNormType = cv::NORM_L2SQR;
-            break;
-
-        case 4:
-            mParams.miNormType = cv::NORM_MINMAX;
-            break;
-
-        case 5:
-            mParams.miNormType = cv::NORM_HAMMING;
-            break;
-
-        case 6:
-            mParams.miNormType = cv::NORM_HAMMING2;
-            break;
-
-        case 7:
-            mParams.miNormType = cv::NORM_RELATIVE;
-            break;
-
-        case 8:
-            mParams.miNormType = cv::NORM_TYPE_MASK;
-            break;
-        }
-    }
-
-    if( mpCVImageInData )
-    {
-        processData( mpCVImageInData, mpCVImageData, mParams);
-        updateAllOutputPorts();
-    }
-}
-
-void
-CVNormalizationModel::
-processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData> & out,
-            const NormalizationParameters & params)
-{
-    if(!in->data().empty())
-    {
-        cv::normalize(in->data(),
-                      out->data(),
-                      params.mdRangeMin,
-                      params.mdRangeMax,
-                      params.miNormType);
-    }
-}
-
-void
-CVNormalizationModel::
-overwrite(std::shared_ptr<DoubleData> (&in)[2], NormalizationParameters &params)
-{
-    if(in[0])
-    {
-        const double& in_number = in[0]->data();
-        if(in_number>=0 && in_number<=255)
-        {
-            auto prop = mMapIdToProperty["range_max"];
-            auto typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
-            typedProp->getData().mdValue = in_number;
-            params.mdRangeMax = in_number;
-            in[0].reset();
-        }
-    }
-    if(in[1])
-    {
-        const double& in_number = in[1]->data();
-        if(in_number>=0 && in_number<=255)
-        {
-            auto prop = mMapIdToProperty["range_min"];
-            auto typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
-            typedProp->getData().mdValue = in_number;
-            params.mdRangeMin = in_number;
-            in[1].reset();
-        }
-    }
-}
-
-

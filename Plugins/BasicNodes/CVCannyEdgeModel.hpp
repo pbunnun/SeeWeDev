@@ -27,8 +27,9 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
+#include "CVImagePool.hpp"
 #include "SyncData.hpp"
 
 using QtNodes::PortType;
@@ -36,6 +37,8 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 
 /**
  * @struct CVCannyEdgeParameters
@@ -83,6 +86,33 @@ typedef struct CVCannyEdgeParameters{
 } CVCannyEdgeParameters;
 
 /**
+ * @class CVCannyEdgeWorker
+ * @brief Worker class for asynchronous Canny edge detection
+ */
+class CVCannyEdgeWorker : public QObject
+{
+    Q_OBJECT
+public:
+    CVCannyEdgeWorker() {}
+
+public Q_SLOTS:
+    void processFrame(cv::Mat input,
+                     int thresholdL,
+                     int thresholdU,
+                     int kernelSize,
+                     bool enableGradient,
+                     FrameSharingMode mode,
+                     std::shared_ptr<CVImagePool> pool,
+                     long frameId,
+                     QString producerId);
+
+Q_SIGNALS:
+    // CRITICAL: This signal MUST be declared in each worker class
+    // CANNOT be inherited from base class due to Qt MOC limitation
+    void frameReady(std::shared_ptr<CVImageData> img);
+};
+
+/**
  * @class CVCannyEdgeModel
  * @brief Node model for Canny edge detection algorithm
  * 
@@ -120,7 +150,7 @@ typedef struct CVCannyEdgeParameters{
  * @note For best results, adjust thresholds based on image characteristics
  * @see cv::Canny for the underlying OpenCV implementation
  */
-class CVCannyEdgeModel : public PBNodeDelegateModel
+class CVCannyEdgeModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
@@ -137,10 +167,9 @@ public:
     CVCannyEdgeModel();
 
     /**
-     * @brief Destructor
+     * @brief Destructor - ensures safe cleanup of async operations
      */
-    virtual
-    ~CVCannyEdgeModel() override {}
+    ~CVCannyEdgeModel() override = default;
 
     /**
      * @brief Serializes the node state to JSON
@@ -161,60 +190,6 @@ public:
      */
     void
     load(const QJsonObject &p) override;
-
-    /**
-     * @brief Returns the number of ports for the given port type
-     * 
-     * This node has:
-     * - 2 input ports (image and optional sync)
-     * - 1 output port (edge map)
-     * 
-     * @param portType The type of port (In or Out)
-     * @return Number of ports of the specified type
-     */
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    /**
-     * @brief Returns the data type for a specific port
-     * 
-     * Input ports:
-     * - Port 0: CVImageData
-     * - Port 1: SyncData
-     * Output:
-     * - Port 0: CVImageData (binary edge map)
-     * 
-     * @param portType The type of port (In or Out)
-     * @param portIndex The index of the port
-     * @return NodeDataType describing the data type
-     */
-    NodeDataType
-    dataType(PortType portType, PortIndex portIndex) const override;
-
-    /**
-     * @brief Provides the edge detection output
-     * 
-     * @param port The output port index (only 0 is valid)
-     * @return Shared pointer to the edge map CVImageData
-     * @note Returns nullptr if no input has been processed
-     */
-    std::shared_ptr<NodeData>
-    outData(PortIndex port) override;
-
-    /**
-     * @brief Receives and processes input data
-     * 
-     * When image data arrives, this method:
-     * 1. Converts input to grayscale if necessary
-     * 2. Applies cv::Canny() with current parameters
-     * 3. Stores the binary edge map for output
-     * 4. Notifies connected nodes
-     * 
-     * @param nodeData The input data (CVImageData or SyncData)
-     * @param portIndex The input port index (0 = image, 1 = sync)
-     */
-    void
-    setInData(std::shared_ptr<NodeData> nodeData, PortIndex) override;
 
     /**
      * @brief No embedded widget for this node
@@ -256,37 +231,23 @@ public:
     /** @brief Display name for the node type */
     static const QString _model_name;
 
+protected:
+    // Implement PBAsyncDataModel pure virtuals
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+
 private:
-    /**
-     * @brief Internal helper to perform Canny edge detection
-     * 
-     * Executes the Canny algorithm:
-     * 1. Converts input to grayscale if necessary
-     * 2. Calls cv::Canny() with configured parameters
-     * 3. Produces binary edge map output
-     * 
-     * @param in The input CVImageData to process
-     * @param out The output CVImageData to populate with edge map
-     * @param params The Canny detection parameters
-     * @note Uses cv::Canny() internally
-     * @see cv::Canny
-     */
-    void processData( const std::shared_ptr< CVImageData> & in, std::shared_ptr< CVImageData > & out,
-                      const CVCannyEdgeParameters & params );
+    void process_cached_input() override;
 
     /** @brief Current Canny parameters */
     CVCannyEdgeParameters mParams;
     
-    /** @brief Cached input image data */
-    std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
-    
-    /** @brief Cached edge map output data */
-    std::shared_ptr<CVImageData> mpCVImageOutData { nullptr };
-    
-    /** @brief Synchronization data for controlled processing */
-    std::shared_ptr<SyncData> mpSyncData { nullptr };
-    
     /** @brief Preview pixmap for node palette */
     QPixmap _minPixmap;
+
+    // Pending data for backpressure
+    cv::Mat mPendingFrame;
+    CVCannyEdgeParameters mPendingParams;
 };
 

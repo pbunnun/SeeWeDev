@@ -18,99 +18,151 @@
 #include "CVImageData.hpp"
 
 #include <opencv2/imgproc.hpp>
+#include <QtCore/QEvent>
+#include <QtCore/QDir>
+#include <QtCore/QTimer>
+#include <QtNodes/internal/ConnectionIdUtils.hpp>
+#include <QDebug>
+#include "qtvariantproperty_p.h"
 
 const QString CVRGBtoGrayModel::_category = QString("Image Conversion");
 
 const QString CVRGBtoGrayModel::_model_name = QString( "CV RGB to Gray" );
 
+void CVRGBtoGrayWorker::processFrame(cv::Mat input,
+                                      FrameSharingMode mode,
+                                      std::shared_ptr<CVImagePool> pool,
+                                      long frameId,
+                                      QString producerId)
+{
+    if(input.empty() || input.type() != CV_8UC3)
+    {
+        Q_EMIT frameReady(nullptr);
+        return;
+    }
+
+    FrameMetadata metadata;
+    metadata.producerId = producerId;
+    metadata.frameId = frameId;
+
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+    bool pooled = false;
+    if(mode == FrameSharingMode::PoolMode && pool)
+    {
+        auto handle = pool->acquire(1, metadata);
+        if(handle)
+        {
+            // Write directly to pool buffer - zero extra allocation
+            cv::cvtColor(input, handle.matrix(), cv::COLOR_BGR2GRAY);
+            if(!handle.matrix().empty() && newImageData->adoptPoolFrame(std::move(handle)))
+                pooled = true;
+        }
+    }
+    if(!pooled)
+    {
+        cv::Mat result;
+        cv::cvtColor(input, result, cv::COLOR_BGR2GRAY);
+        if(result.empty())
+        {
+            Q_EMIT frameReady(nullptr);
+            return;
+        }
+        newImageData->updateMove(std::move(result), metadata);
+    }
+    Q_EMIT frameReady(newImageData);
+}
+
 CVRGBtoGrayModel::
 CVRGBtoGrayModel()
-    : PBNodeDelegateModel( _model_name ),
+    : PBAsyncDataModel( _model_name ),
       _minPixmap( ":RGBtoGray.png" )
 {
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-    mpSyncData = std::make_shared< SyncData >();
+
 }
 
-unsigned int
+QObject*
 CVRGBtoGrayModel::
-nPorts(PortType portType) const
+createWorker()
 {
-    unsigned int result = 1;
-
-    switch (portType)
-    {
-    case PortType::In:
-        result = 1;
-        break;
-
-    case PortType::Out:
-        result = 2;
-        break;
-
-    default:
-        break;
-    }
-
-    return result;
-}
-
-NodeDataType
-CVRGBtoGrayModel::
-dataType(PortType, PortIndex portIndex) const
-{
-    if(portIndex == 0)
-        return CVImageData().type();
-    else
-        return SyncData().type();
-}
-
-std::shared_ptr<NodeData>
-CVRGBtoGrayModel::
-outData(PortIndex port)
-{
-    if( isEnable() )
-    {
-        if( port == 0 && mpCVImageData->data().data != nullptr )
-            return mpCVImageData;
-        else if( port == 1 )
-            return mpSyncData;
-    }
-    return nullptr;
+    return new CVRGBtoGrayWorker();
 }
 
 void
 CVRGBtoGrayModel::
-setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
+connectWorker(QObject* worker)
 {
-    if( !isEnable() )
-        return;
+    auto* w = qobject_cast<CVRGBtoGrayWorker*>(worker);
+    if (w) {
+        connect(w, &CVRGBtoGrayWorker::frameReady,
+            this, &PBAsyncDataModel::handleFrameReady,
+                Qt::QueuedConnection);
+    }
+}
 
-    if( nodeData )
-    {
+void
+CVRGBtoGrayModel::
+dispatchPendingWork()
+{
+    if(!hasPendingWork() || isShuttingDown())
+        return;
+    
+    cv::Mat input = mPendingFrame;
+    setPendingWork(false);
+    
+    ensure_frame_pool(input.cols, input.rows, CV_8UC1);
+    
+    long frameId = getNextFrameId();
+    QString producerId = getNodeId();
+    
+    std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+    
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+        Qt::QueuedConnection,
+        Q_ARG(cv::Mat, input.clone()),
+        Q_ARG(FrameSharingMode, getSharingMode()),
+        Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+        Q_ARG(long, frameId),
+        Q_ARG(QString, producerId));
+}
+
+void
+CVRGBtoGrayModel::
+process_cached_input()
+{
+    if( !mpCVImageInData || mpCVImageInData->data().empty() )
+        return;
+    
+    cv::Mat input = mpCVImageInData->data();
+    
+    // Emit sync "false" signal in next event loop
+    QTimer::singleShot(0, this, [this]() {
         mpSyncData->data() = false;
         Q_EMIT dataUpdated(1);
-        auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
-        if( d )
-        {
-            processData( d, mpCVImageData );
-        }
-        mpSyncData->data() = true;
-        Q_EMIT dataUpdated(1);
-    }
-
-    Q_EMIT dataUpdated( 0 );
-}
-
-void
-CVRGBtoGrayModel::
-processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageData > & out )
-{
-    cv::Mat& in_image = in->data();
-    if(!in_image.empty() && in_image.type()==CV_8UC3)
+    });
+    
+    if(isWorkerBusy())
     {
-        cv::cvtColor( in_image, out->data(), cv::COLOR_BGR2GRAY );
+        mPendingFrame = input.clone();
+        setPendingWork(true);
+    }
+    else
+    {
+        setWorkerBusy(true);
+        
+        ensure_frame_pool(input.cols, input.rows, CV_8UC1);
+        
+        long frameId = getNextFrameId();
+        QString producerId = getNodeId();
+        
+        std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+        
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+            Qt::QueuedConnection,
+            Q_ARG(cv::Mat, input.clone()),
+            Q_ARG(FrameSharingMode, getSharingMode()),
+            Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+            Q_ARG(long, frameId),
+            Q_ARG(QString, producerId));
     }
 }
-
-

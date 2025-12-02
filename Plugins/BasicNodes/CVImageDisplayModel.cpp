@@ -115,11 +115,13 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
         {
-            if( d->data().data != nullptr )
+            const cv::Mat& frame = d->data();
+            if( frame.data != nullptr )
             {
                 mpSyncData->data() = false;
-                //Q_EMIT dataUpdated(0);
-                d->data().copyTo( mCVImageDisplay );
+                // Consumer: read-only access to the pooled or owned frame
+                // Copy only when displaying to avoid holding the pool slot
+                frame.copyTo( mCVImageDisplay );
                 display_image();
                 mpSyncData->data() = true;
                 Q_EMIT dataUpdated(0);

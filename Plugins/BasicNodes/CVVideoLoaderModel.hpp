@@ -26,16 +26,18 @@
 
 #pragma once
 
+#include <memory>
+#include <atomic>
+
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 #include <QtCore/QThread>
 #include <QtCore/QMutex>
-#include <QtCore/QWaitCondition>
-#include <QtCore/QTimer>
 #include <QtCore/QSemaphore>
 #include <QElapsedTimer>
 #include "PBNodeDelegateModel.hpp"
 
+#include "CVImagePool.hpp"
 #include "CVImageData.hpp"
 #include <opencv2/videoio.hpp>
 #include "InformationData.hpp"
@@ -47,15 +49,18 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+
+class CVVideoLoaderModel;
 
 class CVVideoLoaderThread : public QThread
 {
     Q_OBJECT
 public:
     explicit
-    CVVideoLoaderThread(QObject *parent, std::shared_ptr<CVImageData> pCVImageData);
+    CVVideoLoaderThread(QObject *parent, CVVideoLoaderModel *model);
 
-    ~CVVideoLoaderThread() override;
+    ~CVVideoLoaderThread() override {};
 
     bool open_video(const QString& filename);
     void close_video();
@@ -63,16 +68,16 @@ public:
     void set_loop(bool loop) { mbLoop = loop; }
     void start_playback();
     void stop_playback();
+    // Signals the thread's run loop to terminate and unblocks waits
+    void request_abort();
     void seek_to_frame(int frame_no);
     void advance_frame();
-    int get_max_frames() const { return miMaxNoFrames; }
     int get_current_frame() const { return miCurrentFrame; }
-    cv::Size get_video_size() const { return mcvVideoSize; }
-    QString get_format() const { return msImageFormat; }
     bool is_opened() const { return mbVideoOpened; }
 
 Q_SIGNALS:
-    void frame_ready(int frame_no);
+    // Emitted when a frame has been decoded; provides the raw cv::Mat before UI adoption
+    void frame_decoded(cv::Mat frame);
     void video_opened(int max_frames, cv::Size size, QString format);
     void video_ended();
 
@@ -99,7 +104,7 @@ private:
     QString msImageFormat{"CV_8UC3"};
 
     cv::VideoCapture mcvVideoCapture;
-    std::shared_ptr<CVImageData> mpCVImageData;
+    CVVideoLoaderModel *mpModel{nullptr};
 };
 
 class CVVideoLoaderModel : public PBNodeDelegateModel
@@ -107,14 +112,11 @@ class CVVideoLoaderModel : public PBNodeDelegateModel
     Q_OBJECT
 
 public:
+    friend class CVVideoLoaderThread;
+
     CVVideoLoaderModel();
 
-    virtual
-    ~CVVideoLoaderModel() override
-    {
-        if( mpVDOLoaderThread )
-            delete mpVDOLoaderThread;
-    }
+    ~CVVideoLoaderModel() override; // Defined in cpp: performs safe shutdown
 
     QJsonObject save() const override;
     void load(QJsonObject const &p) override;
@@ -129,14 +131,12 @@ public:
     static const QString _category;
     static const QString _model_name;
 
-    int getMaxNoFrames() const;
-    void setMaxNoFrames(int newMaxNoFrames);
 
 private Q_SLOTS:
     void enable_changed( bool ) override;
     void em_button_clicked( int button );
     void no_frame_changed( int no_frame );
-    void frame_decoded(int frame_no);
+    void update_frame_ui(int frame_no);
     void video_file_opened(int max_frames, cv::Size size, QString format);
     void on_video_ended();
     void inputConnectionCreated(QtNodes::ConnectionId const&) override;
@@ -144,6 +144,10 @@ private Q_SLOTS:
 
 private:
     void set_video_filename(QString &);
+    void process_decoded_frame(cv::Mat frame);
+    void ensure_frame_pool(int width, int height, int type);
+    void reset_frame_pool();
+    bool isShuttingDown() const { return mShuttingDown.load(std::memory_order_acquire); }
 
     QString msVideoFilename {""};
     int miFlipPeriodInMillisecond{100};
@@ -153,9 +157,19 @@ private:
     int miMaxNoFrames{ 0 };
 
     CVVideoLoaderEmbeddedWidget * mpEmbeddedWidget;
-    CVVideoLoaderThread * mpVDOLoaderThread{nullptr};
+    CVVideoLoaderThread * mpVideoLoaderThread{nullptr};
 
     std::shared_ptr< CVImageData > mpCVImageData;
 
     bool mbUseSyncSignal{false};
+
+    int miPoolSize{CVImagePool::DefaultPoolSize};
+    FrameSharingMode meSharingMode{FrameSharingMode::PoolMode};
+    std::shared_ptr<CVImagePool> mpFramePool;
+    int miPoolFrameWidth{0};
+    int miPoolFrameHeight{0};
+    int miActivePoolSize{0};
+    QMutex mFramePoolMutex;
+    int miFrameMatType{CV_8UC3};
+    std::atomic<bool> mShuttingDown{false};
 };

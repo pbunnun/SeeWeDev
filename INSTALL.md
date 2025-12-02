@@ -1,5 +1,6 @@
-To compile CVDev, you need ...
+# CVDev Installation Guide
 
+To compile CVDev, you need ...
 
 MS Windows: tested with
 
@@ -43,6 +44,8 @@ Linux: tested with
     - Ubuntu 24.04
     
     - Raspberry Pi OS (64-bit)
+
+## CVDev with NodeEditorV3 (testing branch)
 
 To test CVDev in the testing branch, you need to clone the repository with the --recursive option to get all submodules:
 

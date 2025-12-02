@@ -18,12 +18,16 @@
 #include <QtCore/QDebug>
 #include <QtCore/QEvent>
 #include <QtCore/QDir>
+#include <QtCore/QMutexLocker>
 #include <QtCore/QTime>
+#include <QtCore/QtGlobal>
 #include <QtWidgets/QFileDialog>
 #include "qtvariantproperty_p.h"
 #include <QMessageBox>
 #include "SyncData.hpp"
 #include <QtNodes/internal/ConnectionIdUtils.hpp>
+
+using CVDevLibrary::FrameMetadata;
 
 const QString CVVideoLoaderModel::_category = QString( "Source" );
 
@@ -33,17 +37,17 @@ const QString CVVideoLoaderModel::_model_name = QString( "CV Video Loader" );
 // CVVideoLoaderThread Implementation
 /////////////////////////////////////////////////////////////////////////
 
-CVVideoLoaderThread::CVVideoLoaderThread(QObject *parent, std::shared_ptr<CVImageData> pCVImageData)
-    : QThread(parent), mpCVImageData(pCVImageData)
+CVVideoLoaderThread::CVVideoLoaderThread(QObject *parent, CVVideoLoaderModel *model)
+    : QThread(parent)
+    , mpModel(model)
 {
 }
 
-CVVideoLoaderThread::~CVVideoLoaderThread()
+void CVVideoLoaderThread::request_abort()
 {
     mbAbort = true;
     mFrameRequestSemaphore.release();
     mSeekSemaphore.release();
-    wait();
 }
 
 bool
@@ -76,12 +80,11 @@ CVVideoLoaderThread::open_video(const QString& filename)
         else if (channels == 3)
             msImageFormat = "CV_8UC3";
 
-        mpCVImageData->data() = firstFrame.clone();
-        mpCVImageData->set_timestamp();
+        // Signal-only handoff of first frame; model will adopt & ensure pool
+        Q_EMIT frame_decoded(firstFrame);
         miCurrentFrame = 1;
 
         Q_EMIT video_opened(miMaxNoFrames, mcvVideoSize, msImageFormat);
-        Q_EMIT frame_ready(0);
     }
     else
     {
@@ -106,6 +109,8 @@ CVVideoLoaderThread::close_video()
     mbPlayback = false;
     miMaxNoFrames = 0;
     miCurrentFrame = 0;
+    if (mpModel)
+        mpModel->reset_frame_pool();
 }
 
 void
@@ -126,9 +131,11 @@ CVVideoLoaderThread::seek_to_frame(int frame_no)
 {
     if (!mbVideoOpened || frame_no < 0 || frame_no >= miMaxNoFrames)
         return;
-
-    miSeekTarget = frame_no;
-    mSeekSemaphore.release();
+    if( miCurrentFrame != frame_no )
+    { 
+        miSeekTarget = frame_no;
+        mSeekSemaphore.release();
+    }
 }
 
 void
@@ -147,15 +154,16 @@ CVVideoLoaderThread::run()
             if (mbVideoOpened && miSeekTarget >= 0 && miSeekTarget < miMaxNoFrames)
             {
                 mcvVideoCapture.set(cv::CAP_PROP_POS_FRAMES, miSeekTarget);
-                mcvVideoCapture >> mpCVImageData->data();
-                if (!mpCVImageData->data().empty())
+                cv::Mat frame;
+                mcvVideoCapture >> frame;
+                if (!frame.empty())
                 {
-                    mpCVImageData->set_timestamp();
-                    miCurrentFrame = miSeekTarget + 1;
-                    Q_EMIT frame_ready(miSeekTarget);
+                    miCurrentFrame = miSeekTarget;
+                    Q_EMIT frame_decoded(frame);
                 }
                 miSeekTarget = -1;
             }
+            continue;
         }
 
         if (mbPlayback)
@@ -180,11 +188,11 @@ CVVideoLoaderThread::decode_next_frame()
     if (!mbVideoOpened)
         return;
 
-    mcvVideoCapture >> mpCVImageData->data();
-    if (!mpCVImageData->data().empty())
+    cv::Mat frame;
+    mcvVideoCapture >> frame;
+    if (!frame.empty())
     {
-        mpCVImageData->set_timestamp();
-        Q_EMIT frame_ready(miCurrentFrame);
+        Q_EMIT frame_decoded(frame);
         miCurrentFrame++;
     }
     else
@@ -192,12 +200,11 @@ CVVideoLoaderThread::decode_next_frame()
         if (mbLoop)
         {
             mcvVideoCapture.set(cv::CAP_PROP_POS_FRAMES, 0);
-            mcvVideoCapture >> mpCVImageData->data();
-            if (!mpCVImageData->data().empty())
+            mcvVideoCapture >> frame;
+            if (!frame.empty())
             {
-                mpCVImageData->set_timestamp();
                 miCurrentFrame = 1;
-                Q_EMIT frame_ready(0);
+                Q_EMIT frame_decoded(frame);
             }
         }
         else
@@ -219,6 +226,75 @@ CVVideoLoaderModel()
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     qRegisterMetaType<cv::Size>( "cv::Size" );
+
+    FilePathPropertyType filePathPropertyType;
+    filePathPropertyType.msFilename = msVideoFilename;
+    filePathPropertyType.msFilter = "*.mp4;*.mpg;*.wmv;*.avi";
+    filePathPropertyType.msMode = "open";
+    QString propId = "filename";
+    auto propFileName = std::make_shared< TypedProperty<FilePathPropertyType > >( "Filename", propId, QtVariantPropertyManager::filePathTypeId(), filePathPropertyType );
+    mvProperty.push_back( propFileName );
+    mMapIdToProperty[ propId ] = propFileName;
+
+    IntPropertyType intPropertyType;
+    intPropertyType.miMax = 60000;
+    intPropertyType.miMin = 0;
+    intPropertyType.miValue = miFlipPeriodInMillisecond;
+    propId = "flip_period";
+    auto propSpinBox = std::make_shared< TypedProperty< IntPropertyType > >( "Flip Period (ms)", propId, QMetaType::Int, intPropertyType );
+    mvProperty.push_back( propSpinBox );
+    mMapIdToProperty[ propId ] = propSpinBox;
+
+    propId = "is_loop";
+    auto propIsLoop = std::make_shared< TypedProperty< bool > >( "Loop Play", propId, QMetaType::Bool, mbLoop );
+    mvProperty.push_back( propIsLoop );
+    mMapIdToProperty[ propId ] = propIsLoop;
+
+    SizePropertyType sizePropertyType;
+    sizePropertyType.miWidth = 0;
+    sizePropertyType.miHeight = 0;
+    propId = "image_size";
+    auto propImageSize = std::make_shared< TypedProperty< SizePropertyType > >( "Size", propId, QMetaType::QSize, sizePropertyType, "", true );
+    mvProperty.push_back( propImageSize );
+    mMapIdToProperty[ propId ] = propImageSize;
+
+    propId = "image_format";
+    auto propFormat = std::make_shared< TypedProperty< QString > >( "Format", propId, QMetaType::QString, "", "", true );
+    mvProperty.push_back( propFormat );
+    mMapIdToProperty[ propId ] = propFormat;
+
+    IntPropertyType poolSizeProperty;
+    poolSizeProperty.miMin = 1;
+    poolSizeProperty.miMax = 128;
+    poolSizeProperty.miValue = miPoolSize;
+    propId = "pool_size";
+    auto propPoolSize = std::make_shared< TypedProperty< IntPropertyType > >( "Pool Size", propId, QMetaType::Int, poolSizeProperty );
+    mvProperty.push_back( propPoolSize );
+    mMapIdToProperty[ propId ] = propPoolSize;
+
+    EnumPropertyType sharingModeProperty;
+    sharingModeProperty.mslEnumNames = { "Pool Mode", "Broadcast Mode" };
+    sharingModeProperty.miCurrentIndex = ( meSharingMode == FrameSharingMode::PoolMode ) ? 0 : 1;
+    propId = "sharing_mode";
+    auto propSharingMode = std::make_shared< TypedProperty< EnumPropertyType > >( "Sharing Mode", propId, QtVariantPropertyManager::enumTypeId(), sharingModeProperty );
+    mvProperty.push_back( propSharingMode );
+    mMapIdToProperty[ propId ] = propSharingMode;
+}
+
+CVVideoLoaderModel::~CVVideoLoaderModel()
+{
+    mShuttingDown.store(true, std::memory_order_release);
+    if (mpVideoLoaderThread)
+    {
+        mpVideoLoaderThread->stop_playback();
+        mpVideoLoaderThread->request_abort(); // signal abort to run loop
+        mpVideoLoaderThread->requestInterruption();
+        mpVideoLoaderThread->wait();
+        disconnect(mpVideoLoaderThread, nullptr, this, nullptr);
+    }
+    // Release any pooled frame handles before destroying pool
+    mpCVImageData.reset();
+    reset_frame_pool();
 }
 
 unsigned int
@@ -254,20 +330,18 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex )
     if( portIndex == 0 )
     {
         auto d = std::dynamic_pointer_cast< SyncData >( nodeData );
-        if( d && d->data() && mpVDOLoaderThread )
+        if( d && d->data() && mpVideoLoaderThread )
         {
-            mpVDOLoaderThread->advance_frame();
+            mpVideoLoaderThread->advance_frame();
         }
     }
 }
 
 void
 CVVideoLoaderModel::
-frame_decoded(int frame_no)
+update_frame_ui(int frame_no)
 {
     mpEmbeddedWidget->set_slider_value(frame_no);
-    if (isEnable())
-        Q_EMIT dataUpdated(0);
 }
 
 void
@@ -327,6 +401,8 @@ save() const
         cParams["flip_period"] = miFlipPeriodInMillisecond;
         cParams["is_loop"] = mbLoop;
         cParams["use_sync_signal"] = mbUseSyncSignal;
+        cParams["pool_size"] = miPoolSize;
+        cParams["sharing_mode"] = (meSharingMode == FrameSharingMode::PoolMode) ? 0 : 1;
         modelJson["cParams"] = cParams;
     }
     return modelJson;
@@ -337,25 +413,74 @@ CVVideoLoaderModel::
 load(QJsonObject const &p)
 {
     PBNodeDelegateModel::load(p);
+    late_constructor();
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
     {
         QJsonValue v = paramsObj[ "flip_period" ];
         if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "flip_period" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+            typedProp->getData().miValue = v.toInt();
+
             miFlipPeriodInMillisecond = v.toInt();
+            if (mpVideoLoaderThread)
+                mpVideoLoaderThread->set_flip_period(miFlipPeriodInMillisecond);
+        }
 
         v = paramsObj[ "use_sync_signal" ];
         if( !v.isNull() )
+        {
             mbUseSyncSignal = v.toBool();
+        }
 
         v = paramsObj[ "is_loop" ];
         if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "is_loop" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+            typedProp->getData() = v.toBool();
+
             mbLoop = v.toBool();
+        }
+
+        v = paramsObj[ "pool_size" ];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "pool_size" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+            int newSize = qMax( 1, qMin(128, v.toInt()) );
+            typedProp->getData().miValue = newSize;
+            
+            miPoolSize = newSize;
+        }
+
+        v = paramsObj[ "sharing_mode" ];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "sharing_mode" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
+            int enumCount = static_cast<int>( typedProp->getData().mslEnumNames.size() );
+            if( enumCount <= 0 )
+                enumCount = 1;
+            int newIndex = qBound( 0, v.toInt(), enumCount - 1 );
+            typedProp->getData().miCurrentIndex = newIndex;
+            
+            meSharingMode = ( newIndex == 0) ? FrameSharingMode::PoolMode : FrameSharingMode::BroadcastMode;
+        }
 
         v = paramsObj[ "filename" ];
         if( !v.isNull() )
-            msVideoFilename = v.toString();
+        {
+            auto prop = mMapIdToProperty[ "filename" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
+            typedProp->getData().msFilename = v.toString();
+
+            QString filename = v.toString();
+            set_video_filename( filename );
+        }
     }
 }
 
@@ -384,8 +509,8 @@ setModelProperty( QString & id, const QVariant & value )
         typedProp->getData().miValue = value.toInt();
 
         miFlipPeriodInMillisecond = value.toInt();
-        if (mpVDOLoaderThread)
-            mpVDOLoaderThread->set_flip_period(miFlipPeriodInMillisecond);
+        if (mpVideoLoaderThread)
+            mpVideoLoaderThread->set_flip_period(miFlipPeriodInMillisecond);
     }
     else if( id == "is_loop" )
     {
@@ -394,8 +519,47 @@ setModelProperty( QString & id, const QVariant & value )
         typedProp->getData() = value.toBool();
 
         mbLoop = value.toBool();
-        if (mpVDOLoaderThread)
-            mpVDOLoaderThread->set_loop(mbLoop);
+        if (mpVideoLoaderThread)
+            mpVideoLoaderThread->set_loop(mbLoop);
+    }
+    else if( id == "pool_size" )
+    {
+        auto prop = mMapIdToProperty[ id ];
+        auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+        int newSize = qMax( 1, qMin(128, value.toInt()) );
+        if( miPoolSize == newSize )
+            return;
+
+        typedProp->getData().miValue = newSize;
+        miPoolSize = newSize;
+        reset_frame_pool();
+        ensure_frame_pool( mcvImage_Size.width, mcvImage_Size.height, miFrameMatType );
+    }
+    else if( id == "sharing_mode" )
+    {
+        auto prop = mMapIdToProperty[ id ];
+        auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
+        int enumCount = static_cast<int>( typedProp->getData().mslEnumNames.size() );
+        if( enumCount <= 0 )
+            enumCount = 1;
+        int newIndex = qBound( 0, value.toInt(), enumCount - 1 );
+        FrameSharingMode newMode = ( newIndex == 0 ) ? FrameSharingMode::PoolMode : FrameSharingMode::BroadcastMode;
+        if( meSharingMode == newMode && typedProp->getData().miCurrentIndex == newIndex )
+            return;
+
+        typedProp->getData().miCurrentIndex = newIndex;
+        meSharingMode = newMode;
+
+        std::shared_ptr<CVImagePool> poolCopy;
+        {
+            QMutexLocker locker( &mFramePoolMutex );
+            poolCopy = mpFramePool;
+        }
+        if( poolCopy )
+            poolCopy->setMode( meSharingMode );
+
+        if( meSharingMode == FrameSharingMode::PoolMode )
+            ensure_frame_pool( mcvImage_Size.width, mcvImage_Size.height, miFrameMatType );
     }
 }
 
@@ -414,10 +578,8 @@ set_video_filename(QString & filename)
     QFileInfo fi( msVideoFilename );
     mpEmbeddedWidget->set_filename( fi.fileName() );
 
-    if (mpVDOLoaderThread && mpVDOLoaderThread->open_video(msVideoFilename))
-    {
-        // metadata will arrive via video_opened signal
-    }
+    if ( mpVideoLoaderThread )
+        mpVideoLoaderThread->open_video(msVideoFilename);
 }
 
 void
@@ -430,78 +592,22 @@ late_constructor()
         connect( mpEmbeddedWidget, &CVVideoLoaderEmbeddedWidget::slider_value_signal, this, &CVVideoLoaderModel::no_frame_changed );
         connect( mpEmbeddedWidget, &CVVideoLoaderEmbeddedWidget::widget_resized_signal, this, &CVVideoLoaderModel::embeddedWidgetSizeUpdated );
 
-        FilePathPropertyType filePathPropertyType;
-        filePathPropertyType.msFilename = msVideoFilename;
-        filePathPropertyType.msFilter = "*.mp4;*.mpg;*.wmv;*.avi";
-        filePathPropertyType.msMode = "open";
-        QString propId = "filename";
-        auto propFileName = std::make_shared< TypedProperty<FilePathPropertyType > >( "Filename", propId, QtVariantPropertyManager::filePathTypeId(), filePathPropertyType );
-        mvProperty.push_back( propFileName );
-        mMapIdToProperty[ propId ] = propFileName;
-
-        IntPropertyType intPropertyType;
-        intPropertyType.miMax = 60000;
-        intPropertyType.miMin = 0;
-        intPropertyType.miValue = miFlipPeriodInMillisecond;
-        propId = "flip_period";
-        auto propSpinBox = std::make_shared< TypedProperty< IntPropertyType > >( "Flip Period (ms)", propId, QMetaType::Int, intPropertyType );
-        mvProperty.push_back( propSpinBox );
-        mMapIdToProperty[ propId ] = propSpinBox;
-
-        propId = "is_loop";
-        auto propIsLoop = std::make_shared< TypedProperty< bool > >( "Loop Play", propId, QMetaType::Bool, mbLoop );
-        mvProperty.push_back( propIsLoop );
-        mMapIdToProperty[ propId ] = propIsLoop;
-
-        SizePropertyType sizePropertyType;
-        sizePropertyType.miWidth = 0;
-        sizePropertyType.miHeight = 0;
-        propId = "image_size";
-        auto propImageSize = std::make_shared< TypedProperty< SizePropertyType > >( "Size", propId, QMetaType::QSize, sizePropertyType, "", true );
-        mvProperty.push_back( propImageSize );
-        mMapIdToProperty[ propId ] = propImageSize;
-
-        propId = "image_format";
-        auto propFormat = std::make_shared< TypedProperty< QString > >( "Format", propId, QMetaType::QString, "", "", true );
-        mvProperty.push_back( propFormat );
-        mMapIdToProperty[ propId ] = propFormat;
-
         mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-        mpVDOLoaderThread = new CVVideoLoaderThread(this, mpCVImageData);
-        connect(mpVDOLoaderThread, &CVVideoLoaderThread::frame_ready, this, &CVVideoLoaderModel::frame_decoded);
-        connect(mpVDOLoaderThread, &CVVideoLoaderThread::video_opened, this, &CVVideoLoaderModel::video_file_opened);
-        connect(mpVDOLoaderThread, &CVVideoLoaderThread::video_ended, this, &CVVideoLoaderModel::on_video_ended);
+        mpVideoLoaderThread = new CVVideoLoaderThread(this, this);
+        connect(mpVideoLoaderThread, &CVVideoLoaderThread::frame_decoded, this, &CVVideoLoaderModel::process_decoded_frame);
+        connect(mpVideoLoaderThread, &CVVideoLoaderThread::video_opened, this, &CVVideoLoaderModel::video_file_opened);
+        connect(mpVideoLoaderThread, &CVVideoLoaderThread::video_ended, this, &CVVideoLoaderModel::on_video_ended);
 
-        mpVDOLoaderThread->set_flip_period(miFlipPeriodInMillisecond);
-        mpVDOLoaderThread->set_loop(mbLoop);
-        if( !msVideoFilename.isEmpty() )
-        {
-            if( QFile::exists( msVideoFilename ) )
-            {
-                QFileInfo fi( msVideoFilename );
-                mpEmbeddedWidget->set_filename( fi.fileName() );
-                mpVDOLoaderThread->open_video( msVideoFilename );
-            }
-        }
+        mpVideoLoaderThread->set_flip_period(miFlipPeriodInMillisecond);
+        mpVideoLoaderThread->set_loop(mbLoop);
     }
 }
 
-int CVVideoLoaderModel::getMaxNoFrames() const
-{
-    return miMaxNoFrames;
-}
-
-void CVVideoLoaderModel::setMaxNoFrames(int newMaxNoFrames)
-{
-    miMaxNoFrames = newMaxNoFrames;
-}
 
 void
 CVVideoLoaderModel::
 em_button_clicked( int button )
 {
-    DEBUG_LOG_INFO() << "[em_button_clicked] button:" << button << "isSelected:" << isSelected();
-
     if (!isSelected())
     {
         if( button == 1 || button == 2 )
@@ -512,43 +618,43 @@ em_button_clicked( int button )
 
     if( button == 0 )
     {
-        if( !mpVDOLoaderThread || !mpVDOLoaderThread->is_opened() )
+        if( !mpVideoLoaderThread || !mpVideoLoaderThread->is_opened() )
         {
             return;
         }
-        int currentFrame = mpVDOLoaderThread->get_current_frame();
-        if( currentFrame >= 2 )
-            mpVDOLoaderThread->seek_to_frame(currentFrame - 2);
+        int currentFrame = mpVideoLoaderThread->get_current_frame();
+        if( currentFrame >= 1 )
+            mpVideoLoaderThread->seek_to_frame(currentFrame - 1);
     }
     else if( button == 1 )
     {
-        if( !mpVDOLoaderThread || !mpVDOLoaderThread->is_opened() )
+        if( !mpVideoLoaderThread || !mpVideoLoaderThread->is_opened() )
         {
             mpEmbeddedWidget->set_toggle_play( false );
             return;
         }
-        mpVDOLoaderThread->start_playback();
+        mpVideoLoaderThread->start_playback();
     }
     else if( button == 2 )
     {
-        if( !mpVDOLoaderThread || !mpVDOLoaderThread->is_opened() )
+        if( !mpVideoLoaderThread || !mpVideoLoaderThread->is_opened() )
         {
             return;
         }
-        mpVDOLoaderThread->stop_playback();
+        mpVideoLoaderThread->stop_playback();
     }
     else if( button == 3 )
     {
-        if( !mpVDOLoaderThread || !mpVDOLoaderThread->is_opened() )
+        if( !mpVideoLoaderThread || !mpVideoLoaderThread->is_opened() )
         {
             return;
         }
-        int currentFrame = mpVDOLoaderThread->get_current_frame();
+        int currentFrame = mpVideoLoaderThread->get_current_frame();
         if( currentFrame < miMaxNoFrames )
-            mpVDOLoaderThread->advance_frame();
+            mpVideoLoaderThread->advance_frame();
         else if( mbLoop )
         {
-            mpVDOLoaderThread->seek_to_frame(0);
+            mpVideoLoaderThread->seek_to_frame(0);
         }
     }
     else if( button == 4 )
@@ -561,9 +667,9 @@ em_button_clicked( int button )
                 dir = fi.absoluteDir().absolutePath();
         }
         QString filename = QFileDialog::getOpenFileName( nullptr,
-                                                         tr( "Open Video File" ),
-                                                         dir,
-                                                         tr( "Video Files (*.mp4 *.mpg *.wmv *.avi") );
+                                 tr( "Open Video File" ),
+                                 dir,
+                                 tr( "Video Files (*.mp4 *.mpg *.wmv *.avi)" ) );
         if( !filename.isEmpty() )
         {
             auto prop = mMapIdToProperty[ "filename" ];
@@ -588,15 +694,15 @@ no_frame_changed( int no_frame )
         return;
     }
 
-    if( !mpVDOLoaderThread || !mpVDOLoaderThread->is_opened() )
+    if( !mpVideoLoaderThread || !mpVideoLoaderThread->is_opened() )
     {
         mpEmbeddedWidget->set_slider_value( 0 );
         return;
     }
-
+    
     if( no_frame < miMaxNoFrames )
     {
-        mpVDOLoaderThread->seek_to_frame(no_frame);
+        mpVideoLoaderThread->seek_to_frame(no_frame);
     }
 }
 
@@ -605,7 +711,9 @@ CVVideoLoaderModel::
 inputConnectionCreated(QtNodes::ConnectionId const& conx)
 {
     if( QtNodes::getPortIndex(PortType::In, conx) == 0 )
+    {
         mbUseSyncSignal = true;
+    }
 }
 
 void
@@ -613,7 +721,105 @@ CVVideoLoaderModel::
 inputConnectionDeleted(QtNodes::ConnectionId const& conx)
 {
     if( QtNodes::getPortIndex(PortType::In, conx) == 0 )
+    {
         mbUseSyncSignal = false;
+    }
+}
+
+void
+CVVideoLoaderModel::
+process_decoded_frame(cv::Mat frame)
+{
+    if( frame.empty() || isShuttingDown() )
+        return;
+
+    FrameMetadata metadata;
+    metadata.producerId = getNodeId();
+    if( mpVideoLoaderThread )
+        metadata.frameId = mpVideoLoaderThread->get_current_frame();
+
+    // Create a fresh CVImageData per frame to avoid overwriting pooled slots still in use.
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+
+    bool pooled = false;
+    if( meSharingMode == FrameSharingMode::PoolMode )
+    {
+        ensure_frame_pool( frame.cols, frame.rows, frame.type() );
+        std::shared_ptr<CVImagePool> poolCopy;
+        {
+            QMutexLocker locker( &mFramePoolMutex );
+            poolCopy = mpFramePool;
+        }
+        if( poolCopy )
+        {
+            auto metadataForPool = metadata;
+            auto handle = poolCopy->acquire( 1, std::move( metadataForPool ) );
+            if( handle )
+            {
+                frame.copyTo( handle.matrix() );
+                if( newImageData->adoptPoolFrame( std::move( handle ) ) )
+                    pooled = true;
+            }
+        }
+    }
+
+    if( !pooled )
+    {
+        newImageData->updateMove( std::move( frame ), metadata );
+    }
+
+    mpCVImageData = std::move(newImageData);
+
+    // Update UI slider with current frame
+    if( mpVideoLoaderThread )
+        update_frame_ui(mpVideoLoaderThread->get_current_frame());
+
+    // Emit data update to downstream consumers
+    if( isEnable() )
+        Q_EMIT dataUpdated(0);
+
+    // Synchronous mode: pacing is handled by the merged sync signal arriving
+    // on input port 0; the thread waits for `advance_frame()` so no explicit
+    // per-frame semaphore/acknowledgement is required here.
+}
+
+void
+CVVideoLoaderModel::
+ensure_frame_pool(int width, int height, int type)
+{
+    if( width <= 0 || height <= 0 )
+        return;
+
+    const int desiredSize = qMax( 1, miPoolSize );
+    QMutexLocker locker( &mFramePoolMutex );
+    const bool shouldRecreate = !mpFramePool ||
+        miPoolFrameWidth != width ||
+        miPoolFrameHeight != height ||
+        miFrameMatType != type ||
+        miActivePoolSize != desiredSize;
+
+    if( shouldRecreate )
+    {
+        mpFramePool = std::make_shared<CVImagePool>( getNodeId(), width, height, type, static_cast<size_t>( desiredSize ) );
+        miPoolFrameWidth = width;
+        miPoolFrameHeight = height;
+        miFrameMatType = type;
+        miActivePoolSize = desiredSize;
+    }
+
+    if( mpFramePool )
+        mpFramePool->setMode( meSharingMode );
+}
+
+void
+CVVideoLoaderModel::
+reset_frame_pool()
+{
+    QMutexLocker locker( &mFramePoolMutex );
+    mpFramePool.reset();
+    miPoolFrameWidth = 0;
+    miPoolFrameHeight = 0;
+    miActivePoolSize = 0;
 }
 
 void
@@ -621,11 +827,10 @@ CVVideoLoaderModel::
 enable_changed( bool enable )
 {
     PBNodeDelegateModel::enable_changed( enable );
-
     if( !enable )
     {
-        if (mpVDOLoaderThread)
-            mpVDOLoaderThread->stop_playback();
+        if (mpVideoLoaderThread)
+            mpVideoLoaderThread->stop_playback();
         mpEmbeddedWidget->pause_video();
     }
 }

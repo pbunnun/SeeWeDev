@@ -441,10 +441,9 @@ set_dirname(QString & dirname)
             auto prop = mMapIdToProperty[ "filename" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
             typedProp->getData().msFilename = mvsImageFilenames[miFilenameIndex];
+            set_image_filename( mvsImageFilenames[miFilenameIndex] );
             if( isSelected() )
                 Q_EMIT property_changed_signal( prop );
-            else
-                set_image_filename( mvsImageFilenames[miFilenameIndex] );
             mpEmbeddedWidget->set_active(true);
         }
     }

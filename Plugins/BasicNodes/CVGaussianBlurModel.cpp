@@ -16,10 +16,11 @@
 
 #include <QtCore/QEvent>
 #include <QtCore/QDir>
+#include <QtCore/QTimer>
+#include <QtNodes/internal/ConnectionIdUtils.hpp>
 #include <QDebug>
 
 #include <QtWidgets/QFileDialog>
-
 
 #include <opencv2/imgproc.hpp>
 #include "qtvariantproperty_p.h"
@@ -28,12 +29,56 @@ const QString CVGaussianBlurModel::_category = QString( "Image Modification" );
 
 const QString CVGaussianBlurModel::_model_name = QString( "CV Gaussian Blur" );
 
+void CVGaussianBlurWorker::processFrame(cv::Mat input,
+                                         CVGaussianBlurParameters params,
+                                         FrameSharingMode mode,
+                                         std::shared_ptr<CVImagePool> pool,
+                                         long frameId,
+                                         QString producerId)
+{
+    if(input.empty() || !(input.depth()==CV_8U || input.depth()==CV_16U || input.depth()==CV_16S || input.depth()==CV_32F || input.depth()==CV_64F))
+    {
+        Q_EMIT frameReady(nullptr);
+        return;
+    }
+
+    FrameMetadata metadata;
+    metadata.producerId = producerId;
+    metadata.frameId = frameId;
+
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+    bool pooled = false;
+    if(mode == FrameSharingMode::PoolMode && pool)
+    {
+        auto handle = pool->acquire(1, metadata);
+        if(handle)
+        {
+            // Write directly to pool buffer - zero extra allocation
+            cv::GaussianBlur(input, handle.matrix(), params.mCVSizeKernel, params.mdSigmaX, params.mdSigmaY, params.miBorderType);
+            if(!handle.matrix().empty() && newImageData->adoptPoolFrame(std::move(handle)))
+                pooled = true;
+        }
+    }
+    if(!pooled)
+    {
+        cv::Mat result;
+        cv::GaussianBlur(input, result, params.mCVSizeKernel, params.mdSigmaX, params.mdSigmaY, params.miBorderType);
+        if(result.empty())
+        {
+            Q_EMIT frameReady(nullptr);
+            return;
+        }
+        newImageData->updateMove(std::move(result), metadata);
+    }
+    Q_EMIT frameReady(newImageData);
+}
+
 CVGaussianBlurModel::
 CVGaussianBlurModel()
-    : PBNodeDelegateModel( _model_name ),
+    : PBAsyncDataModel( _model_name ),
       _minPixmap( ":CVGaussianBlur.png" )
 {
-    mpCVImageData = std::make_shared<CVImageData>(cv::Mat());
+    qRegisterMetaType<CVGaussianBlurParameters>("CVGaussianBlurParameters");
 
     SizePropertyType sizePropertyType;
     sizePropertyType.miWidth = mParams.mCVSizeKernel.width;
@@ -63,72 +108,62 @@ CVGaussianBlurModel()
     auto propBorderType = std::make_shared< TypedProperty< EnumPropertyType > >( "Border Type", propId, QtVariantPropertyManager::enumTypeId(), enumPropertyType, "Display" );
     mvProperty.push_back( propBorderType );
     mMapIdToProperty[ propId ] = propBorderType;
+
 }
 
-unsigned int
+QObject*
 CVGaussianBlurModel::
-nPorts(PortType portType) const
+createWorker()
 {
-    unsigned int result = 1;
-
-    switch (portType)
-    {
-    case PortType::In:
-        result = 1;
-        break;
-
-    case PortType::Out:
-        result = 1;
-        break;
-
-    default:
-        break;
-    }
-
-    return result;
-}
-
-
-NodeDataType
-CVGaussianBlurModel::
-dataType(PortType, PortIndex) const
-{
-    return CVImageData().type();
-}
-
-
-std::shared_ptr<NodeData>
-CVGaussianBlurModel::
-outData(PortIndex)
-{
-    if( isEnable() )
-        return mpCVImageData;
-    else
-        return nullptr;
+    return new CVGaussianBlurWorker();
 }
 
 void
 CVGaussianBlurModel::
-setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
+connectWorker(QObject* worker)
 {
-    if (nodeData)
-    {
-        auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
-        if (d)
-        {
-            mpCVImageInData = d;
-            processData(mpCVImageInData,mpCVImageData,mParams);
-        }
+    auto* w = qobject_cast<CVGaussianBlurWorker*>(worker);
+    if (w) {
+        connect(w, &CVGaussianBlurWorker::frameReady,
+                this, &PBAsyncDataModel::handleFrameReady,
+                Qt::QueuedConnection);
     }
+}
 
-    Q_EMIT dataUpdated(0);
+void
+CVGaussianBlurModel::
+dispatchPendingWork()
+{
+    if(!hasPendingWork())
+        return;
+    
+    cv::Mat input = mPendingFrame;
+    CVGaussianBlurParameters params = mPendingParams;
+    setPendingWork(false);
+    
+    ensure_frame_pool(input.cols, input.rows, input.type());
+    
+    long frameId = getNextFrameId();
+    QString producerId = getNodeId();
+    
+    std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+    
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+        Qt::QueuedConnection,
+        Q_ARG(cv::Mat, input.clone()),
+        Q_ARG(CVGaussianBlurParameters, params),
+        Q_ARG(FrameSharingMode, getSharingMode()),
+        Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+        Q_ARG(long, frameId),
+        Q_ARG(QString, producerId));
 }
 
 QJsonObject
 CVGaussianBlurModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDelegateModel::save();
+    QJsonObject modelJson = PBAsyncDataModel::save();
 
     QJsonObject cParams;
     cParams["kernelWidth"] = mParams.mCVSizeKernel.width;
@@ -145,7 +180,7 @@ void
 CVGaussianBlurModel::
 load(QJsonObject const& p)
 {
-    PBNodeDelegateModel::load(p);
+    PBAsyncDataModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -194,14 +229,12 @@ void
 CVGaussianBlurModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDelegateModel::setModelProperty( id, value );
-
     if( !mMapIdToProperty.contains( id ) )
         return;
 
-    auto prop = mMapIdToProperty[ id ];
     if( id == "kernel_size" )
     {
+        auto prop = mMapIdToProperty[ id ];
         auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
         QSize kSize =  value.toSize();
         bool adjValue = false;
@@ -215,25 +248,20 @@ setModelProperty( QString & id, const QVariant & value )
             kSize.setHeight( kSize.height() + 1 );
             adjValue = true;
         }
+        typedProp->getData().miWidth = kSize.width();
+        typedProp->getData().miHeight = kSize.height();
         if( adjValue )
         {
-            typedProp->getData().miWidth = kSize.width();
-            typedProp->getData().miHeight = kSize.height();
-
+            // Notify listeners that the entered kernel size was coerced
+            // (made odd). Downstream UI will refresh to the corrected
+            // value via this signal.
             Q_EMIT property_changed_signal( prop );
-            return;
         }
-        else
-        {
-            auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
-            typedProp->getData().miWidth = kSize.width();
-            typedProp->getData().miHeight = kSize.height();
-
-            mParams.mCVSizeKernel = cv::Size( kSize.width(), kSize.height() );
-        }
+        mParams.mCVSizeKernel = cv::Size( kSize.width(), kSize.height() );
     }
     else if( id == "sigma_x" )
     {
+        auto prop = mMapIdToProperty[ id ];
         auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
         typedProp->getData().mdValue = value.toDouble();
 
@@ -241,6 +269,7 @@ setModelProperty( QString & id, const QVariant & value )
     }
     else if( id == "sigma_y" )
     {
+        auto prop = mMapIdToProperty[ id ];
         auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType > >( prop );
         typedProp->getData().mdValue = value.toDouble();
 
@@ -248,6 +277,7 @@ setModelProperty( QString & id, const QVariant & value )
     }
     else if( id == "border_type" )
     {
+        auto prop = mMapIdToProperty[ id ];
         auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
         typedProp->getData().miCurrentIndex = value.toInt();
 
@@ -276,21 +306,57 @@ setModelProperty( QString & id, const QVariant & value )
             break;
         }
     }
-    if( mpCVImageInData )
+    else
     {
-        processData(mpCVImageInData,mpCVImageData,mParams);
-
-        Q_EMIT dataUpdated(0);
+        // Base class handles pool_size and sharing_mode
+        // Need to call base class to handle pool_size and sharing_mode
+        PBAsyncDataModel::setModelProperty( id, value );
+        // No need to process_cached_input() here
+        return;
     }
+    // Process cached input if available
+    if (mpCVImageInData && !isShuttingDown())
+        process_cached_input();
 }
-
-void CVGaussianBlurModel::processData(const std::shared_ptr<CVImageData> &in, std::shared_ptr<CVImageData> &out, const CVGaussianBlurParameters &params)
+void
+CVGaussianBlurModel::
+process_cached_input()
 {
-    cv::Mat& in_image = in->data();
-    if(!in_image.empty() && (in_image.depth()==CV_8U || in_image.depth()==CV_16U || in_image.depth()==CV_16S || in_image.depth()==CV_32F || in_image.depth()==CV_64F))
+    if( !mpCVImageInData || mpCVImageInData->data().empty() )
+        return;
+    
+    cv::Mat input = mpCVImageInData->data();
+    
+    // Emit sync "false" signal in next event loop
+    QTimer::singleShot(0, this, [this]() {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(1);
+    });
+    
+    if(isWorkerBusy())
     {
-        cv::GaussianBlur(in->data(),out->data(),params.mCVSizeKernel,params.mdSigmaX,params.mdSigmaY,params.miBorderType);
+        mPendingFrame = input.clone();
+        mPendingParams = mParams;
+        setPendingWork(true);
+    }
+    else
+    {
+        setWorkerBusy(true);
+        
+        ensure_frame_pool(input.cols, input.rows, input.type());
+        
+        long frameId = getNextFrameId();
+        QString producerId = getNodeId();
+        
+        std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+        
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+            Qt::QueuedConnection,
+            Q_ARG(cv::Mat, input.clone()),
+            Q_ARG(CVGaussianBlurParameters, mParams),
+            Q_ARG(FrameSharingMode, getSharingMode()),
+            Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+            Q_ARG(long, frameId),
+            Q_ARG(QString, producerId));
     }
 }
-
-

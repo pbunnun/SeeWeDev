@@ -14,11 +14,12 @@
 
 #include "CVHoughCircleTransfromModel.hpp"
 
-#include <QDebug> //for debugging using qDebug()
-
+#include <QtCore/QEvent>
+#include <QtCore/QDir>
+#include <QtCore/QTimer>
+#include <QDebug>
 
 #include <opencv2/imgproc.hpp>
-#include <opencv2/highgui.hpp>
 #include "qtvariantproperty_p.h"
 
 const QString CVHoughCircleTransformModel::_category = QString( "Image Processing" );
@@ -27,12 +28,139 @@ const QString CVHoughCircleTransformModel::_model_name = QString( "CV Hough Circ
 
 const std::string CVHoughCircleTransformModel::color[3] = {"B", "G", "R"};
 
+void CVHoughCircleTransformWorker::
+    processFrame(cv::Mat input,
+                 int houghMethod,
+                 double inverseRatio,
+                 double centerDistance,
+                 double thresholdU,
+                 double thresholdL,
+                 int radiusMin,
+                 int radiusMax,
+                 bool displayPoint,
+                 unsigned char pointColorB,
+                 unsigned char pointColorG,
+                 unsigned char pointColorR,
+                 int pointSize,
+                 bool displayCircle,
+                 unsigned char circleColorB,
+                 unsigned char circleColorG,
+                 unsigned char circleColorR,
+                 int circleThickness,
+                 int circleType,
+                 FrameSharingMode mode,
+                 std::shared_ptr<CVImagePool> pool,
+                 long frameId,
+                 QString producerId)
+{
+    if (input.empty() || input.type() != CV_8UC1)
+    {
+        Q_EMIT frameReady(nullptr, nullptr);
+        return;
+    }
+
+    FrameMetadata metadata;
+    metadata.producerId = producerId;
+    metadata.frameId = frameId;
+
+    // Detect circles
+    std::vector<cv::Vec3f> circles;
+    cv::HoughCircles(input,
+                     circles,
+                     houghMethod,
+                     inverseRatio,
+                     centerDistance,
+                     thresholdU,
+                     thresholdL,
+                     radiusMin,
+                     radiusMax);
+
+    // Create output image data
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+    bool pooled = false;
+    
+    if (mode == FrameSharingMode::PoolMode && pool)
+    {
+        auto handle = pool->acquire(3, metadata); // 3 channels for BGR
+        if (handle)
+        {
+            cv::cvtColor(input, handle.matrix(), cv::COLOR_GRAY2BGR);
+            
+            // Draw circles
+            for (const cv::Vec3f& circle : circles)
+            {
+                if (displayPoint)
+                {
+                    cv::circle(handle.matrix(),
+                              cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
+                              1,
+                              cv::Scalar(pointColorB, pointColorG, pointColorR),
+                              pointSize,
+                              cv::LINE_8);
+                }
+                if (displayCircle)
+                {
+                    cv::circle(handle.matrix(),
+                              cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
+                              static_cast<int>(circle[2]),
+                              cv::Scalar(circleColorB, circleColorG, circleColorR),
+                              circleThickness,
+                              circleType);
+                }
+            }
+            
+            if (!handle.matrix().empty() && newImageData->adoptPoolFrame(std::move(handle)))
+                pooled = true;
+        }
+    }
+    
+    if (!pooled)
+    {
+        cv::Mat result;
+        cv::cvtColor(input, result, cv::COLOR_GRAY2BGR);
+        
+        // Draw circles
+        for (const cv::Vec3f& circle : circles)
+        {
+            if (displayPoint)
+            {
+                cv::circle(result,
+                          cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
+                          1,
+                          cv::Scalar(pointColorB, pointColorG, pointColorR),
+                          pointSize,
+                          cv::LINE_8);
+            }
+            if (displayCircle)
+            {
+                cv::circle(result,
+                          cv::Point(static_cast<int>(circle[0]), static_cast<int>(circle[1])),
+                          static_cast<int>(circle[2]),
+                          cv::Scalar(circleColorB, circleColorG, circleColorR),
+                          circleThickness,
+                          circleType);
+            }
+        }
+        
+        if (result.empty())
+        {
+            Q_EMIT frameReady(nullptr, nullptr);
+            return;
+        }
+        newImageData->updateMove(std::move(result), metadata);
+    }
+
+    // Create output count data
+    auto countData = std::make_shared<IntegerData>(static_cast<int>(circles.size()));
+    
+    Q_EMIT frameReady(newImageData, countData);
+}
+
 CVHoughCircleTransformModel::
 CVHoughCircleTransformModel()
-    : PBNodeDelegateModel( _model_name ),
+    : PBAsyncDataModel( _model_name ),
       _minPixmap( ":CVHoughCircleTransform.png" )
 {
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpIntegerData = std::make_shared< IntegerData >( int() );
 
     EnumPropertyType enumPropertyType;
@@ -132,82 +260,143 @@ CVHoughCircleTransformModel()
     mMapIdToProperty[ propId ] = propCircleType;
 }
 
+QObject*
+CVHoughCircleTransformModel::
+createWorker()
+{
+    return new CVHoughCircleTransformWorker();
+}
+
+void
+CVHoughCircleTransformModel::
+connectWorker(QObject* worker)
+{
+    auto* w = qobject_cast<CVHoughCircleTransformWorker*>(worker);
+    if (w) {
+        connect(w, &CVHoughCircleTransformWorker::frameReady,
+                this, [this](std::shared_ptr<CVImageData> img, std::shared_ptr<IntegerData> count) {
+                    // Handle both outputs
+                    mpCVImageData = img;
+                    mpIntegerData = count;
+                    
+                    // Update port 0 (image)
+                    Q_EMIT dataUpdated(0);
+                    // Update port 1 (count)
+                    Q_EMIT dataUpdated(1);
+                    // Update sync port
+                    mpSyncData->data() = true;
+                    Q_EMIT dataUpdated(2);
+                    
+                    setWorkerBusy(false);
+                    dispatchPendingWork();
+                },
+                Qt::QueuedConnection);
+    }
+}
+
 unsigned int
 CVHoughCircleTransformModel::
 nPorts(PortType portType) const
 {
-    unsigned int result = 1;
-
     switch (portType)
     {
     case PortType::In:
-        result = 1;
-        break;
-
+        return 2; // image + sync
     case PortType::Out:
-        result = 2;
-        break;
-
+        return 3; // image + count + sync
     default:
-        break;
+        return 0;
     }
-
-    return result;
 }
-
 
 NodeDataType
 CVHoughCircleTransformModel::
-dataType(PortType, PortIndex portIndex) const
+dataType(PortType portType, PortIndex portIndex) const
 {
-    if(portIndex == 1)
+    if (portType == PortType::Out)
     {
-        return IntegerData().type();
+        if (portIndex == 0)
+            return CVImageData().type();
+        else if (portIndex == 1)
+            return IntegerData().type();
+        else if (portIndex == 2)
+            return SyncData().type();
     }
-    return CVImageData().type();
+    else if (portType == PortType::In)
+    {
+        if (portIndex == 0)
+            return CVImageData().type();
+        else if (portIndex == 1)
+            return SyncData().type();
+    }
+    return NodeDataType();
 }
-
 
 std::shared_ptr<NodeData>
 CVHoughCircleTransformModel::
-outData(PortIndex I)
+outData(PortIndex port)
 {
-    if( isEnable() )
-    {
-        if(I == 0)
-        {
-            return mpCVImageData;
-        }
-        else if(I == 1)
-        {
-            return mpIntegerData;
-        }
+    if (port == 0 && mpCVImageData) {
+        return mpCVImageData;
+    } else if (port == 1 && mpIntegerData) {
+        return mpIntegerData;
+    } else if (port == 2 && mpSyncData) {
+        return mpSyncData;
     }
     return nullptr;
 }
 
 void
 CVHoughCircleTransformModel::
-setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
+dispatchPendingWork()
 {
-    if (nodeData)
-    {
-        auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
-        if (d)
-        {
-            mpCVImageInData = d;
-            processData( mpCVImageInData, mpCVImageData, mpIntegerData, mParams);
-        }
-    }
+    if (!hasPendingWork() || isShuttingDown())
+        return;
 
-    updateAllOutputPorts();
+    cv::Mat input = mPendingFrame;
+    CVHoughCircleTransformParameters params = mPendingParams;
+    setPendingWork(false);
+
+    ensure_frame_pool(input.cols, input.rows, CV_8UC3); // 3 channels for output BGR
+
+    long frameId = getNextFrameId();
+    QString producerId = getNodeId();
+
+    std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+                              Qt::QueuedConnection,
+                              Q_ARG(cv::Mat, input.clone()),
+                              Q_ARG(int, params.miHoughMethod),
+                              Q_ARG(double, params.mdInverseRatio),
+                              Q_ARG(double, params.mdCenterDistance),
+                              Q_ARG(double, params.mdThresholdU),
+                              Q_ARG(double, params.mdThresholdL),
+                              Q_ARG(int, params.miRadiusMin),
+                              Q_ARG(int, params.miRadiusMax),
+                              Q_ARG(bool, params.mbDisplayPoint),
+                              Q_ARG(unsigned char, params.mucPointColor[0]),
+                              Q_ARG(unsigned char, params.mucPointColor[1]),
+                              Q_ARG(unsigned char, params.mucPointColor[2]),
+                              Q_ARG(int, params.miPointSize),
+                              Q_ARG(bool, params.mbDisplayCircle),
+                              Q_ARG(unsigned char, params.mucCircleColor[0]),
+                              Q_ARG(unsigned char, params.mucCircleColor[1]),
+                              Q_ARG(unsigned char, params.mucCircleColor[2]),
+                              Q_ARG(int, params.miCircleThickness),
+                              Q_ARG(int, params.miCircleType),
+                              Q_ARG(FrameSharingMode, getSharingMode()),
+                              Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                              Q_ARG(long, frameId),
+                              Q_ARG(QString, producerId));
 }
 
 QJsonObject
 CVHoughCircleTransformModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDelegateModel::save();
+    QJsonObject modelJson = PBAsyncDataModel::save();
 
     QJsonObject cParams;
     cParams["houghMethod"] = mParams.miHoughMethod;
@@ -239,7 +428,7 @@ void
 CVHoughCircleTransformModel::
 load(QJsonObject const& p)
 {
-    PBNodeDelegateModel::load(p);
+    PBAsyncDataModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -383,10 +572,12 @@ void
 CVHoughCircleTransformModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDelegateModel::setModelProperty( id, value );
-
     if( !mMapIdToProperty.contains( id ) )
+    {
+        // Base class handles pool_size and sharing_mode
+        PBAsyncDataModel::setModelProperty(id, value);
         return;
+    }
 
     auto prop = mMapIdToProperty[ id ];
     if( id == "hough_method" )
@@ -529,62 +720,67 @@ setModelProperty( QString & id, const QVariant & value )
         }
     }
 
-    if( mpCVImageInData )
-    {
-        processData( mpCVImageInData, mpCVImageData, mpIntegerData, mParams);
-
-        updateAllOutputPorts();
-    }
+    // Process cached input if available
+    if (mpCVImageInData && !isShuttingDown())
+        process_cached_input();
 }
 
-void
-CVHoughCircleTransformModel::
-processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & outImage,
-            std::shared_ptr<IntegerData> &outInt, const CVHoughCircleTransformParameters & params)
+void CVHoughCircleTransformModel::
+    process_cached_input()
 {
-    cv::Mat& in_image = in->data();
-    if(in_image.empty() || in_image.type()!=CV_8UC1)
-    {
+    if (!mpCVImageInData || mpCVImageInData->data().empty())
         return;
-    }
-    cv::Mat& out_image = outImage->data();
-    outImage->set_image(in_image);
-    std::vector<cv::Vec3f> Circles;
-    cv::HoughCircles(out_image,
-                     Circles,
-                     params.miHoughMethod,
-                     params.mdInverseRatio,
-                     params.mdCenterDistance,
-                     200,
-                     100,
-                     25,
-                     200);
-    outInt->data() = static_cast<int>(Circles.size());
-    cv::cvtColor(in_image,out_image,cv::COLOR_GRAY2BGR);
-    for(cv::Vec3f& circle : Circles)
+    
+    cv::Mat input = mpCVImageInData->data();
+    
+    // Emit sync "false" signal in next event loop
+    QTimer::singleShot(0, this, [this]() {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(2);
+    });
+    
+    if (isWorkerBusy())
     {
-        if(params.mbDisplayPoint)
-        {
-            cv::circle(out_image,
-                       cv::Point(circle[0],circle[1]),
-                       1,
-                       cv::Scalar(static_cast<uchar>(params.mucPointColor[0]),
-                                  static_cast<uchar>(params.mucPointColor[1]),
-                                  static_cast<uchar>(params.mucPointColor[2])),
-                       params.miPointSize,
-                       cv::LINE_8);
-        }
-        if(params.mbDisplayCircle)
-        {
-            cv::circle(out_image,
-                       cv::Point(circle[0],circle[1]),
-                       circle[2],
-                       cv::Scalar(static_cast<uchar>(params.mucCircleColor[0]),
-                                  static_cast<uchar>(params.mucCircleColor[1]),
-                                  static_cast<uchar>(params.mucCircleColor[2])),
-                       params.miCircleThickness,
-                       params.miCircleType);
-        }
+        // Store as pending - will be processed when worker finishes
+        mPendingFrame = input.clone();
+        mPendingParams = mParams;
+        setPendingWork(true);
+    }
+    else
+    {
+        setWorkerBusy(true);
+        
+        ensure_frame_pool(input.cols, input.rows, CV_8UC3); // 3 channels for output BGR
+        
+        long frameId = getNextFrameId();
+        QString producerId = getNodeId();
+        
+        std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+        
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(cv::Mat, input.clone()),
+                                  Q_ARG(int, mParams.miHoughMethod),
+                                  Q_ARG(double, mParams.mdInverseRatio),
+                                  Q_ARG(double, mParams.mdCenterDistance),
+                                  Q_ARG(double, mParams.mdThresholdU),
+                                  Q_ARG(double, mParams.mdThresholdL),
+                                  Q_ARG(int, mParams.miRadiusMin),
+                                  Q_ARG(int, mParams.miRadiusMax),
+                                  Q_ARG(bool, mParams.mbDisplayPoint),
+                                  Q_ARG(unsigned char, mParams.mucPointColor[0]),
+                                  Q_ARG(unsigned char, mParams.mucPointColor[1]),
+                                  Q_ARG(unsigned char, mParams.mucPointColor[2]),
+                                  Q_ARG(int, mParams.miPointSize),
+                                  Q_ARG(bool, mParams.mbDisplayCircle),
+                                  Q_ARG(unsigned char, mParams.mucCircleColor[0]),
+                                  Q_ARG(unsigned char, mParams.mucCircleColor[1]),
+                                  Q_ARG(unsigned char, mParams.mucCircleColor[2]),
+                                  Q_ARG(int, mParams.miCircleThickness),
+                                  Q_ARG(int, mParams.miCircleType),
+                                  Q_ARG(FrameSharingMode, getSharingMode()),
+                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                                  Q_ARG(long, frameId),
+                                  Q_ARG(QString, producerId));
     }
 }
-

@@ -51,9 +51,11 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
 #include "IntegerData.hpp"
+#include "CVImagePool.hpp"
+#include "SyncData.hpp"
 #include <opencv2/imgproc.hpp>
 
 using QtNodes::PortType;
@@ -61,6 +63,8 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 
 /**
  * @struct CVHoughCircleTransformParameters
@@ -323,7 +327,49 @@ typedef struct CVHoughCircleTransformParameters{
  *
  * @see CVHoughCircleTransformParameters, cv::CVHoughCircles, cv::HOUGH_GRADIENT
  */
-class CVHoughCircleTransformModel : public PBNodeDelegateModel
+
+/**
+ * @class CVHoughCircleTransformWorker
+ * @brief Worker class for asynchronous circle detection
+ */
+class CVHoughCircleTransformWorker : public QObject
+{
+    Q_OBJECT
+public:
+    CVHoughCircleTransformWorker() {}
+
+public Q_SLOTS:
+    void processFrame(cv::Mat input,
+                     int houghMethod,
+                     double inverseRatio,
+                     double centerDistance,
+                     double thresholdU,
+                     double thresholdL,
+                     int radiusMin,
+                     int radiusMax,
+                     bool displayPoint,
+                     unsigned char pointColorB,
+                     unsigned char pointColorG,
+                     unsigned char pointColorR,
+                     int pointSize,
+                     bool displayCircle,
+                     unsigned char circleColorB,
+                     unsigned char circleColorG,
+                     unsigned char circleColorR,
+                     int circleThickness,
+                     int circleType,
+                     FrameSharingMode mode,
+                     std::shared_ptr<CVImagePool> pool,
+                     long frameId,
+                     QString producerId);
+
+Q_SIGNALS:
+    // CRITICAL: This signal MUST be declared in each worker class
+    // CANNOT be inherited from base class due to Qt MOC limitation
+    void frameReady(std::shared_ptr<CVImageData> img, std::shared_ptr<IntegerData> count);
+};
+
+class CVHoughCircleTransformModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
@@ -339,18 +385,6 @@ public:
     void
     load(const QJsonObject &p) override;
 
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    NodeDataType
-    dataType(PortType portType, PortIndex portIndex) const override;
-
-    std::shared_ptr<NodeData>
-    outData(PortIndex port) override;
-
-    void
-    setInData(std::shared_ptr<NodeData> nodeData, PortIndex) override;
-
     QWidget *
     embeddedWidget() override { return nullptr; }
 
@@ -360,94 +394,37 @@ public:
     QPixmap
     minPixmap() const override { return _minPixmap; }
 
+    // Override base class to handle 3 outputs instead of 2
+    unsigned int
+    nPorts(PortType portType) const override;
+
+    NodeDataType
+    dataType(PortType portType, PortIndex portIndex) const override;
+
+    std::shared_ptr<NodeData>
+    outData(PortIndex port) override;
+
     static const QString _category;
 
     static const QString _model_name;
 
+protected:
+    // Implement PBAsyncDataModel pure virtuals
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+
 private:
+    void process_cached_input() override;
+
     CVHoughCircleTransformParameters mParams;              ///< Current detection and visualization parameters
-    std::shared_ptr<CVImageData> mpCVImageInData { nullptr };  ///< Input grayscale image for circle detection
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };    ///< Output visualization image with circles drawn
-    std::shared_ptr<IntegerData> mpIntegerData { nullptr };    ///< Output count of detected circles
+    std::shared_ptr<IntegerData> mpIntegerData { nullptr }; ///< Output count of detected circles
     QPixmap _minPixmap;                                  ///< Node icon for visual representation
 
     static const std::string color[3];                   ///< Color channel names for property system
 
-    /**
-     * @brief Core circle detection and visualization processing function.
-     *
-     * This function performs the complete Hough Circle Transform pipeline:
-     *
-     * Algorithm Steps:
-     * 1. Input Validation:
-     *    - Verify image is non-empty
-     *    - Convert to grayscale if needed
-     *    - Check image is 8-bit single channel
-     *
-     * 2. Circle Detection (cv::CVHoughCircles):
-     *    ```cpp
-     *    cv::CVHoughCircles(
-     *        gray_image,                // Input: 8-bit single-channel
-     *        circles,                   // Output: Vector of Vec3f [x, y, radius]
-     *        cv::HOUGH_GRADIENT,        // Method: Gradient-based detection
-     *        params.mdInverseRatio,     // Accumulator resolution
-     *        params.mdCenterDistance,   // Minimum center separation
-     *        params.mdThresholdU,       // Canny upper threshold
-     *        params.mdThresholdL,       // Accumulator threshold
-     *        params.miRadiusMin,        // Minimum radius
-     *        params.miRadiusMax         // Maximum radius
-     *    );
-     *    ```
-     *
-     * 3. Visualization Preparation:
-     *    - Convert grayscale to BGR for colored drawing
-     *    - Create output image buffer
-     *
-     * 4. Circle Rendering:
-     *    For each detected circle (x, y, r):
-     *    - If mbDisplayPoint: Draw filled circle at center (radius = miPointSize)
-     *    - If mbDisplayCircle: Draw circle outline (radius = r, thickness = miCircleThickness)
-     *
-     * 5. Output Generation:
-     *    - outImage: Visualization with all circles drawn
-     *    - outInt: Total count of detected circles
-     *
-     * Example Detection Results:
-     * ```
-     * // Input: Coin image (640×480), 3 coins visible
-     * // Parameters: RadiusMin=25, RadiusMax=35, ThresholdL=100
-     * // Output circles vector:
-     * [
-     *   (150, 200, 30),  // Coin 1: center at (150, 200), radius 30px
-     *   (350, 180, 28),  // Coin 2: center at (350, 180), radius 28px
-     *   (500, 220, 32)   // Coin 3: center at (500, 220), radius 32px
-     * ]
-     * // Output count: 3
-     * ```
-     *
-     * Edge Cases Handled:
-     * - Empty input → No circles detected, count = 0
-     * - No circles found → Original image returned, count = 0
-     * - Color input → Automatically converted to grayscale for processing
-     * - Visualization disabled → Still performs detection, outputs count
-     *
-     * Performance Notes:
-     * - Detection time dominated by radius range and image resolution
-     * - Visualization overhead minimal (~1-5ms for typical circle counts)
-     * - Most time spent in cv::CVHoughCircles (10-500ms depending on parameters)
-     *
-     * @param in Input grayscale or color image (will be converted to grayscale internally)
-     * @param outImage Output visualization image with detected circles drawn
-     * @param outInt Output circle count (number of circles detected)
-     * @param params Detection and visualization parameters
-     *
-     * @note Input image should be preprocessed (e.g., blurred) for best results
-     * @note Grayscale conversion uses cv::COLOR_BGR2GRAY if input is color
-     * @note Circle coordinates are floating-point but rendered at pixel precision
-     *
-     * @see cv::CVHoughCircles, cv::circle, CVHoughCircleTransformParameters
-     */
-    void processData( const std::shared_ptr< CVImageData> & in, std::shared_ptr< CVImageData > & outImage,
-                      std::shared_ptr<IntegerData> &outInt, const CVHoughCircleTransformParameters & params);
+    // Pending data for backpressure
+    cv::Mat mPendingFrame;
+    CVHoughCircleTransformParameters mPendingParams;
 };
 

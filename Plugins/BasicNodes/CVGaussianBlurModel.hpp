@@ -26,14 +26,19 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
+#include "CVImagePool.hpp"
+#include "SyncData.hpp"
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 
 /**
  * @struct CVGaussianBlurParameters
@@ -88,6 +93,26 @@ typedef struct CVGaussianBlurParameters{
     }
 } CVGaussianBlurParameters;
 
+class CVGaussianBlurWorker : public QObject
+{
+    Q_OBJECT
+public:
+    explicit CVGaussianBlurWorker(QObject *parent = nullptr) : QObject(parent) {}
+
+public Q_SLOTS:
+    void processFrame(cv::Mat input,
+                     CVGaussianBlurParameters params,
+                     FrameSharingMode mode,
+                     std::shared_ptr<CVImagePool> pool,
+                     long frameId,
+                     QString producerId);
+
+Q_SIGNALS:
+    // CRITICAL: This signal MUST be declared in each worker class
+    // CANNOT be inherited from base class due to Qt MOC limitation
+    void frameReady(std::shared_ptr<CVImageData> img);
+};
+
 /**
  * @class CVGaussianBlurModel
  * @brief Node model for Gaussian blur image smoothing
@@ -129,7 +154,7 @@ typedef struct CVGaussianBlurParameters{
  * @note For edge-preserving smoothing, consider bilateral filter instead
  * @see cv::CVGaussianBlur for the underlying OpenCV operation
  */
-class CVGaussianBlurModel : public PBNodeDelegateModel
+class CVGaussianBlurModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
@@ -144,8 +169,7 @@ public:
     /**
      * @brief Destructor
      */
-    virtual
-    ~CVGaussianBlurModel() override {}
+    ~CVGaussianBlurModel() override = default;
 
     /**
      * @brief Serializes the node state to JSON
@@ -166,56 +190,6 @@ public:
      */
     void
     load(const QJsonObject &p) override;
-
-    /**
-     * @brief Returns the number of ports for the given port type
-     * 
-     * This node has:
-     * - 1 input port (source image)
-     * - 1 output port (blurred image)
-     * 
-     * @param portType The type of port (In or Out)
-     * @return Number of ports of the specified type
-     */
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    /**
-     * @brief Returns the data type for a specific port
-     * 
-     * All ports use CVImageData type.
-     * 
-     * @param portType The type of port (In or Out)
-     * @param portIndex The index of the port
-     * @return NodeDataType describing CVImageData
-     */
-    NodeDataType
-    dataType(PortType portType, PortIndex portIndex) const override;
-
-    /**
-     * @brief Provides the blurred image output
-     * 
-     * @param port The output port index (only 0 is valid)
-     * @return Shared pointer to the blurred CVImageData
-     * @note Returns nullptr if no input has been processed
-     */
-    std::shared_ptr<NodeData>
-    outData(PortIndex port) override;
-
-    /**
-     * @brief Receives and processes input image data
-     * 
-     * When image data arrives, this method:
-     * 1. Validates the input data
-     * 2. Applies cv::CVGaussianBlur() with current parameters
-     * 3. Stores the result for output
-     * 4. Notifies connected nodes
-     * 
-     * @param nodeData The input CVImageData
-     * @param portIndex The input port index (must be 0)
-     */
-    void
-    setInData(std::shared_ptr<NodeData> nodeData, PortIndex) override;
 
     /**
      * @brief No embedded widget for this node
@@ -258,36 +232,23 @@ public:
     /** @brief Display name for the node type */
     static const QString _model_name;
 
+protected:
+    // Implement PBAsyncDataModel pure virtuals
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+
 private:
-    /**
-     * @brief Internal helper to perform Gaussian blur
-     * 
-     * Executes cv::CVGaussianBlur() with the configured parameters.
-     * The function:
-     * 1. Validates kernel size (must be odd)
-     * 2. Calculates sigma if set to 0 (auto mode)
-     * 3. Applies Gaussian convolution
-     * 4. Handles border pixels according to border type
-     * 
-     * @param in The input CVImageData to blur
-     * @param out The output CVImageData to populate with blurred image
-     * @param params The blur parameters (kernel, sigma, border type)
-     * @note Uses cv::CVGaussianBlur() internally
-     * @see cv::CVGaussianBlur
-     * @see cv::BorderTypes
-     */
-    void processData(const std::shared_ptr<CVImageData> &in, std::shared_ptr<CVImageData>& out, const CVGaussianBlurParameters& params);
+    void process_cached_input() override;
 
     /** @brief Current blur parameters */
     CVGaussianBlurParameters mParams;
     
-    /** @brief Cached blurred output image */
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };
-    
-    /** @brief Cached input image data */
-    std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
-    
     /** @brief Preview pixmap for node palette */
     QPixmap _minPixmap;
+
+    // Pending data for backpressure
+    cv::Mat mPendingFrame;
+    CVGaussianBlurParameters mPendingParams;
 };
 

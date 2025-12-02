@@ -39,5 +39,7 @@
         <file>Watershed.png</file>
         <file>ColorMap.png</file>
         <file>NodeDataTimer.png</file>
+        <file>HistogramEqualization.png</file>
+        <file>CLAHEEqualization.png</file>
     </qresource>
 </RCC>

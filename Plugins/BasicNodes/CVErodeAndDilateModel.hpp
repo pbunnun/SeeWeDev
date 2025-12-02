@@ -26,8 +26,10 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
+#include "CVImagePool.hpp"
+#include "SyncData.hpp"
 #include <opencv2/imgproc.hpp>
 #include "CVErodeAndDilateEmbeddedWidget.hpp"
 
@@ -36,6 +38,8 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 
 /**
  * @struct CVErodeAndDilateParameters
@@ -139,7 +143,36 @@ typedef struct CVErodeAndDilateParameters{
  * @see MorphologicalTransformationModel for compound operations
  * @see CVErodeAndDilateEmbeddedWidget for operation selector UI
  */
-class CVErodeAndDilateModel : public PBNodeDelegateModel
+/**
+ * @class CVErodeAndDilateWorker
+ * @brief Worker for asynchronous erode/dilate processing
+ */
+class CVErodeAndDilateWorker : public QObject
+{
+    Q_OBJECT
+public:
+    CVErodeAndDilateWorker() {}
+
+public Q_SLOTS:
+    void processFrame(cv::Mat input,
+                      int operation, // 0 = erode, 1 = dilate
+                      int kernelShape,
+                      int kernelWidth,
+                      int kernelHeight,
+                      int anchorX,
+                      int anchorY,
+                      int iterations,
+                      int borderType,
+                      FrameSharingMode mode,
+                      std::shared_ptr<CVImagePool> pool,
+                      long frameId,
+                      QString producerId);
+
+Q_SIGNALS:
+    void frameReady(std::shared_ptr<CVImageData> img);
+};
+
+class CVErodeAndDilateModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
@@ -177,50 +210,6 @@ public:
      */
     void
     load(const QJsonObject &p) override;
-
-    /**
-     * @brief Returns the number of ports
-     * 
-     * - 1 input port (source image)
-     * - 1 output port (processed image)
-     * 
-     * @param portType The type of port
-     * @return Number of ports
-     */
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    /**
-     * @brief Returns the data type for a port
-     * 
-     * All ports use CVImageData type.
-     * 
-     * @param portType The type of port
-     * @param portIndex The port index
-     * @return NodeDataType describing CVImageData
-     */
-    NodeDataType
-    dataType(PortType portType, PortIndex portIndex) const override;
-
-    /**
-     * @brief Provides the processed output
-     * 
-     * @param port The output port index (only 0 is valid)
-     * @return Shared pointer to eroded/dilated CVImageData
-     */
-    std::shared_ptr<NodeData>
-    outData(PortIndex port) override;
-
-    /**
-     * @brief Receives and processes input
-     * 
-     * Applies selected operation (erode or dilate) when data arrives.
-     * 
-     * @param nodeData Input image
-     * @param portIndex Input port (must be 0)
-     */
-    void
-    setInData(std::shared_ptr<NodeData> nodeData, PortIndex) override;
 
     /**
      * @brief Returns the embedded widget
@@ -272,33 +261,25 @@ private Q_SLOTS:
     void em_radioButton_clicked();
 
 private:
-    /**
-     * @brief Performs erosion or dilation
-     * 
-     * Creates structuring element and applies selected operation:
-     * - Erosion: cv::erode() - shrinks bright regions
-     * - Dilation: cv::dilate() - expands bright regions
-     * 
-     * @param in Input image
-     * @param out Output processed image
-     * @param params Morphological parameters
-     */
-    void processData(const std::shared_ptr<CVImageData>& in, std::shared_ptr<CVImageData>& out, const CVErodeAndDilateParameters& params);
+    // Async hooks
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+    void process_cached_input() override;
 
     /** @brief Current parameters */
     CVErodeAndDilateParameters mParams;
-    
-    /** @brief Output cache */
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };
-    
-    /** @brief Input cache */
-    std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
     
     /** @brief Embedded operation selector */
     CVErodeAndDilateEmbeddedWidget* mpEmbeddedWidget;
     
     /** @brief Preview pixmap */
     QPixmap _minPixmap;
+
+    // Pending for backpressure
+    cv::Mat mPendingFrame;
+    CVErodeAndDilateParameters mPendingParams;
+    int mPendingOperation {0};
 };
 
 

@@ -17,12 +17,14 @@
 #include <QDateTime>
 #include <QFileInfo>
 #include <QLoggingCategory>
+#include "CVDevLibrary.hpp"
 
 // Qt Logging Category for debug messages
 // Can be controlled at runtime via:
 // - Environment variable: QT_LOGGING_RULES="DebugLogging.info=false" or "DebugLogging.warning=false"
 // - In code: QLoggingCategory::setFilterRules("DebugLogging.info=false");
-Q_DECLARE_LOGGING_CATEGORY(DebugLogging)
+// Export the logging category symbol from CVDevLibrary on Windows
+Q_DECLARE_EXPORTED_LOGGING_CATEGORY(DebugLogging, CVDEVSHAREDLIB_EXPORT)
 
 // Logging macros with datetime and line number using Qt Logging Category
 #define DEBUG_LOG_INFO() qCInfo(DebugLogging) << "[[Info] " << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") << "|" << QFileInfo(__FILE__).fileName() << ":" << __LINE__ << "]"

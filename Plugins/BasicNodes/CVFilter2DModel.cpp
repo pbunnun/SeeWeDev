@@ -14,11 +14,62 @@
 
 #include "CVFilter2DModel.hpp"
 
+#include <QtCore/QTimer>
+#include <QtNodes/internal/ConnectionIdUtils.hpp>
 #include <QDebug> //for debugging using qDebug()
 
 
 #include <opencv2/imgproc.hpp>
 #include "qtvariantproperty_p.h"
+
+void CVFilter2DWorker::processFrame(cv::Mat input,
+                                     CVFilter2DParameters params,
+                                     FrameSharingMode mode,
+                                     std::shared_ptr<CVImagePool> pool,
+                                     long frameId,
+                                     QString producerId)
+{
+    if(input.empty())
+    {
+        Q_EMIT frameReady(nullptr);
+        return;
+    }
+
+    FrameMetadata metadata;
+    metadata.producerId = producerId;
+    metadata.frameId = frameId;
+
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+    bool pooled = false;
+    if(mode == FrameSharingMode::PoolMode && pool)
+    {
+        auto handle = pool->acquire(1, metadata);
+        if(handle)
+        {
+            // Write directly to pool buffer - zero extra allocation
+            cv::Mat temp;
+            cv::filter2D(input, temp, params.miImageDepth, params.mMKKernel.image(),
+                         cv::Point(-1,-1), params.mdDelta, params.miBorderType);
+            cv::convertScaleAbs(temp, handle.matrix());
+            if(!handle.matrix().empty() && newImageData->adoptPoolFrame(std::move(handle)))
+                pooled = true;
+        }
+    }
+    if(!pooled)
+    {
+        cv::Mat result;
+        cv::filter2D(input, result, params.miImageDepth, params.mMKKernel.image(),
+                     cv::Point(-1,-1), params.mdDelta, params.miBorderType);
+        cv::convertScaleAbs(result, result);
+        if(result.empty())
+        {
+            Q_EMIT frameReady(nullptr);
+            return;
+        }
+        newImageData->updateMove(std::move(result), metadata);
+    }
+    Q_EMIT frameReady(newImageData);
+}
 
 const QString CVFilter2DModel::_category = QString( "Image Modification" );
 
@@ -49,10 +100,14 @@ const cv::Mat MatKernel::image() const//All kernels for CVFilter2D are defined h
 
 CVFilter2DModel::
 CVFilter2DModel()
-    : PBNodeDelegateModel( _model_name ),
+    : PBAsyncDataModel( _model_name ),
       _minPixmap( ":CVFilter2D.png" )
 {
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
+    qRegisterMetaType<std::shared_ptr<CVImageData>>("std::shared_ptr<CVImageData>");
+    qRegisterMetaType<std::shared_ptr<CVImagePool>>("std::shared_ptr<CVImagePool>");
+    qRegisterMetaType<cv::Mat>("cv::Mat");
+    qRegisterMetaType<FrameSharingMode>("FrameSharingMode");
+    qRegisterMetaType<CVFilter2DParameters>("CVFilter2DParameters");
 
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList({"CV_8U", "CV_32F"});
@@ -91,63 +146,94 @@ CVFilter2DModel()
     mMapIdToProperty[ propId ] = propBorderType;
 }
 
-unsigned int
+QObject*
 CVFilter2DModel::
-nPorts(PortType portType) const
+createWorker()
 {
-    unsigned int result = 1;
-
-    switch (portType)
-    {
-    case PortType::In:
-        result = 1;
-        break;
-
-    case PortType::Out:
-        result = 1;
-        break;
-
-    default:
-        break;
-    }
-
-    return result;
-}
-
-
-NodeDataType
-CVFilter2DModel::
-dataType(PortType, PortIndex) const
-{
-    return CVImageData().type();
-}
-
-
-std::shared_ptr<NodeData>
-CVFilter2DModel::
-outData(PortIndex)
-{
-    if( isEnable() )
-        return mpCVImageData;
-    else
-        return nullptr;
+    return new CVFilter2DWorker();
 }
 
 void
 CVFilter2DModel::
-setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
+connectWorker(QObject* worker)
 {
-    if (nodeData)
-    {
-        auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
-        if (d)
-        {
-            mpCVImageInData = d;
-            processData( mpCVImageInData, mpCVImageData, mParams );
-        }
+    auto* w = qobject_cast<CVFilter2DWorker*>(worker);
+    if (w) {
+        connect(w, &CVFilter2DWorker::frameReady,
+                this, &PBAsyncDataModel::handleFrameReady,
+                Qt::QueuedConnection);
     }
+}
 
-    Q_EMIT dataUpdated(0);
+void
+CVFilter2DModel::
+dispatchPendingWork()
+{
+    if (!hasPendingWork() || isShuttingDown() || mPendingFrame.empty())
+        return;
+
+    cv::Mat input = mPendingFrame;
+    CVFilter2DParameters params = mPendingParams;
+    setPendingWork(false);
+
+    ensure_frame_pool(input.cols, input.rows, input.type());
+
+    long frameId = getNextFrameId();
+    QString producerId = getNodeId();
+    std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+                              Qt::QueuedConnection,
+                              Q_ARG(cv::Mat, input.clone()),
+                              Q_ARG(CVFilter2DParameters, params),
+                              Q_ARG(FrameSharingMode, getSharingMode()),
+                              Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                              Q_ARG(long, frameId),
+                              Q_ARG(QString, producerId));
+}
+
+void
+CVFilter2DModel::
+process_cached_input()
+{
+    if (!mpCVImageInData || mpCVImageInData->data().empty())
+        return;
+
+    cv::Mat input = mpCVImageInData->data();
+
+    // Emit sync "false" signal in next event loop
+    QTimer::singleShot(0, this, [this]() {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(1);
+    });
+
+    if (isWorkerBusy())
+    {
+        // Store as pending - will be processed when worker finishes
+        mPendingFrame = input.clone();
+        mPendingParams = mParams;
+        setPendingWork(true);
+    }
+    else
+    {
+        setWorkerBusy(true);
+
+        ensure_frame_pool(input.cols, input.rows, input.type());
+
+        long frameId = getNextFrameId();
+        QString producerId = getNodeId();
+        std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(cv::Mat, input.clone()),
+                                  Q_ARG(CVFilter2DParameters, mParams),
+                                  Q_ARG(FrameSharingMode, getSharingMode()),
+                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                                  Q_ARG(long, frameId),
+                                  Q_ARG(QString, producerId));
+    }
 }
 
 QJsonObject
@@ -227,12 +313,11 @@ void
 CVFilter2DModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDelegateModel::setModelProperty( id, value );
-
     if( !mMapIdToProperty.contains( id ) )
         return;
 
     auto prop = mMapIdToProperty[ id ];
+    
     if( id == "image_depth" )
     {
         auto typedProp = std::static_pointer_cast<TypedProperty<EnumPropertyType>>(prop);
@@ -331,31 +416,15 @@ setModelProperty( QString & id, const QVariant & value )
             break;
         }
     }
-
-    if( mpCVImageInData )
+    else
     {
-        processData( mpCVImageInData, mpCVImageData, mParams );
-
-        Q_EMIT dataUpdated(0);
+        // Base class handles pool_size and sharing_mode
+        // Need to call base class to handle pool_size and sharing_mode
+        PBAsyncDataModel::setModelProperty(id, value);
+        // No need to process_cached_input() here
+        return;
     }
+    // Process cached input if available
+    if (mpCVImageInData && !isShuttingDown())
+        process_cached_input();
 }
-
-void
-CVFilter2DModel::
-processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageData> & out,
-            const CVFilter2DParameters & params )
-{
-    if(!in->data().empty())
-    {
-        cv::filter2D(in->data(),
-                     out->data(),
-                     params.miImageDepth,
-                     params.mMKKernel.image(),
-                     cv::Point(-1,-1),
-                     params.mdDelta,
-                     params.miBorderType);
-        cv::convertScaleAbs(out->data(),out->data());
-    }
-}
-
-

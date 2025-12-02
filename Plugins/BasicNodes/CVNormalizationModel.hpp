@@ -62,18 +62,18 @@
 #pragma once
 
 #include <QtCore/QObject>
-#include <QtWidgets/QLabel>
+#include <opencv2/core.hpp>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
-#include "DoubleData.hpp"
-#include <opencv2/imgproc.hpp>
+#include "CVImagePool.hpp"
 
-using QtNodes::PortType;
-using QtNodes::PortIndex;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
-using QtNodes::NodeValidationState;
+using QtNodes::PortIndex;
+using QtNodes::PortType;
 
 /**
  * @struct NormalizationParameters
@@ -99,131 +99,76 @@ using QtNodes::NodeValidationState;
  * Default: NORM_MINMAX [0, 255] (standard 8-bit conversion)
  */
 typedef struct NormalizationParameters{
-    double mdRangeMax;     ///< Maximum value of target range
-    double mdRangeMin;     ///< Minimum value of target range
-    int miNormType;        ///< Normalization type (cv::NormTypes)
-    NormalizationParameters()
-        : mdRangeMax(255),
-          mdRangeMin(0),
-          miNormType(cv::NORM_MINMAX)
-    {
-    }
+    double mdRangeMax{255.0};     ///< Maximum value of target range
+    double mdRangeMin{0.0};       ///< Minimum value of target range
+    int miNormType{cv::NORM_MINMAX};  ///< Normalization type (cv::NormTypes)
 } NormalizationParameters;
 
 /**
- * @class CVNormalizationModel
- * @brief Node for normalizing image intensity values to specified ranges.
- *
- * This model provides flexible normalization using cv::normalize, supporting multiple
- * normalization types and dynamic range specification via optional input ports.
- *
- * Core Operation (NORM_MINMAX):
- * ```cpp
- * cv::normalize(input, output, min, max, cv::NORM_MINMAX);
- * // Maps input range [in_min, in_max] → output range [min, max]
- * ```
- *
- * Common Use Cases:
- *
- * 1. Contrast Enhancement:
- *    ```
- *    LowContrastImage → Normalize(0, 255, MINMAX) → Display
- *    Input: [80, 120] → Output: [0, 255] (full range)
- *    ```
- *
- * 2. 16-bit to 8-bit Conversion:
- *    ```
- *    16bitImage → Normalize(0, 255, MINMAX) → SavePNG
- *    Input: [0, 65535] → Output: [0, 255]
- *    ```
- *
- * 3. Float Display:
- *    ```
- *    FloatImage [0.0, 1.0] → Normalize(0, 255, MINMAX) → Display
- *    ```
- *
- * 4. Dynamic Range from Data:
- *    ```
- *    Image → ┐
- *            ├→ Normalize → Output
- *    Min  →  │  (use dynamic min/max)
- *    Max  → ┘
- *    ```
- *
- * The overwrite() function allows incoming DoubleData to override default min/max.
- *
- * Performance: O(W×H), fast linear transformation
- *
- * @see cv::normalize, NormalizationParameters
+ * @brief Worker for async normalization processing
  */
-class CVNormalizationModel : public PBNodeDelegateModel
+class CVNormalizationWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    CVNormalizationWorker() {}
+
+public Q_SLOTS:
+    void processFrame(cv::Mat frame,
+                      double rangeMin,
+                      double rangeMax,
+                      int normType,
+                      FrameSharingMode mode,
+                      std::shared_ptr<CVImagePool> pool,
+                      long frameId,
+                      QString producerId);
+
+Q_SIGNALS:
+    void frameReady(std::shared_ptr<CVImageData> outputImage);
+};
+
+/**
+ * @class CVNormalizationModel
+ * @brief Node for normalizing image intensity values with async processing.
+ *
+ * This model provides flexible normalization using cv::normalize with PBAsyncDataModel
+ * for non-blocking processing.
+ */
+class CVNormalizationModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
 public:
     CVNormalizationModel();
+    ~CVNormalizationModel() override = default;
 
-    virtual
-    ~CVNormalizationModel() override {}
+    QJsonObject save() const override;
+    void load(const QJsonObject& json) override;
 
-    QJsonObject
-    save() const override;
+    QWidget* embeddedWidget() override { return nullptr; }
 
-    void
-    load(const QJsonObject &p) override;
+    void setModelProperty(QString& id, const QVariant& value) override;
 
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    NodeDataType
-    dataType(PortType portType, PortIndex portIndex) const override;
-
-    std::shared_ptr<NodeData>
-    outData(PortIndex port) override;
-
-    void
-    setInData(std::shared_ptr<NodeData> nodeData, PortIndex) override;
-
-    QWidget *
-    embeddedWidget() override { return nullptr; }
-
-    void
-    setModelProperty( QString &, const QVariant & ) override;
-
-    QPixmap
-    minPixmap() const override { return _minPixmap; }
+    QPixmap minPixmap() const override { return _minPixmap; }
 
     static const QString _category;
-
     static const QString _model_name;
 
+protected:
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+
 private:
-    NormalizationParameters mParams;                   ///< Normalization configuration
-    std::shared_ptr<CVImageData> mpCVImageInData { nullptr };  ///< Input image
-    std::shared_ptr<DoubleData> mapDoubleInData[2] {{nullptr}};  ///< Optional min/max inputs
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };    ///< Normalized output
+    void process_cached_input() override;
+
+    NormalizationParameters mParams;
     QPixmap _minPixmap;
 
-    /**
-     * @brief Performs normalization using cv::normalize.
-     * @param in Input image
-     * @param out Normalized output image
-     * @param params Normalization parameters (range, type)
-     */
-    void processData( const std::shared_ptr< CVImageData> &in, std::shared_ptr<CVImageData> &out,
-                      const NormalizationParameters & params);
-
-    /**
-     * @brief Overrides range parameters with incoming DoubleData.
-     *
-     * Allows dynamic control of min/max via input ports:
-     * - in[0]: Override mdRangeMin
-     * - in[1]: Override mdRangeMax
-     *
-     * @param in Array of DoubleData inputs (min, max)
-     * @param params Parameters to update
-     */
-    void overwrite(std::shared_ptr<DoubleData> (&in)[2], NormalizationParameters &params);
-
+    // Pending data for backpressure
+    cv::Mat mPendingFrame;
+    NormalizationParameters mPendingParams;
 };
+
 

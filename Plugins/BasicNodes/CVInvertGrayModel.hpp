@@ -64,8 +64,7 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
-
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
 
 using QtNodes::PortType;
@@ -73,6 +72,8 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 
 /**
  * @class CVInvertGrayModel
@@ -253,85 +254,63 @@ using QtNodes::NodeValidationState;
  *
  * @see cv::bitwise_not, cv::subtract, CVImageData
  */
-class CVInvertGrayModel : public PBNodeDelegateModel
+
+/**
+ * @brief Worker class for asynchronous grayscale inversion.
+ */
+class CVInvertGrayWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit CVInvertGrayWorker(QObject* parent = nullptr) : QObject(parent) {}
+
+public Q_SLOTS:
+    /**
+     * @brief Process frame asynchronously.
+     * @param frame Input grayscale image to invert
+     */
+    void processFrame(const cv::Mat& frame)
+    {
+        if (frame.empty() || frame.channels() != 1)
+        {
+            Q_EMIT frameReady(nullptr);
+            return;
+        }
+
+        auto outData = std::make_shared<CVImageData>(cv::Mat());
+        cv::bitwise_not(frame, outData->data());
+        Q_EMIT frameReady(outData);
+    }
+
+Q_SIGNALS:
+    void frameReady(std::shared_ptr<CVImageData> output);
+};
+
+class CVInvertGrayModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
 public:
     CVInvertGrayModel();
 
-    virtual
-    ~CVInvertGrayModel() override {}
+    ~CVInvertGrayModel() override = default;
 
-    unsigned int
-    nPorts(PortType portType) const override;
+    QWidget* embeddedWidget() override { return nullptr; }
 
-    NodeDataType
-    dataType( PortType portType, PortIndex portIndex ) const override;
-
-    std::shared_ptr< NodeData >
-    outData( PortIndex port ) override;
-
-    void
-    setInData( std::shared_ptr< NodeData > nodeData, PortIndex ) override;
-
-    /**
-     * @brief No embedded widget (parameter-free operation).
-     * @return nullptr
-     */
-    QWidget *
-    embeddedWidget() override { return nullptr; }
-
-    QPixmap
-    minPixmap() const override { return _minPixmap; }
+    QPixmap minPixmap() const override { return _minPixmap; }
 
     static const QString _category;
-
     static const QString _model_name;
 
-private:
-    std::shared_ptr< CVImageData > mpCVImageData;  ///< Output inverted image
+protected:
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+    void process_cached_input() override;
 
-    QPixmap _minPixmap;  ///< Node icon for graph display
-    
-    /**
-     * @brief Core inversion processing function.
-     *
-     * Performs the intensity inversion operation:
-     * ```cpp
-     * cv::Mat input = in->data();
-     * cv::Mat output;
-     * cv::bitwise_not(input, output);
-     * // Result: output(x,y) = 255 - input(x,y) for 8-bit images
-     * out = std::make_shared<CVImageData>(output);
-     * ```
-     *
-     * Algorithm:
-     * 1. Extract cv::Mat from input CVImageData
-     * 2. Verify input is grayscale (single channel)
-     * 3. Apply bitwise NOT: cv::bitwise_not(input, output)
-     * 4. Package result as CVImageData
-     *
-     * Example:
-     * ```
-     * Input:  [  0,  50, 128, 200, 255]  (grayscale values)
-     * Output: [255, 205, 127,  55,   0]  (inverted)
-     * ```
-     *
-     * Performance:
-     * - 640×480: ~0.3ms
-     * - 1920×1080: ~1ms
-     * - Very fast due to SIMD optimization
-     *
-     * @param in Input grayscale image to invert
-     * @param out Output inverted image
-     *
-     * @note Input should be grayscale (CV_8UC1 typical)
-     * @note Operation is in-place capable (input and output can share memory)
-     * @note Applying twice returns original image (involution property)
-     *
-     * @see cv::bitwise_not
-     */
-    void processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageData > & out );
+private:
+    QPixmap _minPixmap;
+    cv::Mat mPendingFrame;
 };
 

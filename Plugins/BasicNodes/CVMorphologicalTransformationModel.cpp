@@ -16,6 +16,7 @@
 
 #include <QtCore/QEvent>
 #include <QtCore/QDir>
+#include <QtCore/QTimer>
 #include <QDebug>
 
 #include <QtWidgets/QFileDialog>
@@ -28,13 +29,65 @@ const QString CVMorphologicalTransformationModel::_category = QString( "Image Mo
 
 const QString CVMorphologicalTransformationModel::_model_name = QString( "CV Morph Transformation" );
 
+void CVMorphologicalTransformationWorker::processFrame(cv::Mat input,
+                                                       int morphMethod,
+                                                       int kernelShape,
+                                                       int kernelWidth,
+                                                       int kernelHeight,
+                                                       int anchorX,
+                                                       int anchorY,
+                                                       int iterations,
+                                                       int borderType,
+                                                       FrameSharingMode mode,
+                                                       std::shared_ptr<CVImagePool> pool,
+                                                       long frameId,
+                                                       QString producerId)
+{
+    if (input.empty())
+    {
+        Q_EMIT frameReady(nullptr);
+        return;
+    }
+
+    FrameMetadata metadata;
+    metadata.producerId = producerId;
+    metadata.frameId = frameId;
+
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+    bool pooled = false;
+    cv::Size ksize(kernelWidth, kernelHeight);
+    cv::Point anchor(anchorX, anchorY);
+    cv::Mat kernel = cv::getStructuringElement(kernelShape, ksize, anchor);
+
+    if (mode == FrameSharingMode::PoolMode && pool)
+    {
+        auto handle = pool->acquire(1, metadata);
+        if (handle)
+        {
+            cv::morphologyEx(input, handle.matrix(), morphMethod, kernel, anchor, iterations, borderType);
+            if (!handle.matrix().empty() && newImageData->adoptPoolFrame(std::move(handle)))
+                pooled = true;
+        }
+    }
+    if (!pooled)
+    {
+        cv::Mat result;
+        cv::morphologyEx(input, result, morphMethod, kernel, anchor, iterations, borderType);
+        if (result.empty())
+        {
+            Q_EMIT frameReady(nullptr);
+            return;
+        }
+        newImageData->updateMove(std::move(result), metadata);
+    }
+    Q_EMIT frameReady(newImageData);
+}
+
 CVMorphologicalTransformationModel::
 CVMorphologicalTransformationModel()
-    : PBNodeDelegateModel( _model_name ),
+    : PBAsyncDataModel( _model_name ),
       _minPixmap( ":MorphologicalTransformation.png" )
 {
-    mpCVImageData = std::make_shared<CVImageData>(cv::Mat());
-
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList({"MORPH_OPEN", "MORPH_CLOSE", "MORPH_GRADIENT", "MORPH_TOPHAT", "MORPH_BLACKHAT"});
     enumPropertyType.miCurrentIndex = 0;
@@ -81,70 +134,66 @@ CVMorphologicalTransformationModel()
     mMapIdToProperty[ propId ] = propBorderType;
 }
 
-unsigned int
+QObject*
 CVMorphologicalTransformationModel::
-nPorts(PortType portType) const
+createWorker()
 {
-    unsigned int result = 1;
-
-    switch (portType)
-    {
-    case PortType::In:
-        result = 1;
-        break;
-
-    case PortType::Out:
-        result = 1;
-        break;
-
-    default:
-        break;
-    }
-
-    return result;
-}
-
-
-NodeDataType
-CVMorphologicalTransformationModel::
-dataType(PortType, PortIndex) const
-{
-    return CVImageData().type();
-}
-
-
-std::shared_ptr<NodeData>
-CVMorphologicalTransformationModel::
-outData(PortIndex)
-{
-    if( isEnable() )
-        return mpCVImageData;
-    else
-        return nullptr;
+    return new CVMorphologicalTransformationWorker();
 }
 
 void
 CVMorphologicalTransformationModel::
-setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
+connectWorker(QObject* worker)
 {
-    if (nodeData)
-    {
-        auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
-        if (d)
-        {
-            mpCVImageInData = d;
-            processData(mpCVImageInData,mpCVImageData,mParams);
-        }
+    auto* w = qobject_cast<CVMorphologicalTransformationWorker*>(worker);
+    if (w) {
+        connect(w, &CVMorphologicalTransformationWorker::frameReady,
+                this, &PBAsyncDataModel::handleFrameReady,
+                Qt::QueuedConnection);
     }
+}
 
-    Q_EMIT dataUpdated(0);
+void
+CVMorphologicalTransformationModel::
+dispatchPendingWork()
+{
+    if (!hasPendingWork() || isShuttingDown())
+        return;
+
+    cv::Mat input = mPendingFrame;
+    MorphologicalTransformationParameters params = mPendingParams;
+    setPendingWork(false);
+
+    ensure_frame_pool(input.cols, input.rows, input.type());
+
+    long frameId = getNextFrameId();
+    QString producerId = getNodeId();
+
+    std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+                              Qt::QueuedConnection,
+                              Q_ARG(cv::Mat, input.clone()),
+                              Q_ARG(int, params.miMorphMethod),
+                              Q_ARG(int, params.miKernelShape),
+                              Q_ARG(int, params.mCVSizeKernel.width),
+                              Q_ARG(int, params.mCVSizeKernel.height),
+                              Q_ARG(int, params.mCVPointAnchor.x),
+                              Q_ARG(int, params.mCVPointAnchor.y),
+                              Q_ARG(int, params.miIteration),
+                              Q_ARG(int, params.miBorderType),
+                              Q_ARG(FrameSharingMode, getSharingMode()),
+                              Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                              Q_ARG(long, frameId),
+                              Q_ARG(QString, producerId));
 }
 
 QJsonObject
 CVMorphologicalTransformationModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDelegateModel::save();
+    QJsonObject modelJson = PBAsyncDataModel::save();
 
     QJsonObject cParams;
     cParams["morphMethod"] = mParams.miMorphMethod;
@@ -164,7 +213,7 @@ void
 CVMorphologicalTransformationModel::
 load(QJsonObject const& p)
 {
-    PBNodeDelegateModel::load(p);
+    PBAsyncDataModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -233,8 +282,6 @@ void
 CVMorphologicalTransformationModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDelegateModel::setModelProperty( id, value );
-
     if( !mMapIdToProperty.contains( id ) )
         return;
 
@@ -393,21 +440,64 @@ setModelProperty( QString & id, const QVariant & value )
             break;
         }
     }
-    if( mpCVImageInData )
+    else
     {
-        processData(mpCVImageInData,mpCVImageData,mParams);
-
-        Q_EMIT dataUpdated(0);
+        // Base class handles pool_size and sharing_mode
+        // Need to call base class to handle pool_size and sharing_mode
+        PBAsyncDataModel::setModelProperty(id, value);
+        // No need to process_cached_input() here
+        return;
     }
+    // Process cached input if available 
+    if (mpCVImageInData && !isShuttingDown())
+        process_cached_input();
 }
 
-void CVMorphologicalTransformationModel::processData(const std::shared_ptr<CVImageData> &in, std::shared_ptr<CVImageData> &out, const MorphologicalTransformationParameters &params)
+void CVMorphologicalTransformationModel::process_cached_input()
 {
-    cv::Mat& in_image = in->data();
-    if(!in_image.empty() && (in_image.depth()==CV_8U || in_image.depth()==CV_16U || in_image.depth()==CV_16S || in_image.depth()==CV_32F || in_image.depth()==CV_64F))
+    if (!mpCVImageInData || mpCVImageInData->data().empty())
+        return;
+
+    cv::Mat input = mpCVImageInData->data();
+
+    // Emit sync "false" signal in next event loop
+    QTimer::singleShot(0, this, [this]() {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(1);
+    });
+
+    if (isWorkerBusy())
     {
-        cv::Mat Kernel = cv::getStructuringElement(params.miKernelShape,params.mCVSizeKernel,params.mCVPointAnchor);
-        cv::morphologyEx(in_image,out->data(),params.miMorphMethod,Kernel,params.mCVPointAnchor,params.miIteration,params.miBorderType);
+        mPendingFrame = input.clone();
+        mPendingParams = mParams;
+        setPendingWork(true);
+    }
+    else
+    {
+        setWorkerBusy(true);
+
+        ensure_frame_pool(input.cols, input.rows, input.type());
+
+        long frameId = getNextFrameId();
+        QString producerId = getNodeId();
+
+        std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(cv::Mat, input.clone()),
+                                  Q_ARG(int, mParams.miMorphMethod),
+                                  Q_ARG(int, mParams.miKernelShape),
+                                  Q_ARG(int, mParams.mCVSizeKernel.width),
+                                  Q_ARG(int, mParams.mCVSizeKernel.height),
+                                  Q_ARG(int, mParams.mCVPointAnchor.x),
+                                  Q_ARG(int, mParams.mCVPointAnchor.y),
+                                  Q_ARG(int, mParams.miIteration),
+                                  Q_ARG(int, mParams.miBorderType),
+                                  Q_ARG(FrameSharingMode, getSharingMode()),
+                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                                  Q_ARG(long, frameId),
+                                  Q_ARG(QString, producerId));
     }
 }
 

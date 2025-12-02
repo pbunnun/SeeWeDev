@@ -1,3 +1,17 @@
+//Copyright © 2025, NECTEC, all rights reserved
+
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+
+//    http://www.apache.org/licenses/LICENSE-2.0
+
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+
 /**
  * @file CVImageData.hpp
  * @brief Node data wrapper for OpenCV cv::Mat (images).
@@ -67,13 +81,20 @@
 
 #pragma once
 
+#include <atomic>
+#include <utility>
 #include <opencv2/core/core.hpp>
 
+#include <QtCore/QDateTime>
 #include <QtNodes/NodeData>
+
+#include "CVImagePool.hpp"
 #include "InformationData.hpp"
 
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
+using CVDevLibrary::CVImagePool;
+using CVDevLibrary::FrameMetadata;
 
 /**
  * @class CVImageData
@@ -111,7 +132,7 @@ using QtNodes::NodeDataType;
  * // 2. Update existing image data
  * auto imageData = std::make_shared<CVImageData>();
  * cv::Mat frame = camera.read();
- * imageData->set_image(frame);
+ * imageData->updateClone(frame, {});
  * 
  * // 3. Chain processing
  * auto inputData = getInputData<CVImageData>(0);
@@ -221,7 +242,7 @@ public:
      * 
      * // Update with new frame
      * cv::Mat frame = camera.read();
-     * imageData->set_image(frame);
+     * imageData->updateClone(frame, {});
      * 
      * // Update information display
      * imageData->set_information();
@@ -230,10 +251,11 @@ public:
      * @note Does not automatically call set_information()
      */
     void
-    set_image (const cv::Mat &image )
+    updateClone(const cv::Mat &image, FrameMetadata metadata)
     {
-        image.copyTo( mCVImage );
-        //mCVImage = image.clone(); RUT
+        image.copyTo(mCVImage);
+        mPoolHandle = {};
+        assignMetadata(metadata);
     }
 
     /**
@@ -244,9 +266,11 @@ public:
      * temporary or otherwise relinquishes ownership.
      */
     void
-    set_image (cv::Mat &&image ) noexcept
+    updateMove(cv::Mat &&image, FrameMetadata metadata) noexcept
     {
         mCVImage = std::move(image);
+        mPoolHandle = {};
+        assignMetadata(metadata);
     }
 
     /**
@@ -269,7 +293,152 @@ public:
     cv::Mat &
     data()
     {
+        if (mPoolHandle)
+            return mPoolHandle.matrix();
         return mCVImage;
+    }
+
+    const cv::Mat &
+    data() const
+    {
+        if (mPoolHandle)
+            return mPoolHandle.matrix();
+        return mCVImage;
+    }
+
+    /**
+     * @brief Legacy API: Updates the wrapped image (clone).
+     *
+     * Provided for backward compatibility with existing nodes.
+     * New code should use `updateClone()` with explicit metadata.
+     *
+     * @param image New cv::Mat to store (will be cloned)
+     */
+    void
+    set_image(const cv::Mat &image)
+    {
+        updateClone(image, {});
+    }
+
+    /**
+     * @brief Legacy API: Updates the wrapped image (move).
+     *
+     * Provided for backward compatibility with existing nodes.
+     * New code should use `updateMove()` with explicit metadata.
+     *
+     * @param image New cv::Mat to move (ownership transferred)
+     */
+    void
+    set_image(cv::Mat &&image) noexcept
+    {
+        updateMove(std::move(image), {});
+    }
+
+    /**
+     * @brief Checks if this image data owns a pooled frame.
+     *
+     * @return true if frame is backed by a pool slot, false if owned cv::Mat
+     *
+     * Useful for debugging or metrics collection. Consumer nodes don't
+     * need to check this - just use `data()` which returns the correct reference.
+     */
+    bool
+    hasPoolFrame() const
+    {
+        return static_cast<bool>(mPoolHandle);
+    }
+
+    /**
+     * @brief Returns the metadata attached to this frame.
+     *
+     * @return FrameMetadata with timestamp, frameId, and producerId
+     *
+     * Used for tracing, debugging, and property browser display.
+     * Automatically populated by producer nodes via `adoptPoolFrame()`
+     * or `updateClone()`/`updateMove()` with metadata argument.
+     */
+    FrameMetadata const &
+    metadata() const
+    {
+        return mMetadata;
+    }
+
+    /**
+     * @brief Adopts a pooled frame handle (pool-aware producer path).
+     *
+     * @param handle FrameHandle from CVImagePool::acquire()
+     * @return true if handle was valid and adopted, false if handle was empty
+     *
+     * **Migration Guide for Node Developers:**
+     *
+     * This method is the "opt-in helper" for transitioning nodes to zero-copy
+     * pooling without breaking existing code. It wraps the pooling path so you
+     * don't need to manually manage metadata or handle ownership.
+     *
+     * **Pattern 1: Producer Node (Pool-Aware)**
+     * @code
+     * // In process_decoded_frame() or similar:
+     * FrameMetadata meta;
+     * meta.producerId = getNodeId();
+     * meta.frameId = currentFrameNumber;
+     * 
+     * auto handle = mpFramePool->acquire(1, std::move(meta));
+     * if (mpCVImageData->adoptPoolFrame(std::move(handle))) {
+     *     // Success: frame now owns pool slot
+     * } else {
+     *     // Fallback: pool exhausted, use legacy clone/move
+     *     mpCVImageData->updateMove(std::move(frame), meta);
+     * }
+     * @endcode
+     *
+     * **Pattern 2: Consumer Node (Pool-Aware)**
+     * @code
+     * // In setInData():
+     * auto imageData = std::dynamic_pointer_cast<CVImageData>(nodeData);
+     * const cv::Mat& frame = imageData->data();
+     * 
+     * // Works transparently with both pooled and owned frames
+     * frame.copyTo(localBuffer);
+     * // Pool slot released when imageData destructs
+     * @endcode
+     *
+     * **Pattern 3: Legacy Node (No Changes Needed)**
+     * @code
+     * // Existing code continues to work:
+     * mpCVImageData->set_image(frame);          // Clone path
+     * cv::Mat& img = mpCVImageData->data();     // Access path
+     * @endcode
+     *
+     * **When to Migrate:**
+     * - High-throughput producers (cameras, video loaders): migrate first for max benefit
+     * - Display/recorder consumers: migrate to use const accessor for correctness
+     * - Processing nodes: migrate when convenient (gradual migration is safe)
+     * - Simple passthrough nodes: low priority (minimal performance gain)
+     *
+     * **Implementation Checklist:**
+     * 1. Producer creates pool in `late_constructor()` or `ensure_frame_pool()`
+     * 2. Producer calls `pool->acquire(consumerCount, metadata)` for new frames
+     * 3. Producer writes data into `handle.matrix()` buffer
+     * 4. Producer calls `adoptPoolFrame(std::move(handle))` with success check
+     * 5. Consumer uses `const cv::Mat& frame = data()` for read access
+     * 6. Consumer copies immediately if retaining beyond current scope
+     *
+     * @see CVVideoLoaderModel for complete producer example
+     * @see CVImageDisplayModel for consumer example
+     * @see CVImagePool for pool creation and management
+     *
+     * @note The boolean return allows clean fallback logic: if pool is exhausted,
+     *       producer can immediately switch to `updateMove()` without leaving
+     *       inconsistent state.
+     */
+    bool
+    adoptPoolFrame(CVImagePool::FrameHandle handle)
+    {
+        if (!handle)
+            return false;
+        mPoolHandle = std::move(handle);
+        assignMetadata(mPoolHandle.metadata());
+        return true;
     }
 
     /**
@@ -318,12 +487,13 @@ public:
      */
     void set_information() override
     {
+        const cv::Mat &frame = data();
         mQSData  = QString("Data Type\t : cv::Mat \n");
-        if( !mCVImage.empty() )
+        if( !frame.empty() )
         {
-            mQSData += "Channels\t : " + QString::number( mCVImage.channels() ) + "\n";
+            mQSData += "Channels\t : " + QString::number(frame.channels()) + "\n";
             mQSData += "Depth\t : ";
-            auto depth = mCVImage.depth();
+            auto depth = frame.depth();
             if( depth == CV_8U )
                 mQSData += "CV_8U \n";
             else if( depth == CV_8S )
@@ -338,14 +508,32 @@ public:
                 mQSData += "CV_32F \n";
             else if( depth == CV_64F )
                 mQSData += "CV_64F \n";
-            mQSData += "WxH\t : " + QString::number( mCVImage.cols ) + " x " + QString::number( mCVImage.rows ) + "\n";
+            mQSData += "WxH\t : " + QString::number(frame.cols) + " x " + QString::number(frame.rows) + "\n";
+        }
+        if (!mMetadata.producerId.isEmpty())
+        {
+            mQSData += "Producer\t : " + mMetadata.producerId + "\n";
+            mQSData += "Frame ID\t : " + QString::number(mMetadata.frameId) + "\n";
         }
     }
 
 private:
+    void assignMetadata(FrameMetadata metadata)
+    {
+        if (metadata.timestamp == 0)
+            metadata.timestamp = QDateTime::currentMSecsSinceEpoch();
+        if (metadata.frameId == 0)
+            metadata.frameId = sFrameCounter.fetch_add(1, std::memory_order_relaxed);
+        mMetadata = std::move(metadata);
+        set_timestamp(mMetadata.timestamp);
+        set_information();
+    }
 
-    /**
-     * @brief Stored OpenCV Mat (image or matrix).
-     */
+    static std::atomic<long> sFrameCounter;
+
     cv::Mat mCVImage;
+    FrameMetadata mMetadata;
+    CVImagePool::FrameHandle mPoolHandle;
 };
+
+inline std::atomic<long> CVImageData::sFrameCounter{1};

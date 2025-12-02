@@ -28,8 +28,8 @@ const QString CVCameraModel::_category = QString( "Source" );
 
 const QString CVCameraModel::_model_name = QString( "CV Camera" );
 
-CVCameraThread:: CVCameraThread(QObject *parent, std::shared_ptr< CVImageData > pCVImageData)
-    : QThread(parent), mpCVImageData( pCVImageData )
+CVCameraThread::CVCameraThread(CVCameraModel *model)
+    : QThread(model), mpModel(model)
 {
 
 }
@@ -55,10 +55,14 @@ run()
             if( mbSingleShotMode.load() )
             {
                 mSingleShotSemaphore.acquire();
-
-                mCVVideoCapture >> mpCVImageData->data();
-                if( !mpCVImageData->data().empty() )
-                    Q_EMIT image_ready( );
+                
+                cv::Mat frame;
+                mCVVideoCapture >> frame;
+                if( !frame.empty() )
+                {
+                    long frameId = mFrameCounter.fetch_add(1, std::memory_order_relaxed);
+                    Q_EMIT frame_captured( frame );
+                }
                 else
                     mCVVideoCapture.set(cv::CAP_PROP_POS_FRAMES, -1);
             }
@@ -66,13 +70,14 @@ run()
             {
                 if( !mCVVideoCapture.grab() )
                     continue;
-                if( !mCVVideoCapture.retrieve( mpCVImageData->data() ) )
+                cv::Mat frame;
+                if( !mCVVideoCapture.retrieve( frame ) )
                     continue;
-                //mCVVideoCapture >> mpCVImageData->data();
-                if( !mpCVImageData->data().empty() )
-                    Q_EMIT image_ready( );
-                //else
-                //    mCVVideoCapture.set(cv::CAP_PROP_POS_FRAMES, -1);
+                if( !frame.empty() )
+                {
+                    long frameId = mFrameCounter.fetch_add(1, std::memory_order_relaxed);
+                    Q_EMIT frame_captured( frame );
+                }
             }
         }
         QThread::msleep( miDelayTime );
@@ -236,7 +241,7 @@ CVCameraModel()
     : PBNodeDelegateModel( _model_name, true ),
       mpEmbeddedWidget( new CVCameraEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
 {
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVCameraEmbeddedWidget::button_clicked_signal, this, &CVCameraModel::em_button_clicked );
     //There are two interactive methods for an embeeded widget.
     //The first method is calling the following line and mpEmbeddedWidget->set_active must not be called again.
@@ -291,11 +296,67 @@ CVCameraModel()
     mMapIdToProperty[ propId ] = propGain;
 }
 
+CVCameraModel::
+~CVCameraModel()
+{
+    mShuttingDown.store(true, std::memory_order_release);
+    
+    if( mpCVCameraThread )
+    {
+        // Disconnect signals FIRST to prevent callbacks during destruction
+        disconnect( mpCVCameraThread, nullptr, this, nullptr );
+        // The mpCVCameraThread is a child of this model, so it will be deleted automatically. 
+        // delete mpCVCameraThread;
+        // mpCVCameraThread = nullptr;
+    }
+}
+
 void
 CVCameraModel::
-received_image()
+process_captured_frame( cv::Mat frame )
 {
-    updateAllOutputPorts();
+    if( frame.empty() || isShuttingDown() )
+        return;
+
+    FrameMetadata metadata;
+    metadata.producerId = getNodeId();
+    metadata.frameId = 0; // Frame counter managed by thread
+
+    // Create a fresh CVImageData per frame
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+
+    bool pooled = false;
+    if( meSharingMode == FrameSharingMode::PoolMode )
+    {
+        ensure_frame_pool( frame.cols, frame.rows, frame.type() );
+        std::shared_ptr<CVImagePool> poolCopy;
+        {
+            QMutexLocker locker( &mFramePoolMutex );
+            poolCopy = mpFramePool;
+        }
+        if( poolCopy )
+        {
+            auto metadataForPool = metadata;
+            auto handle = poolCopy->acquire( 1, std::move( metadataForPool ) );
+            if( handle )
+            {
+                frame.copyTo( handle.matrix() );
+                if( newImageData->adoptPoolFrame( std::move( handle ) ) )
+                    pooled = true;
+            }
+        }
+    }
+
+    if( !pooled )
+    {
+        newImageData->updateMove( std::move( frame ), metadata );
+    }
+
+    mpCVImageData = std::move(newImageData);
+
+    // Emit data update
+    if( isEnable() )
+        updateAllOutputPorts();
 }
 
 void
@@ -571,8 +632,8 @@ late_constructor()
 {
     if( start_late_constructor() )
     {
-        mpCVCameraThread = new CVCameraThread(this, mpCVImageData);
-        connect( mpCVCameraThread, &CVCameraThread::image_ready, this, &CVCameraModel::received_image );
+        mpCVCameraThread = new CVCameraThread(this);
+        connect( mpCVCameraThread, &CVCameraThread::frame_captured, this, &CVCameraModel::process_captured_frame );
         connect( mpCVCameraThread, &CVCameraThread::camera_ready, this, &CVCameraModel::camera_status_changed );
         connect( mpCVCameraThread, &CVCameraThread::camera_ready, mpEmbeddedWidget, &CVCameraEmbeddedWidget::camera_status_changed );
     }
@@ -644,4 +705,41 @@ setSelected( bool selected )
     //mpEmbeddedWidget->set_active( selected );
 }
 
+void
+CVCameraModel::
+ensure_frame_pool(int width, int height, int type)
+{
+    if( width <= 0 || height <= 0 )
+        return;
 
+    const int desiredSize = qMax( 1, miPoolSize );
+    QMutexLocker locker( &mFramePoolMutex );
+    const bool shouldRecreate = !mpFramePool ||
+        miPoolFrameWidth != width ||
+        miPoolFrameHeight != height ||
+        miFrameMatType != type ||
+        miActivePoolSize != desiredSize;
+
+    if( shouldRecreate )
+    {
+        mpFramePool = std::make_shared<CVImagePool>( getNodeId(), width, height, type, static_cast<size_t>( desiredSize ) );
+        miPoolFrameWidth = width;
+        miPoolFrameHeight = height;
+        miFrameMatType = type;
+        miActivePoolSize = desiredSize;
+    }
+
+    if( mpFramePool )
+        mpFramePool->setMode( meSharingMode );
+}
+
+void
+CVCameraModel::
+reset_frame_pool()
+{
+    QMutexLocker locker( &mFramePoolMutex );
+    mpFramePool.reset();
+    miPoolFrameWidth = 0;
+    miPoolFrameHeight = 0;
+    miActivePoolSize = 0;
+}

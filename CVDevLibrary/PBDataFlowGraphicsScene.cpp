@@ -602,6 +602,36 @@ updateGroupVisual(GroupId groupId)
         }
     }
     
+    // Handle connection visibility for internal connections
+    // Internal connections (both endpoints in the same group) should be hidden when minimized
+    if (group->isMinimized()) {
+        // Hide internal connections
+        for (NodeId nodeId : group->nodes()) {
+            auto allConnections = graphModel().allConnectionIds(nodeId);
+            for (const auto& connectionId : allConnections) {
+                NodeId outNodeId = connectionId.outNodeId;
+                NodeId inNodeId = connectionId.inNodeId;
+                
+                // Check if both nodes are in this group (internal connection)
+                if (group->contains(outNodeId) && group->contains(inNodeId)) {
+                    if (auto* cgo = connectionGraphicsObject(connectionId)) {
+                        cgo->setVisible(false);
+                    }
+                }
+            }
+        }
+    } else {
+        // Show all connections when expanded
+        for (NodeId nodeId : group->nodes()) {
+            auto allConnections = graphModel().allConnectionIds(nodeId);
+            for (const auto& connectionId : allConnections) {
+                if (auto* cgo = connectionGraphicsObject(connectionId)) {
+                    cgo->setVisible(true);
+                }
+            }
+        }
+    }
+    
     // Collect node positions and sizes for all nodes in the group
     std::map<NodeId, QPointF> nodePositions;
     std::map<NodeId, QSizeF> nodeSizes;

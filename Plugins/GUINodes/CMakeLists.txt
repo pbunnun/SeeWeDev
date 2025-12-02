@@ -39,6 +39,14 @@ set_target_properties(${PROJECT_NAME}
                       PROPERTIES
                       POSITION_INDEPENDENT_CODE ON
                       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
+                      LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
+                      LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
+                      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
+                      RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
+                      RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
+                      ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
+                      ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
+                      ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
                       )
 
 add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DQT_NO_KEYWORDS)
@@ -49,6 +57,18 @@ target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
     ${OpenCV_LIBS})
 
+if(WIN32)
+    # Move the built runtime DLL from CVDev -> CVDev/cvdev_plugins.
+    # Assumes CVDev/cvdev_plugins already exists and the runtime DLL is placed in CVDev.
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Moving $<TARGET_FILE_NAME:${PROJECT_NAME}> to ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins"
+        COMMAND ${CMAKE_COMMAND} -E rename
+                "${CMAKE_BINARY_DIR}/CVDev/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+                "${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+        COMMENT "Move ${PROJECT_NAME} into cvdev_plugins"
+        VERBATIM)
+endif()
+
 # ---- MODIFIED SECTION FOR CPACK ----
 # The old 'add_custom_command' has been removed.
 #
@@ -56,8 +76,11 @@ target_link_libraries(${PROJECT_NAME}
 # dedicated 'plugins' directory for our application.
 # 'LIBRARY DESTINATION' is used for shared libraries that are not meant to be
 # linked against by other development packages (i.e., plugins).
-install(TARGETS ${PROJECT_NAME}
-    LIBRARY DESTINATION bin/cvdev_plugins
-    COMPONENT Runtime
-)
+
+if( NOT WIN32 )
+    install(TARGETS ${PROJECT_NAME}
+        LIBRARY DESTINATION bin/cvdev_plugins
+        COMPONENT Runtime
+    )
+endif()
 # ------------------------------------

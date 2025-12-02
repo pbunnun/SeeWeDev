@@ -26,8 +26,10 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
+#include "CVImagePool.hpp"
+#include "SyncData.hpp"
 #include <opencv2/imgproc.hpp>
 
 using QtNodes::PortType;
@@ -35,6 +37,8 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 
 /**
  * @struct MorphologicalTransformationParameters
@@ -155,7 +159,36 @@ typedef struct MorphologicalTransformationParameters{
  * @see cv::MorphTypes for available operations
  * @see cv::MorphShapes for structuring element shapes
  */
-class CVMorphologicalTransformationModel : public PBNodeDelegateModel
+/**
+ * @class CVMorphologicalTransformationWorker
+ * @brief Worker class for asynchronous morphological transformation
+ */
+class CVMorphologicalTransformationWorker : public QObject
+{
+    Q_OBJECT
+public:
+    CVMorphologicalTransformationWorker() {}
+
+public Q_SLOTS:
+    void processFrame(cv::Mat input,
+                      int morphMethod,
+                      int kernelShape,
+                      int kernelWidth,
+                      int kernelHeight,
+                      int anchorX,
+                      int anchorY,
+                      int iterations,
+                      int borderType,
+                      FrameSharingMode mode,
+                      std::shared_ptr<CVImagePool> pool,
+                      long frameId,
+                      QString producerId);
+
+Q_SIGNALS:
+    void frameReady(std::shared_ptr<CVImageData> img);
+};
+
+class CVMorphologicalTransformationModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
@@ -193,56 +226,6 @@ public:
     void
     load(const QJsonObject &p) override;
 
-    /**
-     * @brief Returns the number of ports for the given port type
-     * 
-     * This node has:
-     * - 1 input port (source image)
-     * - 1 output port (transformed image)
-     * 
-     * @param portType The type of port (In or Out)
-     * @return Number of ports of the specified type
-     */
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    /**
-     * @brief Returns the data type for a specific port
-     * 
-     * All ports use CVImageData type.
-     * 
-     * @param portType The type of port (In or Out)
-     * @param portIndex The index of the port
-     * @return NodeDataType describing CVImageData
-     */
-    NodeDataType
-    dataType(PortType portType, PortIndex portIndex) const override;
-
-    /**
-     * @brief Provides the morphologically transformed output
-     * 
-     * @param port The output port index (only 0 is valid)
-     * @return Shared pointer to the transformed CVImageData
-     * @note Returns nullptr if no input has been processed
-     */
-    std::shared_ptr<NodeData>
-    outData(PortIndex port) override;
-
-    /**
-     * @brief Receives and processes input image data
-     * 
-     * When image data arrives, this method:
-     * 1. Validates the input data
-     * 2. Creates structuring element from shape and size
-     * 3. Applies cv::morphologyEx() with current parameters
-     * 4. Stores the result for output
-     * 5. Notifies connected nodes
-     * 
-     * @param nodeData The input CVImageData
-     * @param portIndex The input port index (must be 0)
-     */
-    void
-    setInData(std::shared_ptr<NodeData> nodeData, PortIndex) override;
 
     /**
      * @brief No embedded widget for this node
@@ -285,40 +268,24 @@ public:
     /** @brief Display name for the node type */
     static const QString _model_name;
 
+protected:
+    // Implement PBAsyncDataModel pure virtuals
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+
 private:
-    /**
-     * @brief Internal helper to perform morphological transformation
-     * 
-     * Executes the morphological operation:
-     * 1. Creates structuring element using cv::getStructuringElement()
-     * 2. Calls cv::morphologyEx() with the operation and kernel
-     * 3. Applies the specified number of iterations
-     * 
-     * Why iterations matter:
-     * - Single iteration: Standard morphological operation
-     * - Multiple iterations: Stronger effect, reaches larger structures
-     * - Trade-off: More iterations = slower but more thorough
-     * 
-     * @param in The input CVImageData to transform
-     * @param out The output CVImageData to populate with result
-     * @param params The morphological operation parameters
-     * @note Uses cv::morphologyEx() internally
-     * @see cv::morphologyEx
-     * @see cv::getStructuringElement
-     */
-    void processData(const std::shared_ptr<CVImageData>& in, std::shared_ptr<CVImageData>& out, const MorphologicalTransformationParameters& params);
+    void process_cached_input() override;
 
     /** @brief Current morphological operation parameters */
     MorphologicalTransformationParameters mParams;
-    
-    /** @brief Cached transformed output image */
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };
-    
-    /** @brief Cached input image data */
-    std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
-    
+
     /** @brief Preview pixmap for node palette */
     QPixmap _minPixmap;
+
+    // Pending data for backpressure
+    cv::Mat mPendingFrame;
+    MorphologicalTransformationParameters mPendingParams;
 };
 
 

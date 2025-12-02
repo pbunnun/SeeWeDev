@@ -13,91 +13,79 @@
 //limitations under the License.
 
 #include "CVInvertGrayModel.hpp"
-
-
 #include "CVImageData.hpp"
-
 #include <opencv2/imgproc.hpp>
+#include <QMetaObject>
+#include <QTimer>
 
 const QString CVInvertGrayModel::_category = QString("Image Conversion");
+const QString CVInvertGrayModel::_model_name = QString("CV Invert Grayscale");
 
-const QString CVInvertGrayModel::_model_name = QString( "CV Invert Grayscale" );
-
-CVInvertGrayModel::
-CVInvertGrayModel()
-    : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":CVInvertGray.png" )
+CVInvertGrayModel::CVInvertGrayModel()
+    : PBAsyncDataModel(_model_name),
+      _minPixmap(":CVInvertGray.png")
 {
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
 }
 
-unsigned int
-CVInvertGrayModel::
-nPorts(PortType portType) const
+QObject* CVInvertGrayModel::createWorker()
 {
-    unsigned int result = 1;
+    return new CVInvertGrayWorker();
+}
 
-    switch (portType)
+void CVInvertGrayModel::connectWorker(QObject* worker)
+{
+    auto w = qobject_cast<CVInvertGrayWorker*>(worker);
+    if (w)
     {
-    case PortType::In:
-        result = 1;
-        break;
-
-    case PortType::Out:
-        result = 1;
-        break;
-
-    default:
-        break;
+        connect(w, &CVInvertGrayWorker::frameReady,
+                this, &CVInvertGrayModel::handleFrameReady);
     }
-
-    return result;
 }
 
-NodeDataType
-CVInvertGrayModel::
-dataType(PortType, PortIndex) const
+void CVInvertGrayModel::dispatchPendingWork()
 {
-    return CVImageData().type();
-}
-
-std::shared_ptr<NodeData>
-CVInvertGrayModel::
-outData(PortIndex)
-{
-    if( isEnable() )
-        return mpCVImageData;
-    else
-        return nullptr;
-}
-
-void
-CVInvertGrayModel::
-setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
-{
-    if( !isEnable() )
+    if (!hasPendingWork() || isShuttingDown() || mPendingFrame.empty())
         return;
 
-    if( nodeData )
-    {
-        auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
-        if( d )
-        {
-            processData( d, mpCVImageData );
-        }
-    }
+    cv::Mat input = mPendingFrame;
+    setPendingWork(false);
 
-    Q_EMIT dataUpdated( 0 );
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+                            Qt::QueuedConnection,
+                            Q_ARG(cv::Mat, input.clone()));
 }
 
-void
-CVInvertGrayModel::
-processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageData > & out )
+void CVInvertGrayModel::process_cached_input()
 {
-    if( !in->data().empty() && in->data().channels() == 1 )
+    if (!mpCVImageInData || mpCVImageInData->data().empty())
+        return;
+
+    cv::Mat input = mpCVImageInData->data();
+    
+    if (input.channels() != 1)
+        return;
+    
+    // Emit sync "false" signal in next event loop
+    QTimer::singleShot(0, this, [this]() {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(1);
+    });
+
+    if (isWorkerBusy())
     {
-        cv::bitwise_not(in->data(),out->data());
+        // Store as pending - will be processed when worker finishes
+        mPendingFrame = input.clone();
+        setPendingWork(true);
+    }
+    else
+    {
+        setWorkerBusy(true);
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+                                Qt::QueuedConnection,
+                                Q_ARG(cv::Mat, input.clone()));
     }
 }
+
 
 

@@ -46,7 +46,17 @@ include_directories(
 set_target_properties(${PROJECT_NAME}
                       PROPERTIES 
                       POSITION_INDEPENDENT_CODE ON
-                      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/)
+                      # Multi-config generators (Visual Studio) put outputs in config subdirs
+                      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
+                      LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
+                      LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
+                      RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
+                      RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
+                      RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
+                      ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
+                      ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
+                      ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
+                      )
 
 target_link_libraries(${PROJECT_NAME}
     QtNodes
@@ -62,13 +72,15 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}
 # ---- ADD THIS SECTION FOR CPACK ----
 # Install the library target and its public headers.
 
-# 1. Install the shared library (.so file) and archive file (.a file).
-#    'LIBRARY DESTINATION lib' installs shared libraries to /usr/local/lib.
-#    'ARCHIVE DESTINATION lib' installs static libraries to /usr/local/lib.
-install(TARGETS ${PROJECT_NAME}
-    LIBRARY DESTINATION lib
-    COMPONENT Runtime
-)
+if(NOT WIN32)
+    # 1. Install the shared library (.so file) and archive file (.a file).
+    #    'LIBRARY DESTINATION lib' installs shared libraries to /usr/local/lib.
+    #    'ARCHIVE DESTINATION lib' installs static libraries to /usr/local/lib.
+    install(TARGETS ${PROJECT_NAME}
+        LIBRARY DESTINATION lib
+        COMPONENT Runtime
+    )
+endif()
 
 # 2. Install the public header files (.hpp files).
 #    This makes them available for other projects that might link against this library.

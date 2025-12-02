@@ -233,6 +233,12 @@ contextMenuEvent(QContextMenuEvent *event)
         deleteAction->setIcon(QIcon(":/icons/tango/16x16/edit-delete.png"));
         deleteAction->setIconVisibleInMenu(true);  // Force icon to show on macOS
         nodeMenu.addAction(deleteAction);
+
+        // Bring to Front / Send to Back actions
+        QAction* bringToFrontAction = new QAction("Bring to Front", &nodeMenu);
+        QAction* sendToBackAction   = new QAction("Send to Back", &nodeMenu);
+        nodeMenu.addAction(bringToFrontAction);
+        nodeMenu.addAction(sendToBackAction);
         
         QAction* selectedAction = nodeMenu.exec(event->globalPos());
         
@@ -251,6 +257,52 @@ contextMenuEvent(QContextMenuEvent *event)
         {
             // Use CVDev's PBDeleteCommand which preserves group membership on undo
             mpDataFlowGraphicsScene->undoStack().push(new PBDeleteCommand(dynamic_cast<PBDataFlowGraphicsScene*>(mpDataFlowGraphicsScene)));
+        }
+        else if (selectedAction == bringToFrontAction)
+        {
+            // Raise the selected node above others persistently by
+            // adjusting stacking order among items sharing the same z.
+            auto* scene = dynamic_cast<PBDataFlowGraphicsScene*>(mpDataFlowGraphicsScene);
+            if (scene)
+            {
+                // Keep z-values as-is and reorder stacking so nodeItem is on top
+                // When z is equal, QGraphicsScene uses insertion/stacking order.
+                // Use stackBefore to make other nodes sit below the target.
+                for (QGraphicsItem* gi : scene->items())
+                {
+                    if (auto* n = dynamic_cast<QtNodes::NodeGraphicsObject*>(gi))
+                    {
+                        if (n == nodeItem)
+                            continue;
+                        // Only adjust nodes at the same zValue to preserve groups/edges order
+                        if (qFuzzyCompare(n->zValue(), nodeItem->zValue()))
+                        {
+                            n->stackBefore(nodeItem);
+                        }
+                    }
+                }
+            }
+        }
+        else if (selectedAction == sendToBackAction)
+        {
+            // Push the selected node below others at the same z-value
+            auto* scene = dynamic_cast<PBDataFlowGraphicsScene*>(mpDataFlowGraphicsScene);
+            if (scene)
+            {
+                for (QGraphicsItem* gi : scene->items())
+                {
+                    if (auto* n = dynamic_cast<QtNodes::NodeGraphicsObject*>(gi))
+                    {
+                        if (n == nodeItem)
+                            continue;
+                        if (qFuzzyCompare(n->zValue(), nodeItem->zValue()))
+                        {
+                            // Place selected node before others → goes underneath
+                            nodeItem->stackBefore(n);
+                        }
+                    }
+                }
+            }
         }
         
         return;

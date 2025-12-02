@@ -16,6 +16,7 @@
 
 #include <QtCore/QEvent>
 #include <QtCore/QDir>
+#include <QtCore/QTimer>
 #include <QDebug>
 
 #include <QtWidgets/QFileDialog>
@@ -28,15 +29,73 @@ const QString CVErodeAndDilateModel::_category = QString( "Image Modification" )
 
 const QString CVErodeAndDilateModel::_model_name = QString( "CV Erode and Dilate" );
 
+void CVErodeAndDilateWorker::processFrame(cv::Mat input,
+                                          int operation,
+                                          int kernelShape,
+                                          int kernelWidth,
+                                          int kernelHeight,
+                                          int anchorX,
+                                          int anchorY,
+                                          int iterations,
+                                          int borderType,
+                                          FrameSharingMode mode,
+                                          std::shared_ptr<CVImagePool> pool,
+                                          long frameId,
+                                          QString producerId)
+{
+    if (input.empty())
+    {
+        Q_EMIT frameReady(nullptr);
+        return;
+    }
+
+    FrameMetadata metadata;
+    metadata.producerId = producerId;
+    metadata.frameId = frameId;
+
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+    bool pooled = false;
+    cv::Size ksize(kernelWidth, kernelHeight);
+    cv::Point anchor(anchorX, anchorY);
+    cv::Mat kernel = cv::getStructuringElement(kernelShape, ksize, anchor);
+
+    auto applyOp = [&](cv::Mat& dst){
+        if (operation == 0)
+            cv::erode(input, dst, kernel, anchor, iterations, borderType);
+        else
+            cv::dilate(input, dst, kernel, anchor, iterations, borderType);
+    };
+
+    if (mode == FrameSharingMode::PoolMode && pool)
+    {
+        auto handle = pool->acquire(1, metadata);
+        if (handle)
+        {
+            applyOp(handle.matrix());
+            if (!handle.matrix().empty() && newImageData->adoptPoolFrame(std::move(handle)))
+                pooled = true;
+        }
+    }
+    if (!pooled)
+    {
+        cv::Mat result;
+        applyOp(result);
+        if (result.empty())
+        {
+            Q_EMIT frameReady(nullptr);
+            return;
+        }
+        newImageData->updateMove(std::move(result), metadata);
+    }
+    Q_EMIT frameReady(newImageData);
+}
+
 CVErodeAndDilateModel::
 CVErodeAndDilateModel()
-    : PBNodeDelegateModel( _model_name ),
+    : PBAsyncDataModel( _model_name ),
       mpEmbeddedWidget(new CVErodeAndDilateEmbeddedWidget),
       _minPixmap( ":CVErodeAndDilate.png" )
 {
-    mpCVImageData = std::make_shared<CVImageData>(cv::Mat());
-
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     connect( mpEmbeddedWidget, &CVErodeAndDilateEmbeddedWidget::radioButton_clicked_signal, this, &CVErodeAndDilateModel::em_radioButton_clicked );
 
     EnumPropertyType enumPropertyType;
@@ -84,70 +143,67 @@ CVErodeAndDilateModel()
     mMapIdToProperty[ propId ] = propOperation;
 }
 
-unsigned int
+QObject*
 CVErodeAndDilateModel::
-nPorts(PortType portType) const
+createWorker()
 {
-    unsigned int result = 1;
-
-    switch (portType)
-    {
-    case PortType::In:
-        result = 1;
-        break;
-
-    case PortType::Out:
-        result = 1;
-        break;
-
-    default:
-        break;
-    }
-
-    return result;
-}
-
-
-NodeDataType
-CVErodeAndDilateModel::
-dataType(PortType, PortIndex) const
-{
-    return CVImageData().type();
-}
-
-
-std::shared_ptr<NodeData>
-CVErodeAndDilateModel::
-outData(PortIndex)
-{
-    if( isEnable() )
-        return mpCVImageData;
-    else
-        return nullptr;
+    return new CVErodeAndDilateWorker();
 }
 
 void
 CVErodeAndDilateModel::
-setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
+connectWorker(QObject* worker)
 {
-    if (nodeData)
-    {
-        auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
-        if (d)
-        {
-            mpCVImageInData = d;
-            processData(mpCVImageInData,mpCVImageData,mParams);
-        }
+    auto* w = qobject_cast<CVErodeAndDilateWorker*>(worker);
+    if (w) {
+        connect(w, &CVErodeAndDilateWorker::frameReady,
+                this, &PBAsyncDataModel::handleFrameReady,
+                Qt::QueuedConnection);
     }
+}
 
-    Q_EMIT dataUpdated(0);
+void
+CVErodeAndDilateModel::
+dispatchPendingWork()
+{
+    if (!hasPendingWork() || isShuttingDown())
+        return;
+
+    cv::Mat input = mPendingFrame;
+    CVErodeAndDilateParameters params = mPendingParams;
+    int op = mPendingOperation;
+    setPendingWork(false);
+
+    ensure_frame_pool(input.cols, input.rows, input.type());
+
+    long frameId = getNextFrameId();
+    QString producerId = getNodeId();
+
+    std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+                              Qt::QueuedConnection,
+                              Q_ARG(cv::Mat, input.clone()),
+                              Q_ARG(int, op),
+                              Q_ARG(int, params.miKernelShape),
+                              Q_ARG(int, params.mCVSizeKernel.width),
+                              Q_ARG(int, params.mCVSizeKernel.height),
+                              Q_ARG(int, params.mCVPointAnchor.x),
+                              Q_ARG(int, params.mCVPointAnchor.y),
+                              Q_ARG(int, params.miIterations),
+                              Q_ARG(int, params.miBorderType),
+                              Q_ARG(FrameSharingMode, getSharingMode()),
+                              Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                              Q_ARG(long, frameId),
+                              Q_ARG(QString, producerId));
 }
 
 QJsonObject
 CVErodeAndDilateModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDelegateModel::save();
+    QJsonObject modelJson = PBAsyncDataModel::save();
 
     QJsonObject cParams;
     cParams["kernelShape"] = mParams.miKernelShape;
@@ -167,7 +223,7 @@ void
 CVErodeAndDilateModel::
 load(QJsonObject const& p)
 {
-    PBNodeDelegateModel::load(p);
+    PBAsyncDataModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -234,8 +290,6 @@ void
 CVErodeAndDilateModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDelegateModel::setModelProperty( id, value );
-
     if( !mMapIdToProperty.contains( id ) )
         return;
 
@@ -370,51 +424,73 @@ setModelProperty( QString & id, const QVariant & value )
             break;
         }
     }
-    if( mpCVImageInData )
+    else 
     {
-        processData(mpCVImageInData,mpCVImageData,mParams);
-
-        Q_EMIT dataUpdated(0);
+        // Base class handles pool_size and sharing_mode
+        // Need to call base class to handle pool_size and sharing_mode
+        PBAsyncDataModel::setModelProperty(id, value);
+        // No need to process_cached_input() here
+        return;
     }
+    // Process cached input if available 
+    if (mpCVImageInData && !isShuttingDown())
+        process_cached_input();
 }
 
 void CVErodeAndDilateModel::em_radioButton_clicked()
 {
-    if( mpCVImageInData )
-    {
-        processData(mpCVImageInData,mpCVImageData,mParams);
-
-        Q_EMIT dataUpdated(0);
-    }
+    if (mpCVImageInData && !isShuttingDown())
+        process_cached_input();
 }
 
-void CVErodeAndDilateModel::processData(const std::shared_ptr<CVImageData> &in, std::shared_ptr<CVImageData> &out, const CVErodeAndDilateParameters &params)
+void CVErodeAndDilateModel::process_cached_input()
 {
-    cv::Mat& in_image = in->data();
-    if(in_image.empty() || (in_image.depth()!=CV_8U && in_image.depth()!=CV_16U && in_image.depth()!=CV_16S && in_image.depth()!=CV_32F && in_image.depth()!=CV_64F))
-    {
+    if (!mpCVImageInData || mpCVImageInData->data().empty())
         return;
-    }
-    cv::Mat Kernel = cv::getStructuringElement(params.miKernelShape,params.mCVSizeKernel,params.mCVPointAnchor);
-    switch(mpEmbeddedWidget->getCurrentState())
-    {
-    case 0:
-        cv::erode(in_image,
-                  out->data(),
-                  Kernel,
-                  params.mCVPointAnchor,
-                  params.miIterations,
-                  params.miBorderType);
-        break;
 
-    case 1:
-        cv::dilate(in_image,
-                   out->data(),
-                   Kernel,
-                   params.mCVPointAnchor,
-                   params.miIterations,
-                   params.miBorderType);
-        break;
+    cv::Mat input = mpCVImageInData->data();
+
+    // Emit sync "false" before processing
+    QTimer::singleShot(0, this, [this]() {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(1);
+    });
+
+    int op = mpEmbeddedWidget ? mpEmbeddedWidget->getCurrentState() : 0;
+
+    if (isWorkerBusy())
+    {
+        mPendingFrame = input.clone();
+        mPendingParams = mParams;
+        mPendingOperation = op;
+        setPendingWork(true);
+    }
+    else
+    {
+        setWorkerBusy(true);
+
+        ensure_frame_pool(input.cols, input.rows, input.type());
+
+        long frameId = getNextFrameId();
+        QString producerId = getNodeId();
+
+        std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(cv::Mat, input.clone()),
+                                  Q_ARG(int, op),
+                                  Q_ARG(int, mParams.miKernelShape),
+                                  Q_ARG(int, mParams.mCVSizeKernel.width),
+                                  Q_ARG(int, mParams.mCVSizeKernel.height),
+                                  Q_ARG(int, mParams.mCVPointAnchor.x),
+                                  Q_ARG(int, mParams.mCVPointAnchor.y),
+                                  Q_ARG(int, mParams.miIterations),
+                                  Q_ARG(int, mParams.miBorderType),
+                                  Q_ARG(FrameSharingMode, getSharingMode()),
+                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                                  Q_ARG(long, frameId),
+                                  Q_ARG(QString, producerId));
     }
 }
 

@@ -129,8 +129,25 @@ PBNodeGroup::getInputPortMapping(QtNodes::DataFlowGraphModel& graphModel) const
         unsigned int inPortCount = graphModel.nodeData(nodeId, QtNodes::NodeRole::InPortCount).toUInt();
         
         for (QtNodes::PortIndex nodePortIndex = 0; nodePortIndex < inPortCount; ++nodePortIndex) {
-            mapping[groupPortIndex] = {nodeId, nodePortIndex};
-            ++groupPortIndex;
+            // Check if this input port has any external connections
+            // (connections from nodes outside this group)
+            bool hasExternalConnection = false;
+            auto connections = graphModel.connections(nodeId, QtNodes::PortType::In, nodePortIndex);
+            
+            for (const auto& connId : connections) {
+                NodeId sourceNodeId = connId.outNodeId;
+                // If the source node is not in this group, it's an external connection
+                if (mNodes.find(sourceNodeId) == mNodes.end()) {
+                    hasExternalConnection = true;
+                    break;
+                }
+            }
+            
+            // Only add to mapping if it has external connections
+            if (hasExternalConnection) {
+                mapping[groupPortIndex] = {nodeId, nodePortIndex};
+                ++groupPortIndex;
+            }
         }
     }
     
@@ -147,8 +164,25 @@ PBNodeGroup::getOutputPortMapping(QtNodes::DataFlowGraphModel& graphModel) const
         unsigned int outPortCount = graphModel.nodeData(nodeId, QtNodes::NodeRole::OutPortCount).toUInt();
         
         for (QtNodes::PortIndex nodePortIndex = 0; nodePortIndex < outPortCount; ++nodePortIndex) {
-            mapping[groupPortIndex] = {nodeId, nodePortIndex};
-            ++groupPortIndex;
+            // Check if this output port has any external connections
+            // (connections to nodes outside this group)
+            bool hasExternalConnection = false;
+            auto connections = graphModel.connections(nodeId, QtNodes::PortType::Out, nodePortIndex);
+            
+            for (const auto& connId : connections) {
+                NodeId targetNodeId = connId.inNodeId;
+                // If the target node is not in this group, it's an external connection
+                if (mNodes.find(targetNodeId) == mNodes.end()) {
+                    hasExternalConnection = true;
+                    break;
+                }
+            }
+            
+            // Only add to mapping if it has external connections
+            if (hasExternalConnection) {
+                mapping[groupPortIndex] = {nodeId, nodePortIndex};
+                ++groupPortIndex;
+            }
         }
     }
     

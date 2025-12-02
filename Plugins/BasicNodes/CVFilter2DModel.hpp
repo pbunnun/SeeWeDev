@@ -25,15 +25,23 @@
 
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
+#include <atomic>
+#include <QtCore/QMutex>
+#include <QtCore/QThread>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
+#include "CVImagePool.hpp"
+#include "SyncData.hpp"
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 
 /**
  * @struct MatKernel
@@ -132,6 +140,24 @@ typedef struct CVFilter2DParameters{
     }
 } CVFilter2DParameters;
 
+class CVFilter2DWorker : public QObject
+{
+    Q_OBJECT
+public:
+    explicit CVFilter2DWorker(QObject *parent = nullptr) : QObject(parent) {}
+
+public Q_SLOTS:
+    void processFrame(cv::Mat input,
+                     CVFilter2DParameters params,
+                     FrameSharingMode mode,
+                     std::shared_ptr<CVImagePool> pool,
+                     long frameId,
+                     QString producerId);
+
+Q_SIGNALS:
+    void frameReady(std::shared_ptr<CVImageData> img);
+};
+
 /**
  * @class CVFilter2DModel
  * @brief Node model for custom 2D convolution filtering
@@ -186,7 +212,7 @@ typedef struct CVFilter2DParameters{
  * @note Larger kernels = slower processing but can capture wider patterns
  * @see cv::filter2D for the underlying OpenCV operation
  */
-class CVFilter2DModel : public PBNodeDelegateModel
+class CVFilter2DModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
@@ -201,8 +227,7 @@ public:
     /**
      * @brief Destructor
      */
-    virtual
-    ~CVFilter2DModel() override {}
+    ~CVFilter2DModel() override = default;
 
     /**
      * @brief Serializes the node state to JSON
@@ -223,57 +248,6 @@ public:
      */
     void
     load(const QJsonObject &p) override;
-
-    /**
-     * @brief Returns the number of ports for the given port type
-     * 
-     * This node has:
-     * - 1 input port (source image)
-     * - 1 output port (filtered image)
-     * 
-     * @param portType The type of port (In or Out)
-     * @return Number of ports of the specified type
-     */
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    /**
-     * @brief Returns the data type for a specific port
-     * 
-     * All ports use CVImageData type.
-     * 
-     * @param portType The type of port (In or Out)
-     * @param portIndex The index of the port
-     * @return NodeDataType describing CVImageData
-     */
-    NodeDataType
-    dataType(PortType portType, PortIndex portIndex) const override;
-
-    /**
-     * @brief Provides the filtered image output
-     * 
-     * @param port The output port index (only 0 is valid)
-     * @return Shared pointer to the filtered CVImageData
-     * @note Returns nullptr if no input has been processed
-     */
-    std::shared_ptr<NodeData>
-    outData(PortIndex port) override;
-
-    /**
-     * @brief Receives and processes input image data
-     * 
-     * When image data arrives, this method:
-     * 1. Validates the input data
-     * 2. Generates kernel matrix from type and size
-     * 3. Applies cv::filter2D() with current parameters
-     * 4. Stores the result for output
-     * 5. Notifies connected nodes
-     * 
-     * @param nodeData The input CVImageData
-     * @param portIndex The input port index (must be 0)
-     */
-    void
-    setInData(std::shared_ptr<NodeData> nodeData, PortIndex) override;
 
     /**
      * @brief No embedded widget for this node
@@ -315,41 +289,23 @@ public:
     /** @brief Display name for the node type */
     static const QString _model_name;
 
+protected:
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+    void process_cached_input() override;
+
 private:
-    /**
-     * @brief Internal helper to perform 2D convolution
-     * 
-     * Executes the filtering operation:
-     * 1. Generates kernel cv::Mat from MatKernel definition
-     * 2. Calls cv::filter2D() to convolve kernel with image
-     * 3. Applies delta offset if specified
-     * 4. Converts to specified output depth
-     * 
-     * Why different output depths matter:
-     * - CV_8U: Standard 8-bit (0-255), suitable for display
-     * - CV_16S: 16-bit signed, prevents overflow in edge detection
-     * - CV_32F: Floating point, preserves precision for further processing
-     * 
-     * @param in The input CVImageData to filter
-     * @param out The output CVImageData to populate with filtered result
-     * @param params The filtering parameters (kernel, depth, delta, border)
-     * @note Uses cv::filter2D() internally
-     * @see cv::filter2D
-     */
-    void processData( const std::shared_ptr< CVImageData> & in, std::shared_ptr< CVImageData > & out,
-                      const CVFilter2DParameters & params );
 
     /** @brief Current filter parameters */
     CVFilter2DParameters mParams;
     
-    /** @brief Cached filtered output image */
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };
-    
-    /** @brief Cached input image data */
-    std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
-    
     /** @brief Preview pixmap for node palette */
     QPixmap _minPixmap;
+
+    // Pending work for backpressure handling
+    cv::Mat mPendingFrame;
+    CVFilter2DParameters mPendingParams;
 };
 
 

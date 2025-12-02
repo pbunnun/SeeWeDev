@@ -63,6 +63,7 @@
 
 #include "SyncData.hpp"
 #include "CVImageData.hpp"
+#include "CVImagePool.hpp"
 #include "InformationData.hpp"
 
 #include "CVCameraEmbeddedWidget.hpp"
@@ -74,6 +75,12 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
+using CVDevLibrary::FrameMetadata;
+
+// Forward declaration
+class CVCameraModel;
 
 /**
  * @struct CVCameraParameters
@@ -164,12 +171,11 @@ class CVCameraThread : public QThread
     Q_OBJECT
 public:
     /**
-     * @brief Constructor initializes thread with shared image buffer.
-     * @param parent Parent QObject for Qt memory management
-     * @param pCVImageData Shared pointer to image data (written by thread, read by model)
+     * @brief Constructor initializes thread.
+     * @param model Pointer to parent CVCameraModel (also serves as QObject parent)
      */
     explicit
-    CVCameraThread( QObject *parent, std::shared_ptr< CVImageData > pCVImageData );
+    CVCameraThread( CVCameraModel *model );
 
     ~CVCameraThread() override;
 
@@ -218,10 +224,11 @@ public:
 
 Q_SIGNALS:
     /**
-     * @brief Emitted when a new frame is captured and ready in mpCVImageData.
+     * @brief Emitted when a new frame is captured.
+     * @param frame Captured frame (will be copied to pool by model)
      */
     void
-    image_ready( );
+    frame_captured( cv::Mat frame );
 
     /**
      * @brief Emitted when camera connection status changes.
@@ -271,8 +278,8 @@ private:
     double mdFPS{0};                      ///< Measured actual frame rate
     CVCameraParameters mCameraParams;     ///< Current capture parameters
     cv::VideoCapture mCVVideoCapture;     ///< OpenCV camera interface
-
-    std::shared_ptr< CVImageData > mpCVImageData; ///< Shared output buffer
+    CVCameraModel* mpModel;               ///< Pointer to parent model
+    std::atomic<long> mFrameCounter{0};   ///< Frame ID counter
 };
 
 /**
@@ -392,12 +399,7 @@ class CVCameraModel : public PBNodeDelegateModel
 public:
     CVCameraModel();
 
-    virtual
-    ~CVCameraModel() override
-    {
-        if( mpCVCameraThread )
-            delete mpCVCameraThread;
-    }
+    ~CVCameraModel() override;
 
     QJsonObject
     save() const override;
@@ -437,8 +439,12 @@ private Q_SLOTS:
      * @brief Handles new frame ready signal from capture thread.
      * Triggers dataUpdated() to propagate frame through pipeline.
      */
+    /**
+     * @brief Process captured frame from camera thread.
+     * @param frame Captured frame to process with pool
+     */
     void
-    received_image();
+    process_captured_frame( cv::Mat frame );
 
     /**
      * @brief Updates UI and information output when camera connection changes.
@@ -472,6 +478,22 @@ private Q_SLOTS:
     inputConnectionDeleted(QtNodes::ConnectionId const&) override { mpCVCameraThread->set_single_shot_mode( false ); };
 
 private:
+    /**
+     * @brief Ensure frame pool exists with correct dimensions.
+     */
+    void ensure_frame_pool(int width, int height, int type);
+
+    /**
+     * @brief Reset the frame pool.
+     */
+    void reset_frame_pool();
+
+    /**
+     * @brief Check if model is shutting down.
+     */
+    bool isShuttingDown() const { return mShuttingDown.load(std::memory_order_acquire); }
+
+private:
     int miBrightness {-10};         ///< Current brightness setting
     int miGain {70};                ///< Current gain/ISO setting
     int miExposure {8000};          ///< Current exposure time in μs
@@ -486,5 +508,16 @@ private:
     std::shared_ptr< SyncData > mpSyncInData { nullptr };       ///< Trigger input (single-shot mode)
     std::shared_ptr< CVImageData > mpCVImageData;               ///< Captured frame output
     std::shared_ptr< InformationData > mpInformationData;       ///< Camera status output
+
+    // Frame pool management
+    int miPoolSize{CVImagePool::DefaultPoolSize};
+    FrameSharingMode meSharingMode{FrameSharingMode::PoolMode};
+    std::shared_ptr<CVImagePool> mpFramePool;
+    int miPoolFrameWidth{0};
+    int miPoolFrameHeight{0};
+    int miActivePoolSize{0};
+    QMutex mFramePoolMutex;
+    int miFrameMatType{CV_8UC3};
+    std::atomic<bool> mShuttingDown{false};
 };
 

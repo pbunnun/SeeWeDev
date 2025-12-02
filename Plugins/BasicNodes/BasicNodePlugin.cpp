@@ -24,6 +24,8 @@
 #include "Test_SharpenModel.hpp"
 #include "CVCameraModel.hpp"
 #include "CVGaussianBlurModel.hpp"
+#include "CVMedianBlurModel.hpp"
+#include "CVBilateralFilterModel.hpp"
 #include "TemplateModel.hpp"
 #include "CVSobelAndScharrModel.hpp"
 #include "CVCreateHistogramModel.hpp"
@@ -41,6 +43,11 @@
 #include "CVImagePropertiesModel.hpp"
 #include "CVMorphologicalTransformationModel.hpp"
 #include "CVHoughCircleTransfromModel.hpp"
+#include "CVHoughLinesModel.hpp"
+#include "CVHoughLinesPModel.hpp"
+#include "CVHoughLinesPointSetModel.hpp"
+#include "CVOpticalFlowFarnebackModel.hpp"
+#include "CVOpticalFlowPyrLKModel.hpp"
 #include "CVDistanceTransformModel.hpp"
 #include "CVFilter2DModel.hpp"
 #include "CVSplitImageModel.hpp"
@@ -71,6 +78,8 @@
 #include "CVDrawContourModel.hpp"
 #include "CVFindAndDrawContourModel.hpp"
 #include "CVMatSumModel.hpp"
+#include "CVHistogramEqualizationModel.hpp"
+#include "CVCLAHEEqualizationModel.hpp"
 //#include "CVCameraCalibrationModel.hpp"
 #include "MathConditionModel.hpp"
 #include "MathConvertToIntModel.hpp"
@@ -108,7 +117,14 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateMod
     registerModel< CVFilter2DModel >( model_regs, duplicate_model_names );
     registerModel< CVFloodFillModel >( model_regs, duplicate_model_names );
     registerModel< CVGaussianBlurModel >( model_regs, duplicate_model_names );
+    registerModel< CVMedianBlurModel >( model_regs, duplicate_model_names );
+    registerModel< CVBilateralFilterModel >( model_regs, duplicate_model_names );
     registerModel< CVHoughCircleTransformModel >( model_regs, duplicate_model_names );
+    registerModel< CVHoughLinesModel >( model_regs, duplicate_model_names );
+    registerModel< CVHoughLinesPModel >( model_regs, duplicate_model_names );
+    registerModel< CVHoughLinesPointSetModel >( model_regs, duplicate_model_names );
+    registerModel< CVOpticalFlowFarnebackModel >( model_regs, duplicate_model_names );
+    registerModel< CVOpticalFlowPyrLKModel >( model_regs, duplicate_model_names );
     registerModel< CVImageROIModel >( model_regs, duplicate_model_names );
     registerModel< CVImageROINewModel > ( model_regs, duplicate_model_names );
     registerModel< CVImageResizeModel > ( model_regs, duplicate_model_names );
@@ -147,6 +163,8 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateMod
     registerModel< MathConditionModel >( model_regs, duplicate_model_names );
     registerModel< MathConvertToIntModel >( model_regs, duplicate_model_names );
     registerModel< CombineSyncModel >( model_regs, duplicate_model_names );
+    registerModel< CVHistogramEqualizationModel >( model_regs, duplicate_model_names );
+    registerModel< CVCLAHEEqualizationModel >( model_regs, duplicate_model_names );
 
  //   registerModel< CVCameraCalibrationModel >( model_regs, duplicate_model_names );
 

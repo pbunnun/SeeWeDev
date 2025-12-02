@@ -26,7 +26,7 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
 #include <opencv2/imgproc.hpp>
 
@@ -71,8 +71,133 @@ typedef struct CVColorSpaceParameters{
     {
         miCVColorSpaceInput = 1;  // BGR
         miCVColorSpaceOutput = 2; // HSV
-    }
+    };
 } CVColorSpaceParameters;
+
+/**
+ * @brief Worker class for asynchronous color space conversion.
+ */
+class CVColorSpaceWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit CVColorSpaceWorker(QObject* parent = nullptr) : QObject(parent) {}
+
+public Q_SLOTS:
+    /**
+     * @brief Process frame asynchronously.
+     * @param frame Input image to convert
+     * @param params Conversion parameters
+     */
+    void processFrame(const cv::Mat& frame, const CVColorSpaceParameters& params)
+    {
+        if (frame.empty() || frame.depth() != CV_8U)
+        {
+            Q_EMIT frameReady(nullptr);
+            return;
+        }
+
+        auto outData = std::make_shared<CVImageData>(cv::Mat());
+
+        if (params.miCVColorSpaceInput == params.miCVColorSpaceOutput)
+        {
+            outData->set_image(frame);
+        }
+        else
+        {
+            int cvColorSpaceConvertion = -1;
+            switch (params.miCVColorSpaceInput)
+            {
+            case 0:
+                if (frame.channels() != 1)
+                {
+                    Q_EMIT frameReady(nullptr);
+                    return;
+                }
+                switch (params.miCVColorSpaceOutput)
+                {
+                case 1:
+                    cvColorSpaceConvertion = cv::COLOR_GRAY2BGR;
+                    break;
+                case 2:
+                    cvColorSpaceConvertion = cv::COLOR_GRAY2RGB;
+                    break;
+                }
+                break;
+
+            case 1:
+                if (frame.channels() != 3)
+                {
+                    Q_EMIT frameReady(nullptr);
+                    return;
+                }
+                switch (params.miCVColorSpaceOutput)
+                {
+                case 0:
+                    cvColorSpaceConvertion = cv::COLOR_BGR2GRAY;
+                    break;
+                case 2:
+                    cvColorSpaceConvertion = cv::COLOR_BGR2RGB;
+                    break;
+                case 3:
+                    cvColorSpaceConvertion = cv::COLOR_BGR2HSV;
+                    break;
+                }
+                break;
+
+            case 2:
+                if (frame.channels() != 3)
+                {
+                    Q_EMIT frameReady(nullptr);
+                    return;
+                }
+                switch (params.miCVColorSpaceOutput)
+                {
+                case 0:
+                    cvColorSpaceConvertion = cv::COLOR_RGB2GRAY;
+                    break;
+                case 1:
+                    cvColorSpaceConvertion = cv::COLOR_RGB2BGR;
+                    break;
+                case 3:
+                    cvColorSpaceConvertion = cv::COLOR_RGB2HSV;
+                    break;
+                }
+                break;
+
+            case 3:
+                if (frame.channels() != 3)
+                {
+                    Q_EMIT frameReady(nullptr);
+                    return;
+                }
+                switch (params.miCVColorSpaceOutput)
+                {
+                case 1:
+                    cvColorSpaceConvertion = cv::COLOR_HSV2BGR;
+                    break;
+                case 2:
+                    cvColorSpaceConvertion = cv::COLOR_HSV2RGB;
+                    break;
+                }
+            }
+
+            if (cvColorSpaceConvertion != -1)
+            {
+                cv::cvtColor(frame, outData->data(), cvColorSpaceConvertion);
+            }
+            else
+            {
+                outData->set_image(frame);
+            }
+        }
+        Q_EMIT frameReady(outData);
+    }
+
+Q_SIGNALS:
+    void frameReady(std::shared_ptr<CVImageData> output);
+};
 
 /**
  * @class CVColorSpaceModel
@@ -106,7 +231,7 @@ typedef struct CVColorSpaceParameters{
  * @see cv::cvtColor for the underlying OpenCV conversion function
  * @see cv::ColorConversionCodes for available conversion types
  */
-class CVColorSpaceModel : public PBNodeDelegateModel
+class CVColorSpaceModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
@@ -121,8 +246,7 @@ public:
     /**
      * @brief Destructor
      */
-    virtual
-    ~CVColorSpaceModel() override {}
+    ~CVColorSpaceModel() override = default; 
 
     /**
      * @brief Serializes the node state to JSON
@@ -143,58 +267,6 @@ public:
      */
     void
     load(const QJsonObject &p) override;
-
-    /**
-     * @brief Returns the number of ports for the given port type
-     * 
-     * This node has:
-     * - 1 input port (source image)
-     * - 1 output port (converted image)
-     * 
-     * @param portType The type of port (In or Out)
-     * @return Number of ports of the specified type
-     */
-    unsigned int
-    nPorts(PortType portType) const override;
-
-    /**
-     * @brief Returns the data type for a specific port
-     * 
-     * All ports use CVImageData type.
-     * 
-     * @param portType The type of port (In or Out)
-     * @param portIndex The index of the port
-     * @return NodeDataType describing CVImageData
-     */
-    NodeDataType
-    dataType(PortType portType, PortIndex portIndex) const override;
-
-    /**
-     * @brief Provides the converted image output
-     * 
-     * @param port The output port index (only 0 is valid)
-     * @return Shared pointer to the converted CVImageData
-     * @note Returns nullptr if no input has been processed or conversion failed
-     */
-    std::shared_ptr<NodeData>
-    outData(PortIndex port) override;
-
-    /**
-     * @brief Receives and processes input image data
-     * 
-     * When image data arrives, this method:
-     * 1. Validates the input data
-     * 2. Determines the OpenCV conversion code from input/output color spaces
-     * 3. Calls cv::cvtColor() to perform the conversion
-     * 4. Stores the result for output
-     * 5. Notifies connected nodes of new data
-     * 
-     * @param nodeData The input CVImageData
-     * @param portIndex The input port index (must be 0)
-     * @note Invalid conversions will result in an error state
-     */
-    void
-    setInData(std::shared_ptr<NodeData> nodeData, PortIndex) override;
 
     /**
      * @brief No embedded widget for this node
@@ -238,36 +310,22 @@ public:
     /** @brief Display name for the node type */
     static const QString _model_name;
 
-private:
-    /**
-     * @brief Internal helper to perform the color space conversion
-     * 
-     * Constructs the appropriate OpenCV ColorConversionCode from the parameter
-     * structure and executes cv::cvtColor(). Handles error cases where the
-     * conversion is incompatible with the input image format.
-     * 
-     * @param in The input CVImageData to convert
-     * @param out The output CVImageData to populate with converted image
-     * @param params The conversion parameters (input/output color spaces)
-     * @note Uses OpenCV's cv::cvtColor() internally
-     * @see cv::cvtColor
-     * @see cv::ColorConversionCodes
-     */
-    void
-    processData( const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData> & out,
-                 const CVColorSpaceParameters & params );
+protected:
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+    void process_cached_input() override;
 
+private:
     /** @brief Current conversion parameters */
     CVColorSpaceParameters mParams;
     
-    /** @brief Cached output image data */
-    std::shared_ptr<CVImageData> mpCVImageData { nullptr };
-    
-    /** @brief Cached input image data */
-    std::shared_ptr<CVImageData> mpCVImageInData { nullptr };
-    
     /** @brief Preview pixmap for node palette */
     QPixmap _minPixmap;
+
+    // Pending work for backpressure handling
+    cv::Mat mPendingFrame;
+    CVColorSpaceParameters mPendingParams;
 };
 
 

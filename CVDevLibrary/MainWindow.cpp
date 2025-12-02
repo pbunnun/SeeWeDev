@@ -2186,10 +2186,12 @@ loadScene(QString & filename)
             view->center_on( center_pos );
         }
 
-            if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->pDataFlowGraphicsScene)
-            {
-                mitSceneProperty->pDataFlowGraphicsScene->updateAllGroupVisuals();
-            }
+        // Clear selection after loading
+        if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->pDataFlowGraphicsScene)
+        {
+            mitSceneProperty->pDataFlowGraphicsScene->clearSelection();
+            mitSceneProperty->pDataFlowGraphicsScene->updateAllGroupVisuals();
+        }
     }
     else
     {
