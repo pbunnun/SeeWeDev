@@ -5,3 +5,6 @@
 	path = NodeEditor
 	url = https://github.com/pbunnun/NodeEditor.git
 	branch = Work4CVDev
+[submodule "CVDevCommunityPlugins"]
+	path = CVDevCommunityPlugins
+	url = https://github.com/pbunnun/CVDevCommunityPlugins.git

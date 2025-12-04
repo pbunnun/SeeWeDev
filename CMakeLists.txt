@@ -21,6 +21,7 @@ add_subdirectory(CVDevLibrary)
 add_subdirectory(Main)
 
 add_subdirectory(Plugins)
+add_subdirectory(CVDevCommunityPlugins)
 
 # -------------------------------------------------------------------
 # CPack Configuration for DEB Package Generation
