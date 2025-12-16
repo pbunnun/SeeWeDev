@@ -59,6 +59,8 @@
 #include "SyncData.hpp"
 #include <opencv2/dnn.hpp>
 
+#include <QtGui/QPixmap>
+
 using QtNodes::PortType;
 using QtNodes::PortIndex;
 using QtNodes::NodeData;
@@ -418,6 +420,8 @@ private:
 
     QString msDNNModel_Filename;   ///< Path to DNN model file
     QString msDNNConfig_Filename;  ///< Path to config file
+
+    QPixmap _minPixmap;
 
     /**
      * @brief Processes incoming image data.

@@ -22,7 +22,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 COMPONENTS Widgets OpenGL OpenGLWidgets REQUIRED)
-find_package(OpenCV CONFIG REQUIRED)
+find_package(OpenCV 4.8 CONFIG REQUIRED)
 
 if( Qt6_FOUND )
     find_package(Qt6 COMPONENTS OpenGLWidgets REQUIRED)

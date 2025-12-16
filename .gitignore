@@ -1,1 +1,3 @@
 build
+CMakeLists.txt.user
+Plugins/BasicNodes/vc140.pdb

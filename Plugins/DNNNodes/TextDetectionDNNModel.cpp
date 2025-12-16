@@ -21,6 +21,7 @@
 
 #include "qtvariantproperty_p.h"
 #include <QFile>
+#include <QIcon>
 
 const QString TextDetectionDNNModel::_category = QString("DNN");
 
@@ -118,6 +119,9 @@ TextDetectionDNNModel::
 TextDetectionDNNModel()
     : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/TextDetectionDNNModel.svg");
+    _minPixmap = icon.pixmap(108, 108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >(true);
 
