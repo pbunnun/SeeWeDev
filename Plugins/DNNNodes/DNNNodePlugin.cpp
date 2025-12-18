@@ -21,6 +21,8 @@
 #include "TextRecognitionDNNModel.hpp"
 #include "CVYoloDNNModel.hpp"
 
+#include <QIcon>
+
 QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModelRegistry > model_regs )
 {
     QStringList duplicate_model_names;

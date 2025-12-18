@@ -58,6 +58,8 @@
 #include "SyncData.hpp"
 #include <opencv2/dnn.hpp>
 
+#include <QtGui/QPixmap>
+
 using QtNodes::PortType;
 using QtNodes::PortIndex;
 using QtNodes::NodeData;
@@ -382,6 +384,8 @@ public:
             delete mpCVYoloDNNThread;
     }
 
+    virtual QPixmap minPixmap() const override { return _minPixmap; }
+
     /**
      * @brief Saves model state to JSON.
      * @return QJsonObject containing model file paths and parameters.
@@ -493,4 +497,5 @@ private:
      * Reads model files and initializes network.
      */
     void load_model();
+    QPixmap _minPixmap;
 };

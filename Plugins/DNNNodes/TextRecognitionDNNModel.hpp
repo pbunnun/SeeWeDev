@@ -60,6 +60,8 @@
 #include "InformationData.hpp"
 #include <opencv2/dnn.hpp>
 
+#include <QtGui/QPixmap>
+
 using QtNodes::PortType;
 using QtNodes::PortIndex;
 using QtNodes::NodeData;
@@ -328,6 +330,8 @@ public:
             delete mpTextRecognitionDNNThread;
     }
 
+    QPixmap minPixmap() const override { return _minPixmap; }
+
     QJsonObject
     save() const override;
 
@@ -374,4 +378,5 @@ private:
 
     void processData(const std::shared_ptr< CVImageData > & in);
     void load_model();
+    QPixmap _minPixmap;
 };

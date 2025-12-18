@@ -22,6 +22,8 @@
 #include "qtvariantproperty_p.h"
 #include <QFile>
 
+#include <QIcon>
+
 const QString OnnxClassificationDNNModel::_category = QString("DNN");
 
 const QString OnnxClassificationDNNModel::_model_name = QString( "Onnx Classification Model" );
@@ -130,6 +132,9 @@ OnnxClassificationDNNModel::
 OnnxClassificationDNNModel()
     : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/OnnxClassificationDNNModel.svg");
+    _minPixmap = icon.pixmap(108,108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >( true );
 

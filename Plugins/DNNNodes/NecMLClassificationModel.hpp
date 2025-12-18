@@ -53,6 +53,8 @@
 #include "SyncData.hpp"
 #include <opencv2/dnn.hpp>
 
+#include <QtGui/QPixmap>
+
 using QtNodes::PortType;
 using QtNodes::PortIndex;
 using QtNodes::NodeData;
@@ -352,6 +354,7 @@ public:
             delete mpNecMLClassificationThread;
     }
 
+    virtual QPixmap minPixmap() const override { return _minPixmap; }
     /**
      * @brief Saves model state to JSON.
      * @return QJsonObject containing model paths and parameters.
@@ -465,4 +468,6 @@ private:
      * Reads model files and initializes DNN with class labels.
      */
     void load_model(bool bUpdateDisplayProperties = false);
+
+    QPixmap _minPixmap;
 };

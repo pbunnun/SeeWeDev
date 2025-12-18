@@ -22,6 +22,7 @@
 #include "qtvariantproperty_p.h"
 #include <QFile>
 #include <QElapsedTimer>
+#include <QIcon>
 
 const QString NecMLClassificationModel::_category = QString("DNN");
 
@@ -133,6 +134,9 @@ NecMLClassificationModel::
 NecMLClassificationModel()
     : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/NecMLClassificationModel.svg");
+    _minPixmap = icon.pixmap(108,108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >( true );
     mpInformationData = std::make_shared< InformationData >();

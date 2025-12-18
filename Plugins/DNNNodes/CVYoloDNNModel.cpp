@@ -23,6 +23,7 @@
 #include <QFile>
 #include <QMessageBox>
 #include <fstream>
+#include <QIcon>
 
 const QString CVYoloDNNModel::_category = QString("DNN");
 
@@ -230,6 +231,9 @@ CVYoloDNNModel::
 CVYoloDNNModel()
     : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/CVYoloDNNModel.svg");
+    _minPixmap = icon.pixmap(108,108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();
     mpSyncData->data() = true;

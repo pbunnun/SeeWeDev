@@ -49,6 +49,8 @@
 #include "SyncData.hpp"
 #include <opencv2/dnn.hpp>
 
+#include <QtGui/QPixmap>
+
 using QtNodes::PortType;
 using QtNodes::PortIndex;
 using QtNodes::NodeData;
@@ -159,6 +161,8 @@ public:
             delete mpNomadMLClassificationThread;
     }
 
+    virtual QPixmap minPixmap() const override { return _minPixmap; }
+
     QJsonObject
     save() const override;
 
@@ -208,4 +212,6 @@ private:
 
     void processData(const std::shared_ptr< CVImageData > & in);
     void load_model(bool bUpdateDisplayProperties = false);
+
+    QPixmap _minPixmap;
 };

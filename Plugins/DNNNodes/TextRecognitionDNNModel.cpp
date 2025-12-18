@@ -23,6 +23,8 @@
 #include <QFile>
 #include <fstream>
 
+#include <QIcon>
+
 const QString TextRecognitionDNNModel::_category = QString("DNN");
 
 const QString TextRecognitionDNNModel::_model_name = QString( "Text Recognition Model" );
@@ -131,6 +133,9 @@ TextRecognitionDNNModel::
 TextRecognitionDNNModel()
     : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/TextRecognitionDNNModel.svg");
+    _minPixmap = icon.pixmap(108,108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >(true);
     mpInformationData = std::make_shared< InformationData >();

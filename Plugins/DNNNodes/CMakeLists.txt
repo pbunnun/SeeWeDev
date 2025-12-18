@@ -21,7 +21,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Widgets REQUIRED Svg)
 find_package(OpenCV 4.8 CONFIG REQUIRED)
 
 file(GLOB CPP_FILES *.cpp)
@@ -58,6 +58,7 @@ include_directories(${CVDevLibrary_INCLUDE_DIRS})
 
 target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
+    Qt6::Svg
     ${OpenCV_LIBS}
 )
 

@@ -23,6 +23,8 @@
 #include <QFile>
 #include <QElapsedTimer>
 
+#include <QIcon>
+
 const QString NomadMLClassificationModel::_category = QString("DNN");
 
 const QString NomadMLClassificationModel::_model_name = QString( "NomadML Classification" );
@@ -136,6 +138,9 @@ NomadMLClassificationModel::
 NomadMLClassificationModel()
     : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/NomadMLClassificationModel.svg");
+    _minPixmap = icon.pixmap(108,108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >( true );
     mpInformationData = std::make_shared< InformationData >();

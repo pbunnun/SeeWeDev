@@ -114,7 +114,7 @@ FaceDetectionDNNModel()
     : PBNodeDelegateModel( _model_name )
 {
     QIcon icon(":/FaceDetectionDNNModel.svg");
-    _minPixmap=icon.pixmap(108,108);
+    _minPixmap = icon.pixmap(108,108);
 
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();

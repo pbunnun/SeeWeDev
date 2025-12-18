@@ -325,6 +325,8 @@ public:
             delete mpFaceDetectorThread;
     }
 
+    virtual QPixmap minPixmap() const override { return _minPixmap; }
+
     /**
      * @brief Saves model state to JSON.
      * @return QJsonObject containing model file paths.
@@ -421,8 +423,6 @@ private:
     QString msDNNModel_Filename;   ///< Path to DNN model file
     QString msDNNConfig_Filename;  ///< Path to config file
 
-    QPixmap _minPixmap;
-
     /**
      * @brief Processes incoming image data.
      * @param in Input CVImageData.
@@ -437,4 +437,5 @@ private:
      * Reads model files and initializes DNN.
      */
     void load_model();
+    QPixmap _minPixmap;
 };
