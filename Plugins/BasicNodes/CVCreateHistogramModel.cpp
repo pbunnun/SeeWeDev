@@ -29,7 +29,7 @@ CVCreateHistogramModel::
 
 CVCreateHistogramModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":CVCreateHistogram.png" )
+      _minPixmap( ":/CVCreateHistogramModel.png" )
 { //ucharbin(mod(range)==0),ucharrange_max,ucharrange_min,intthic,intlinetype
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat(256,256,CV_8UC3,cv::Scalar::all(0)) );
 

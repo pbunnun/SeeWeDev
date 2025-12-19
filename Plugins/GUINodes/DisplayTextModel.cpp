@@ -13,7 +13,8 @@ const QString DisplayTextModel::_model_name = QString( "Display Text" );
 DisplayTextModel::
 DisplayTextModel()
     : PBNodeDelegateModel( _model_name ),
-      mpEmbeddedWidget( new QTextEdit( qobject_cast<QWidget *>(this) ) )
+      mpEmbeddedWidget( new QTextEdit( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/DisplayTextModel.png")
 {
     mpInformationData = std::make_shared< InformationData >();
 

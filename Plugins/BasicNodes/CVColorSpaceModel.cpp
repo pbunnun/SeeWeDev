@@ -28,7 +28,7 @@ const QString CVColorSpaceModel::_model_name = QString("CV Color Space");
 CVColorSpaceModel::
     CVColorSpaceModel()
     : PBAsyncDataModel(_model_name),
-      _minPixmap(":CVColorSpace.png")
+      _minPixmap(":/CVColorSpaceModel.png")
 {
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList({"GRAY", "BGR", "RGB", "HSV"});

@@ -240,6 +240,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    QPixmap
+    minPixmap() const { return _minPixmap; }
+
     /**
      * @brief Model category name.
      *
@@ -287,4 +290,5 @@ private:
      * Can be adjusted for larger/smaller number ranges.
      */
     int miDigitCount {5};
+    QPixmap _minPixmap;
 };
