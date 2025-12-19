@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,15 +14,19 @@
 
 #include "NecMLClassificationModel.hpp"
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
 #include <opencv2/imgproc.hpp>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include <QFile>
 #include <QElapsedTimer>
+#include <QIcon>
+
+const QString NecMLClassificationModel::_category = QString("DNN");
+
+const QString NecMLClassificationModel::_model_name = QString( "NecML Classification" );
 
 NecMLClassificationThread::NecMLClassificationThread( QObject * parent )
     : QThread(parent)
@@ -72,7 +76,7 @@ run()
         qDebug() << "Elapsed Time : " << etimer.nsecsElapsed()/1000000.;
 
         QString result_information;
-        if( maxLoc.x < mvStrClasses.size() )
+        if( maxLoc.x < static_cast<int>(mvStrClasses.size()) )
         {
             QString out_text = "\"Class\" : \"" + QString::fromStdString(mvStrClasses[maxLoc.x] + "\"");
             result_information = "{\n    " + out_text;
@@ -128,8 +132,11 @@ NecMLClassificationThread::
 
 NecMLClassificationModel::
 NecMLClassificationModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/NecMLClassificationModel.svg");
+    _minPixmap = icon.pixmap(108,108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >( true );
     mpInformationData = std::make_shared< InformationData >();
@@ -286,7 +293,7 @@ QJsonObject
 NecMLClassificationModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
     cParams["model_filename"] = msDNNModel_Filename;
     cParams["config_filename"] = msConfig_Filename;
@@ -299,7 +306,7 @@ void
 NecMLClassificationModel::
 restore( QJsonObject const &p )
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load( p );
     late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
@@ -331,7 +338,7 @@ void
 NecMLClassificationModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
     if( !mMapIdToProperty.contains( id ) )
         return;
 
@@ -490,6 +497,4 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpNecMLClassificationThread->detect( in_image );
 }
 
-const QString NecMLClassificationModel::_category = QString("DNN");
 
-const QString NecMLClassificationModel::_model_name = QString( "NecML Classification" );

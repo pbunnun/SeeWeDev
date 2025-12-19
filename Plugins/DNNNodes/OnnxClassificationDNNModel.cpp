@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,14 +14,19 @@
 
 #include "OnnxClassificationDNNModel.hpp"
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
 #include <opencv2/imgproc.hpp>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include <QFile>
+
+#include <QIcon>
+
+const QString OnnxClassificationDNNModel::_category = QString("DNN");
+
+const QString OnnxClassificationDNNModel::_model_name = QString( "Onnx Classification Model" );
 
 OnnxClassificationDNNThread::OnnxClassificationDNNThread( QObject * parent )
     : QThread(parent)
@@ -64,7 +69,7 @@ run()
             sumScores += exp(out.at<float>(idx));
         float confidence = exp(max)/sumScores;
         //qDebug() << "Got Confidence ... " << confidence;
-        if( maxLoc.x < mvStrClasses.size() )
+        if( maxLoc.x < static_cast<int>(mvStrClasses.size()) )
         {
             QString out_text = "Class : " + QString::fromStdString(mvStrClasses[maxLoc.x]);
             cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
@@ -125,8 +130,11 @@ setParams(OnnxClassificationDNNBlobImageParameters & params)
 
 OnnxClassificationDNNModel::
 OnnxClassificationDNNModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/OnnxClassificationDNNModel.svg");
+    _minPixmap = icon.pixmap(108,108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >( true );
 
@@ -278,7 +286,7 @@ QJsonObject
 OnnxClassificationDNNModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
     cParams["model_filename"] = msDNNModel_Filename;
     cParams["classes_filename"] = msClasses_Filename;
@@ -301,7 +309,7 @@ void
 OnnxClassificationDNNModel::
 restore( QJsonObject const &p )
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load( p );
     late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
@@ -411,7 +419,7 @@ void
 OnnxClassificationDNNModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
     if( !mMapIdToProperty.contains( id ) )
         return;
 
@@ -557,6 +565,4 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpOnnxClassificationDNNThread->detect( in_image );
 }
 
-const QString OnnxClassificationDNNModel::_category = QString("DNN");
 
-const QString OnnxClassificationDNNModel::_model_name = QString( "Onnx Classification Model" );

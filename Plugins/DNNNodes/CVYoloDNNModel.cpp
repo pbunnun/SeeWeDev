@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,16 +14,20 @@
 
 #include "CVYoloDNNModel.hpp"
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
 #include <opencv2/imgproc.hpp>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include <QFile>
 #include <QMessageBox>
 #include <fstream>
+#include <QIcon>
+
+const QString CVYoloDNNModel::_category = QString("DNN");
+
+const QString CVYoloDNNModel::_model_name = QString( "Yolo Object Detection" );
 
 CVYoloDNNThread::CVYoloDNNThread( QObject * parent )
     : QThread(parent)
@@ -225,8 +229,11 @@ setParams(CVYoloDNNImageParameters & params)
 
 CVYoloDNNModel::
 CVYoloDNNModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/CVYoloDNNModel.svg");
+    _minPixmap = icon.pixmap(108,108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();
     mpSyncData->data() = true;
@@ -356,7 +363,7 @@ QJsonObject
 CVYoloDNNModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
     cParams["weights_filename"] = msWeights_Filename;
     cParams["classes_filename"] = msClasses_Filename;
@@ -375,7 +382,7 @@ void
 CVYoloDNNModel::
 restore( QJsonObject const &p )
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load( p );
     late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
@@ -451,7 +458,7 @@ void
 CVYoloDNNModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
     if( !mMapIdToProperty.contains( id ) )
         return;
 
@@ -573,6 +580,4 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpCVYoloDNNThread->detect( in_image );
 }
 
-const QString CVYoloDNNModel::_category = QString("DNN");
 
-const QString CVYoloDNNModel::_model_name = QString( "Yolo Object Detection" );

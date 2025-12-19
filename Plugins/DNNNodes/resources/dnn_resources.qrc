@@ -1,5 +1,12 @@
 <RCC>
     <qresource prefix="/">
-
+        <file>TextDetectionDNNModel.svg</file>
+        <file>FaceDetectionDNNModel.svg</file>
+        <file>CVYoloDNNModel.svg</file>
+        <file>NecMLClassificationModel.svg</file>
+        <file>NomadMLClassificationModel.svg</file>
+        <file>OnnxClassificationDNNModel.svg</file>
+        <file>TextRecognitionDNNModel.svg</file>
+        <file>DNNNodePlagin.svg</file>
     </qresource>
 </RCC>

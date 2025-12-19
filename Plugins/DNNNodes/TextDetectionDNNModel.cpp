@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,14 +14,18 @@
 
 #include "TextDetectionDNNModel.hpp"
 
-#include <nodes/DataModelRegistry>
 
 #include "CVImageData.hpp"
 
 #include <opencv2/imgproc.hpp>
 
-#include "qtvariantproperty.h"
+#include "qtvariantproperty_p.h"
 #include <QFile>
+#include <QIcon>
+
+const QString TextDetectionDNNModel::_category = QString("DNN");
+
+const QString TextDetectionDNNModel::_model_name = QString( "Text Detection Model" );
 
 TextDetectionDBThread::TextDetectionDBThread( QObject * parent )
     : QThread(parent)
@@ -113,8 +117,11 @@ setParams(TextDetectionDBParameters & params)
 
 TextDetectionDNNModel::
 TextDetectionDNNModel()
-    : PBNodeDataModel( _model_name )
+    : PBNodeDelegateModel( _model_name )
 {
+    QIcon icon(":/TextDetectionDNNModel.svg");
+    _minPixmap = icon.pixmap(108, 108);
+
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >(true);
 
@@ -243,7 +250,7 @@ QJsonObject
 TextDetectionDNNModel::
 save() const
 {
-    QJsonObject modelJson = PBNodeDataModel::save();
+    QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
     cParams["model_filename"] = msDBModel_Filename;
     auto params = mpTextDetectionDNNThread->getParams();
@@ -262,7 +269,7 @@ void
 TextDetectionDNNModel::
 restore( QJsonObject const &p )
 {
-    PBNodeDataModel::restore( p );
+    PBNodeDelegateModel::load( p );
     late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
@@ -337,7 +344,7 @@ void
 TextDetectionDNNModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDataModel::setModelProperty( id, value );
+    PBNodeDelegateModel::setModelProperty( id, value );
     if( !mMapIdToProperty.contains( id ) )
         return;
 
@@ -446,6 +453,4 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpTextDetectionDNNThread->detect( in_image );
 }
 
-const QString TextDetectionDNNModel::_category = QString("DNN");
 
-const QString TextDetectionDNNModel::_model_name = QString( "Text Detection Model" );
