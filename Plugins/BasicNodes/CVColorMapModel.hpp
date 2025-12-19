@@ -311,5 +311,7 @@ private:
      */
     void processData( const std::shared_ptr<CVImageData> &in, std::shared_ptr< CVImageData > & out,
                       const CVColorMapParameters & params );
+
+    QPixmap _minpixmap;
 };
 

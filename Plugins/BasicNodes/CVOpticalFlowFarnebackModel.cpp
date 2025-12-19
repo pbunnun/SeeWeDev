@@ -122,7 +122,7 @@ void CVOpticalFlowFarnebackWorker::processFrame(
 
 CVOpticalFlowFarnebackModel::CVOpticalFlowFarnebackModel()
     : PBAsyncDataModel(_model_name),
-      _minPixmap(":CVOpticalFlowFarneback.png")
+      _minPixmap(":/CVOpticalFlowFarnebackModel.png")
 {
     // Initialize properties
     IntPropertyType intPropertyType;

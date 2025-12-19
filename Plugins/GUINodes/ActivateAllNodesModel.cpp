@@ -13,7 +13,8 @@ const QString ActivateAllNodesModel::_model_name = QString( "Activate all Nodes"
 ActivateAllNodesModel::
 ActivateAllNodesModel()
     : PBNodeDelegateModel( _model_name ),
-      mpEmbeddedWidget( new QPushButton( qobject_cast<QWidget *>(this) ) )
+      mpEmbeddedWidget( new QPushButton( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/ActivateAllNodesModel.png")
 {
     mpEmbeddedWidget->setStyleSheet(
                 "QPushButton { "

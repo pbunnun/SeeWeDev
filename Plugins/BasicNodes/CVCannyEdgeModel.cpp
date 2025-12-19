@@ -78,7 +78,7 @@ void CVCannyEdgeWorker::
 CVCannyEdgeModel::
     CVCannyEdgeModel()
     : PBAsyncDataModel(_model_name),
-      _minPixmap(":CVCannyEdge.png")
+      _minPixmap(":/CVCannyEdgeModel.png")
 {
     IntPropertyType intPropertyType;
     QString propId = "kernel_size";

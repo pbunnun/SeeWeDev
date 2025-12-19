@@ -27,7 +27,7 @@ const QString CVConvertDepthModel::_model_name = QString( "CV Convert Depth" );
 CVConvertDepthModel::
 CVConvertDepthModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":CVConvertDepth.png" )
+      _minPixmap( ":/CVConvertDepthModel.png" )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
 
