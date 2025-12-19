@@ -1,4 +1,4 @@
-//Copyright © 2022, NECTEC, all rights reserved
+//Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -21,7 +21,9 @@
 #include "TextRecognitionDNNModel.hpp"
 #include "CVYoloDNNModel.hpp"
 
-QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< DataModelRegistry > model_regs )
+#include <QIcon>
+
+QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModelRegistry > model_regs )
 {
     QStringList duplicate_model_names;
 
