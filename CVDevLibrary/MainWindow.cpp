@@ -1585,6 +1585,9 @@ actionLoad_slot()
         }
     }
     loadScene(filename);
+    
+    // Add to recent files list
+    updateRecentFiles(filename);
 }
 
 void
@@ -1694,6 +1697,11 @@ actionSceneOnly_slot()
     ui->mpAvailableNodeCategoryDockWidget->hide();
     ui->mpNodeListDockWidget->hide();
     ui->mpPropertyBrowserDockWidget->hide();
+    
+    // Recenter view after layout changes
+    QTimer::singleShot(0, this, [this]() {
+        recenterCurrentView();
+    });
 }
 
 void
@@ -1703,20 +1711,22 @@ actionAllPanels_slot()
     ui->mpAvailableNodeCategoryDockWidget->show();
     ui->mpNodeListDockWidget->show();
     ui->mpPropertyBrowserDockWidget->show();
+    
+    // Recenter view after layout changes
+    QTimer::singleShot(0, this, [this]() {
+        recenterCurrentView();
+    });
 }
 
 void
 MainWindow::
-actionZoomReset_slot()
+recenterCurrentView()
 {
     PBFlowGraphicsView* view = getCurrentView();
     PBDataFlowGraphModel* model = getCurrentModel();
     
     if (!view || !model)
         return;
-    
-    // Reset the zoom transformation
-    view->resetTransform();
     
     // Get all nodes in the current scene
     auto nodes = model->allNodeIds();
@@ -1752,6 +1762,23 @@ actionZoomReset_slot()
         // Center the view on this position
         view->center_on(center_pos);
     }
+}
+
+void
+MainWindow::
+actionZoomReset_slot()
+{
+    PBFlowGraphicsView* view = getCurrentView();
+    PBDataFlowGraphModel* model = getCurrentModel();
+    
+    if (!view || !model)
+        return;
+    
+    // Reset the zoom transformation
+    view->resetTransform();
+    
+    // Recenter the view on all nodes
+    recenterCurrentView();
 }
 
 void
@@ -2071,6 +2098,10 @@ loadSettings()
                 loadScene(filename);
         }
         
+        // Load recent files list
+        msRecentFiles = settings.value("Recent Files", QStringList()).toStringList();
+        createRecentFilesMenu();
+        
         if( settings.value("Hide Node Category", false).toBool() )
             ui->mpAvailableNodeCategoryDockWidget->setHidden(true);
         if( settings.value("Hide Workspace", false).toBool() )
@@ -2081,6 +2112,15 @@ loadSettings()
             ui->mpActionFocusView->setChecked(true);
         if( settings.value("In Full Screen", false).toBool() )
             ui->mpActionFullScreen->setChecked(true);
+        // Recenter view after layout changes
+        QTimer::singleShot(0, this, [this]() {
+            recenterCurrentView();
+        });
+    }
+    else
+    {
+        // Settings file doesn't exist yet, but still initialize recent files menu
+        createRecentFilesMenu();
     }
 }
 
@@ -2118,6 +2158,9 @@ saveSettings()
     settings.setValue("Hide Properties", ui->mpPropertyBrowserDockWidget->isHidden());
     settings.setValue("In Focus View", ui->mpActionFocusView->isChecked());
     settings.setValue("In Full Screen", ui->mpActionFullScreen->isChecked());
+    
+    // Save recent files list
+    settings.setValue("Recent Files", msRecentFiles);
 }
 
 void
@@ -2460,3 +2503,84 @@ actionChangeGroupColor_slot()
         statusBar()->showMessage("Changed group color", 3000);
     }
 }
+
+void
+MainWindow::
+updateRecentFiles(const QString& filename)
+{
+    // Remove duplicates first - if file exists, remove it to add it to the top
+    msRecentFiles.removeAll(filename);
+    
+    // Add to the beginning of the list
+    msRecentFiles.prepend(filename);
+    
+    // Keep only the most recent files (default: 10)
+    while (msRecentFiles.size() > miMaxRecentFiles)
+    {
+        msRecentFiles.removeLast();
+    }
+    
+    // Persist to settings
+    saveSettings();
+    
+    // Rebuild the menu
+    createRecentFilesMenu();
+}
+
+void
+MainWindow::
+createRecentFilesMenu()
+{
+    // Clear existing actions
+    ui->mpActionLoadRecentFiles->clear();
+    
+    if (msRecentFiles.isEmpty())
+    {
+        QAction* noFilesAction = ui->mpActionLoadRecentFiles->addAction("(No recent files)");
+        noFilesAction->setEnabled(false);
+        return;
+    }
+    
+    // Add each recent file as an action
+    for (const QString& filepath : msRecentFiles)
+    {
+        // Display only the filename, not the full path
+        QString displayName = QFileInfo(filepath).completeBaseName();
+        QAction* action = ui->mpActionLoadRecentFiles->addAction(displayName);
+        
+        // Store full path in data so we can retrieve it in the slot
+        action->setData(filepath);
+        
+        // Connect to the recent file triggered slot
+        connect(action, &QAction::triggered, this, &MainWindow::onRecentFileTriggered);
+    }
+}
+
+void
+MainWindow::
+onRecentFileTriggered()
+{
+    QAction* action = qobject_cast<QAction*>(sender());
+    if (!action)
+        return;
+    
+    QString filename = action->data().toString();
+    if (filename.isEmpty())
+        return;
+    
+    // Check if file still exists
+    if (!QFileInfo::exists(filename))
+    {
+        QMessageBox::warning(this, "File Not Found",
+                           QString("The file '%1' no longer exists.").arg(filename));
+        
+        // Remove from recent files list
+        msRecentFiles.removeAll(filename);
+        saveSettings();
+        createRecentFilesMenu();
+        return;
+    }
+    
+    loadScene(filename);
+}
+

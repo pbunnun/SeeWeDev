@@ -30,7 +30,7 @@
 
 #include "CVImageData.hpp"
 #include "InformationData.hpp"
-#include "CVSizeData.hpp"
+#include "SyncData.hpp"
 #include "CVImageLoaderEmbeddedWidget.hpp"
 
 using QtNodes::PortType;
@@ -283,8 +283,8 @@ private:
     /** @brief Cached output data: image metadata information */
     std::shared_ptr< InformationData > mpInformationData;
     
-    /** @brief Cached output data: image dimensions */
-    std::shared_ptr< CVSizeData > mpCVSizeData ;
+    /** @brief Cached output data: sync signal for synchronized processing */
+    std::shared_ptr< SyncData > mpSyncData;
 
     // Information display flags - control what metadata is shown
     /** @brief Display timestamp in info panel */
@@ -304,8 +304,5 @@ private:
 
     /** @brief Enable synchronization signal mode for frame-by-frame control */
     bool mbUseSyncSignal{false};
-    
-    /** @brief Current state of the synchronization signal */
-    bool mbSyncSignal{false};
 };
 

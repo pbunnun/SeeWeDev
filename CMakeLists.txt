@@ -16,6 +16,7 @@ if( WIN32 )
 endif()
 
 add_subdirectory(NodeEditor)
+
 add_subdirectory(QtPropertyBrowserLibrary)
 add_subdirectory(CVDevLibrary)
 add_subdirectory(Main)
@@ -81,13 +82,18 @@ endif()
 set(CPACK_GENERATOR "DEB;NSIS")
 set(CPACK_DEB_COMPONENT_INSTALL ON)
 
+# Only ship the defined components; avoid an Unspecified component.
+set(CPACK_COMPONENTS_ALL Runtime Development)
+
 # Specify runtime dependencies. This is a crucial step.
 # List all required packages, for example: "libc6 (>= 2.17), libqt5widgets5 (>= 5.15.2)"
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "libc6 (>= 2.35), libqt6widgets6, libqt6gui6, libqt6core6, libopencv-core406t64, libopencv-imgproc406t64")
 # --- Configuration for the DEVELOPMENT package ---
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "libopencv-dev, qt6-base-dev, qt6-base-dev-tools, qt6-base-private-dev, qt6-tools-dev, qt6-tools-dev-tools")
 
-include(CPack)
+# Make component macros available before defining components.
+include(CPackComponent)
+
 # Define the installation components
 # cpack_add_component(<componentName> DISPLAY_NAME <displayName> [DESCRIPTION <description>] [DEPENDS <other_components>])
 cpack_add_component(Runtime 
@@ -101,4 +107,7 @@ cpack_add_component(Development
     DESCRIPTION "Header files for development" 
     DEPENDS Runtime
 )
+
+# Load CPack after component definitions so components are honored.
+include(CPack)
 

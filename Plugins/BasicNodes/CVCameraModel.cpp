@@ -239,7 +239,8 @@ check_camera()
 CVCameraModel::
 CVCameraModel()
     : PBNodeDelegateModel( _model_name, true ),
-      mpEmbeddedWidget( new CVCameraEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
+      mpEmbeddedWidget( new CVCameraEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
+      mMinPixmap(":USBCamera.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVCameraEmbeddedWidget::button_clicked_signal, this, &CVCameraModel::em_button_clicked );

@@ -63,11 +63,17 @@
     </property>
     <addaction name="mpActionNew"/>
     <addaction name="mpActionLoad"/>
+    <addaction name="mpActionLoadRecentFiles"/>
     <addaction name="mpActionSave"/>
     <addaction name="mpActionSaveAll"/>
     <addaction name="mpActionSaveAs"/>
     <addaction name="separator"/>
     <addaction name="mpActionQuit"/>
+   </widget>
+   <widget class="QMenu" name="mpActionLoadRecentFiles">
+    <property name="title">
+     <string>Load Recent ...</string>
+    </property>
    </widget>
    <widget class="QMenu" name="mpMenuView">
     <property name="title">

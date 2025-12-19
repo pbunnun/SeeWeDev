@@ -29,3 +29,4 @@ CVDEVSHAREDLIB_EXPORT Q_DECLARE_LOGGING_CATEGORY(DebugLogging)
 // Logging macros with datetime and line number using Qt Logging Category
 #define DEBUG_LOG_INFO() qCInfo(DebugLogging) << "[[Info] " << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") << "|" << QFileInfo(__FILE__).fileName() << ":" << __LINE__ << "]"
 #define DEBUG_LOG_WARNING() qCWarning(DebugLogging) << "[[Warning] " << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") << "|" << QFileInfo(__FILE__).fileName() << ":" << __LINE__ << "]"
+#define DEBUG_LOG_CRITICAL() qCritical(DebugLogging) << "[[Critical] " << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz") << "|" << QFileInfo(__FILE__).fileName() << ":" << __LINE__ << "]"

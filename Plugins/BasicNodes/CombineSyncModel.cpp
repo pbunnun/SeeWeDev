@@ -85,7 +85,7 @@ std::shared_ptr<NodeData>
 CombineSyncModel::
 outData(PortIndex)
 {
-    std::shared_ptr<NodeData> result;
+    std::shared_ptr<NodeData> result{nullptr};
     if( isEnable() )
         result = mpSyncData;
     return result;

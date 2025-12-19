@@ -4,6 +4,7 @@
         <file>Test_Sharpen.png</file>
         <file>GaussianBlur.png</file>
         <file>CannyEdge.png</file>
+        <file>USBCamera.png</file>
         <file>RGBsetValue.png</file>
         <file>ColorSpace.png</file>
         <file>SobelAndScharr.png</file>

@@ -467,6 +467,39 @@ private:
      */
     void saveSettings();
     
+    /**
+     * @brief Recenters the current view to show all nodes centered
+     * 
+     * Calculates the bounding box of all nodes and centers the viewport on it.
+     * Used after layout changes (e.g., showing/hiding dock widgets).
+     */
+    void recenterCurrentView();
+    
+    // Recent files management methods
+    
+    /**
+     * @brief Updates the recent files list and rebuilds the menu
+     * @param filename Path to the file that was just loaded
+     * 
+     * Adds the file to the top of the recent list, removes duplicates,
+     * maintains max of 10 entries, and persists to settings.
+     */
+    void updateRecentFiles(const QString& filename);
+    
+    /**
+     * @brief Populates the recent files menu with current list
+     * 
+     * Creates QActions for each recent file and connects to onRecentFileTriggered.
+     */
+    void createRecentFilesMenu();
+    
+    /**
+     * @brief Slot for recent file menu actions
+     * 
+     * Extracts the filename from the triggered action and calls loadScene.
+     */
+    void onRecentFileTriggered();
+    
     // Helper methods for dynamic querying (avoiding stale cached pointers)
     
     /**
@@ -599,6 +632,12 @@ private:
 
     QString msSettingFilename;  ///< Path to the settings INI file
     const QString msProgramName{ "CVDev" };  ///< Application name
+
+    /// Recent files list (max 10 entries)
+    QStringList msRecentFiles;
+    
+    /// Maximum number of recent files to track
+    const int miMaxRecentFiles{10};
 
     // Property browser helper methods
     

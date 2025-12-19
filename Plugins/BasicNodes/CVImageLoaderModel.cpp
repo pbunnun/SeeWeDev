@@ -43,7 +43,7 @@ CVImageLoaderModel()
 
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpInformationData = std::make_shared< InformationData >( );
-    mpCVSizeData = std::make_shared< CVSizeData >( cv::Size() );
+    mpSyncData = std::make_shared< SyncData >( false );
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msImageFilename;
@@ -138,7 +138,7 @@ dataType(PortType portType, PortIndex portIndex) const
         case 1:
             return InformationData().type();
         case 2:
-            return CVSizeData().type();
+            return SyncData().type();
         default:
             return NodeDataType();
         }
@@ -162,8 +162,8 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex )
     if( portIndex == 0 )
     {
         auto d = std::dynamic_pointer_cast< SyncData > ( nodeData );
-        if( d )
-            mbSyncSignal = d->data();
+        if( d && d->data() ) // Sync signal is active
+            flip_image();
     }
 }
 
@@ -179,7 +179,7 @@ outData(PortIndex portIndex)
         else if( portIndex == 1 )
             result = mpInformationData;
         else if( portIndex == 2)
-            result = mpCVSizeData;
+            result = mpSyncData;
     }
     return result;
 }
@@ -202,7 +202,6 @@ save() const
         cParams["info_image_format"] = mbInfoImageFormat;
         cParams["info_image_size"] = mbInfoImageSize;
         cParams["info_image_filename"] = mbInfoImageFilename;
-        cParams["use_sync_signal"] = mbUseSyncSignal;
         modelJson["cParams"] = cParams;
     }
     return modelJson;
@@ -226,10 +225,6 @@ load(QJsonObject const &p)
             typedProp->getData().miValue = v.toInt();
             miFlipPeriodInMillisecond = v.toInt();
         }
-
-        v = paramsObj[ "use_sync_signal" ];
-        if( !v.isNull() )
-            mbUseSyncSignal = v.toBool();
 
         v = paramsObj[ "is_loop" ];
         if( !v.isNull() )
@@ -431,6 +426,7 @@ set_dirname(QString & dirname)
         QStringList filters;
         filters << "*.jpg" << "*.jpeg" << "*.bmp" << "*.tiff" << "*.tif" << "*.pbm" << "*.png";
         QStringList filenames = directory.entryList(filters, QDir::Files);
+        filenames.sort(Qt::CaseInsensitive);
         if( !filenames.isEmpty() )
         {
             mTimer.stop();
@@ -454,7 +450,8 @@ CVImageLoaderModel::
 set_image_filename(QString & filename)
 {
     DEBUG_LOG_INFO() << "[set_image_filename] filename:" << filename;
-    
+    mpSyncData->data() = false;
+
     if( msImageFilename == filename )
     {
         DEBUG_LOG_INFO() << "[set_image_filename] Same filename, returning";
@@ -580,8 +577,6 @@ set_image_filename(QString & filename)
         }
 
         mpInformationData->set_information( sInformation );
-        mpCVSizeData->data().width = cvImage.cols;
-        mpCVSizeData->data().height = cvImage.rows;
 
         auto prop = mMapIdToProperty["image_size"];
         auto typedPropSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>( prop );
@@ -595,7 +590,16 @@ set_image_filename(QString & filename)
         Q_EMIT property_changed_signal( prop );
 
         if( isEnable() )
-            updateAllOutputPorts();
+        {
+            // Emit image and info ports immediately
+            Q_EMIT dataUpdated(0);
+            Q_EMIT dataUpdated(1);
+            // Emit sync port in next event loop iteration
+            QTimer::singleShot(0, this, [this]() {
+                mpSyncData->data() = true;
+                Q_EMIT dataUpdated(2);
+            });
+        }
     }
 }
 
@@ -619,9 +623,11 @@ em_button_clicked( int button )
         return;
     }
     
-    if( button == 0 )
+    if( button == 0 ) // Backward
     {
         DEBUG_LOG_INFO() << "[em_button_clicked] Backward button";
+        if( mvsImageFilenames.empty() )
+            return;
         miFilenameIndex -= 1;
         if( miFilenameIndex < 0 )
             miFilenameIndex = mvsImageFilenames.size()-1;
@@ -649,16 +655,33 @@ em_button_clicked( int button )
     else if( button == 2 )	// Auto Play
     {
         DEBUG_LOG_INFO() << "[em_button_clicked] Auto Play button";
+        if( mbUseSyncSignal)
+        {
+            mpEmbeddedWidget->revert_play_pause_state();
+            QMessageBox msg;
+            QString msgText = "Cannot use Auto Play mode when synchronization signal is connected!\nDisconnect the Sync signal to use this mode.";
+            msg.setIcon( QMessageBox::Warning );
+            msg.setText( msgText );
+            msg.exec();
+            return;
+        }
         mTimer.start(miFlipPeriodInMillisecond);
     }
     else if( button == 3 )	// Pause
     {
         DEBUG_LOG_INFO() << "[em_button_clicked] Pause button";
+        if( mbUseSyncSignal)
+        {
+            mpEmbeddedWidget->revert_play_pause_state();
+            return;
+        }
         mTimer.stop();
     }
     else if( button == 4 )	// Forward
     {
         DEBUG_LOG_INFO() << "[em_button_clicked] Forward button";
+        if( mvsImageFilenames.empty() )
+            return;
         miFilenameIndex += 1;
         if( miFilenameIndex >= static_cast<int>(mvsImageFilenames.size()) )
             miFilenameIndex = 0;
@@ -700,8 +723,6 @@ void
 CVImageLoaderModel::
 flip_image()
 {
-    if( mbUseSyncSignal && !mbSyncSignal )
-        return;
     miFilenameIndex += 1;
     if( miFilenameIndex >= static_cast<int>(mvsImageFilenames.size()) )
     {
@@ -715,8 +736,6 @@ flip_image()
         else
             miFilenameIndex = 0;
     }
-
-    mbSyncSignal = false;
 
     auto prop = mMapIdToProperty[ "filename" ];
     auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
@@ -736,7 +755,14 @@ CVImageLoaderModel::
 inputConnectionCreated(QtNodes::ConnectionId const& conx)
 {
     if( QtNodes::getPortIndex(PortType::In, conx) == 0 )
+    {
+        if( mTimer.isActive() )
+        {
+            mTimer.stop();
+            mpEmbeddedWidget->set_flip_pause(false);
+        }
         mbUseSyncSignal = true;
+    }
 }
 
 void
@@ -759,7 +785,11 @@ enable_changed(bool enable)
     }
     else {
         // Optionally resume playback if desired, or just update outputs
-        updateAllOutputPorts();
+        Q_EMIT dataUpdated(0);
+        Q_EMIT dataUpdated(1);
+        QTimer::singleShot(0, this, [this]() {
+            mpSyncData->data() = true;
+            Q_EMIT dataUpdated(2);
+        });
     }
 }
-

@@ -477,6 +477,8 @@ private Q_SLOTS:
     void
     inputConnectionDeleted(QtNodes::ConnectionId const&) override { mpCVCameraThread->set_single_shot_mode( false ); };
 
+    QPixmap
+    minPixmap() const override { return mMinPixmap; }
 private:
     /**
      * @brief Ensure frame pool exists with correct dimensions.
@@ -509,6 +511,7 @@ private:
     std::shared_ptr< CVImageData > mpCVImageData;               ///< Captured frame output
     std::shared_ptr< InformationData > mpInformationData;       ///< Camera status output
 
+    QPixmap mMinPixmap;
     // Frame pool management
     int miPoolSize{CVImagePool::DefaultPoolSize};
     FrameSharingMode meSharingMode{FrameSharingMode::PoolMode};
