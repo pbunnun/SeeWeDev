@@ -127,7 +127,7 @@ void CVHistogramEqualizationWorker::processFrame(cv::Mat input,
 }
 
 CVHistogramEqualizationModel::CVHistogramEqualizationModel()
-    : PBAsyncDataModel(_model_name), _minPixmap(":HistogramEqualization.png")
+    : PBAsyncDataModel(_model_name), _minPixmap(":/CVCreateHistogramModel.png")
 {
     qRegisterMetaType<CVHistogramEqualizationParameters>("CVHistogramEqualizationParameters");
     

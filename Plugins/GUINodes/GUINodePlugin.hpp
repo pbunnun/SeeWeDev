@@ -74,5 +74,6 @@ public:
      * GUI control and display nodes.
      */
     QStringList registerDataModel( std::shared_ptr< NodeDelegateModelRegistry > model_regs ) override;
+    QPixmap _minPixmap;
 };
 

@@ -273,6 +273,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    QPixmap
+    minPixmap() const override { return _minPixmap; }
+
     /**
      * @brief Model category name.
      *
@@ -335,4 +338,5 @@ private:
      * Can be persisted via save/load.
      */
     std::shared_ptr< IntegerData > mpIntData;
+    QPixmap _minPixmap;
 };

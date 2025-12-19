@@ -23,7 +23,7 @@ const QString CVInvertGrayModel::_model_name = QString("CV Invert Grayscale");
 
 CVInvertGrayModel::CVInvertGrayModel()
     : PBAsyncDataModel(_model_name),
-      _minPixmap(":CVInvertGray.png")
+      _minPixmap(":/CVInvertGrayModel.png")
 {
 }
 

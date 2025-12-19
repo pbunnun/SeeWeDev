@@ -78,6 +78,7 @@
 #include "PBNodeDelegateModel.hpp"
 #include "SyncData.hpp"
 #include "IntegerData.hpp"
+#include <QtGui/QPixmap>
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;
@@ -262,6 +263,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    QPixmap
+    minPixmap() const override { return _minPixmap; }
+
     /**
      * @brief Model category name.
      *
@@ -308,4 +312,5 @@ private:
      * Connected to em_button_clicked() slot.
      */
     QPushButton * mpEmbeddedWidget;
+    QPixmap _minPixmap;
 };

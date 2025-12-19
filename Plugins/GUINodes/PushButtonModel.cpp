@@ -11,7 +11,8 @@ const QString PushButtonModel::_model_name = QString( "Push Button" );
 PushButtonModel::
 PushButtonModel()
     : PBNodeDelegateModel( _model_name, true ),
-      mpEmbeddedWidget( new QPushButton( qobject_cast<QWidget *>(this) ) )
+      mpEmbeddedWidget( new QPushButton( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/PushButtonModel.png")
 {
     mpEmbeddedWidget->setStyleSheet(
                 "QPushButton { "

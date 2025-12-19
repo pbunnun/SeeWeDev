@@ -165,7 +165,7 @@ void CVOpticalFlowPyrLKWorker::processFrame(
 
 CVOpticalFlowPyrLKModel::CVOpticalFlowPyrLKModel()
     : PBAsyncDataModel(_model_name),
-      _minPixmap(":CVOpticalFlowPyrLK.png")
+      _minPixmap(":CVOpticalFlow PyrLKModel.png")
 {
     // Initialize properties
     IntPropertyType intProp;

@@ -1,5 +1,8 @@
 <RCC>
     <qresource prefix="/">
-
+        <file>ActivateAllNodesModel.png</file>
+        <file>DisplayTextModel.png</file>
+        <file>LCDNumberModel.png</file>
+        <file>PushButtonModel.png</file>
     </qresource>
 </RCC>

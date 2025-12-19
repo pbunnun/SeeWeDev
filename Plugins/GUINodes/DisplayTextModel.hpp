@@ -236,6 +236,9 @@ public:
     bool
     eventFilter(QObject *obj, QEvent *event) override;
 
+    QPixmap
+    minPixmap() const override { return _minPixmap; }
+
     /**
      * @brief Model category name.
      */
@@ -316,5 +319,6 @@ private:
      * @brief Vector to store input data from multiple ports.
      */
     std::vector<std::shared_ptr<InformationData>> mvInputData;
+    QPixmap _minPixmap;
 };
 

@@ -76,7 +76,7 @@ void CVGaussianBlurWorker::processFrame(cv::Mat input,
 CVGaussianBlurModel::
 CVGaussianBlurModel()
     : PBAsyncDataModel( _model_name ),
-      _minPixmap( ":CVGaussianBlur.png" )
+      _minPixmap( ":/CVGaussianBlurModel.png" )
 {
     qRegisterMetaType<CVGaussianBlurParameters>("CVGaussianBlurParameters");
 

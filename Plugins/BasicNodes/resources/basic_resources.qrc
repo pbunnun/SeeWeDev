@@ -3,7 +3,6 @@
         <file>RGBtoGray.png</file>
         <file>Test_Sharpen.png</file>
         <file>GaussianBlur.png</file>
-        <file>CannyEdge.png</file>
         <file>RGBsetValue.png</file>
         <file>ColorSpace.png</file>
         <file>SobelAndScharr.png</file>
@@ -41,5 +40,15 @@
         <file>NodeDataTimer.png</file>
         <file>HistogramEqualization.png</file>
         <file>CLAHEEqualization.png</file>
+        <file>CVCannyEdgeModel.png</file>
+        <file>CVCannyEdge.png</file>
+        <file>CVColorMapModel.png</file>
+        <file>CVColorSpaceModel.png</file>
+        <file>CVConvertDepthModel.png</file>
+        <file>CVCreateHistogramModel.png</file>
+        <file>CVGaussianBlurModel.png</file>
+        <file>CVInvertGrayModel.png</file>
+        <file>CVOpticalFlow PyrLKModel.png</file>
+        <file>CVOpticalFlowFarnebackModel.png</file>
     </qresource>
 </RCC>
