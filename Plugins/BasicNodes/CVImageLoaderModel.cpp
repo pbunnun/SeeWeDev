@@ -32,7 +32,8 @@ const QString CVImageLoaderModel::_model_name = QString( "CV Image Loader" );
 CVImageLoaderModel::
 CVImageLoaderModel()
     : PBNodeDelegateModel( _model_name, true ),
-      mpEmbeddedWidget( new CVImageLoaderEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
+      mpEmbeddedWidget( new CVImageLoaderEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/ImageLoader.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
 

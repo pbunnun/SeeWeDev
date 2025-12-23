@@ -222,7 +222,8 @@ CVVideoLoaderThread::decode_next_frame()
 CVVideoLoaderModel::
 CVVideoLoaderModel()
     : PBNodeDelegateModel( _model_name, true ),
-    mpEmbeddedWidget( new CVVideoLoaderEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
+    mpEmbeddedWidget( new CVVideoLoaderEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/VideoLoader.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     qRegisterMetaType<cv::Size>( "cv::Size" );

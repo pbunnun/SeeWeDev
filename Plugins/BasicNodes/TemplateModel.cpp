@@ -29,7 +29,8 @@ TemplateModel::
 TemplateModel()
     : PBNodeDelegateModel( _model_name ),
       // PBNodeDataModel( model's name, is it enable at start? )
-      mpEmbeddedWidget( new TemplateEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
+      mpEmbeddedWidget( new TemplateEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/Template Model.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     connect( mpEmbeddedWidget, &TemplateEmbeddedWidget::button_clicked_signal, this, &TemplateModel::em_button_clicked );

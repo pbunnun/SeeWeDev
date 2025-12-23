@@ -216,6 +216,9 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /*
      * Recieve signals back from QtPropertyBrowser and use this function to
      * set parameters/variables accordingly.
@@ -233,5 +236,7 @@ public:
 
 private:
     std::shared_ptr< SyncData > mpSyncData; ///< Output inverted sync signal
+
+    QPixmap _minPixmap;
 };
 

@@ -29,7 +29,8 @@ const QString CVImageDisplayModel::_model_name = QString( "CV Image Display" );
 CVImageDisplayModel::
 CVImageDisplayModel()
     : PBNodeDelegateModel( _model_name ),
-      mpEmbeddedWidget( new PBImageDisplayWidget(qobject_cast<QWidget *>(this)) )
+      mpEmbeddedWidget( new PBImageDisplayWidget(qobject_cast<QWidget *>(this)) ),
+    _minPixmap(":/Image Display.png")
 {
     mpEmbeddedWidget->installEventFilter( this );
     mpEmbeddedWidget->resize(640, 480);

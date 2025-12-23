@@ -169,6 +169,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Enable or disable the node functionality
      * 
@@ -304,5 +307,7 @@ private:
 
     /** @brief Enable synchronization signal mode for frame-by-frame control */
     bool mbUseSyncSignal{false};
+
+    QPixmap _minPixmap;
 };
 

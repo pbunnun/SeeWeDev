@@ -1,3 +1,4 @@
+
 //Copyright © 2025, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
@@ -277,6 +278,9 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Handles property changes from the property browser.
      *
@@ -315,5 +319,6 @@ private:
      * - Typical: Varies widely based on image content and size
      */
     std::shared_ptr< IntegerData > mpIntegerData;
+    QPixmap _minPixmap;
 };
 

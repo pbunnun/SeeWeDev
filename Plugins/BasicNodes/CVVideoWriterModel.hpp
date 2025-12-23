@@ -342,6 +342,9 @@ public:
     QWidget *
     embeddedWidget() override { return mpEmbeddedWidget; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Sets a model property.
      * @param Property name ("output_filename", "fps", "frame_per_video").
@@ -407,4 +410,6 @@ private:
      * If recording, enqueues frame to writer thread.
      */
     void processData(const std::shared_ptr< CVImageData > & in);
+
+    QPixmap _minPixmap;
 };

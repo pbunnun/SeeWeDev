@@ -24,7 +24,8 @@ const QString InformationDisplayModel::_model_name = QString( "Info Display" );
 InformationDisplayModel::
 InformationDisplayModel()
     : PBNodeDelegateModel( _model_name ),
-      mpEmbeddedWidget( new InformationDisplayEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
+      mpEmbeddedWidget( new InformationDisplayEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/Info Display.png")
 {
     IntPropertyType intPropertyType;
     intPropertyType.miMax = 2000;

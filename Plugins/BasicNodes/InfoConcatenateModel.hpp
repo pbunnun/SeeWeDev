@@ -372,6 +372,9 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     bool
     resizable() const override { return false; }
 
@@ -466,5 +469,6 @@ private:
      * @note Configurable via property system: setModelProperty("useSyncSignal", value)
      */
     bool mbUseSyncSignal{false};
+    QPixmap _minPixmap;
 };
 

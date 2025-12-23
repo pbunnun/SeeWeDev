@@ -25,8 +25,9 @@ const QString NotSyncDataModel::_model_name = QString( "Not Sync" );
 
 NotSyncDataModel::
 NotSyncDataModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
       // PBNodeDataModel( model's name, is it enable at start? )
+    _minPixmap(":/Not sync.png")
 {
     mpSyncData = std::make_shared< SyncData >();
 }

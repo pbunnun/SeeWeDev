@@ -128,6 +128,9 @@ public:
     void setModelProperty( QString &, const QVariant & ) override;
     void late_constructor() override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     static const QString _category;
     static const QString _model_name;
 
@@ -172,4 +175,5 @@ private:
     QMutex mFramePoolMutex;
     int miFrameMatType{CV_8UC3};
     std::atomic<bool> mShuttingDown{false};
+    QPixmap _minPixmap;
 };

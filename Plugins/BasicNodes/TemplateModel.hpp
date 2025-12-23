@@ -212,6 +212,9 @@ public:
     QWidget *
     embeddedWidget() override { return mpEmbeddedWidget; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Sets a model property from property browser.
      * @param Property name ("checkbox", "display_text", "size", "point").
@@ -265,5 +268,6 @@ private:
     QString msDisplayText{ "ComboBox" };  ///< Example string property
     QSize mSize { QSize( 1, 1 ) };        ///< Example size property
     QPoint mPoint { QPoint( 7, 7 ) };     ///< Example point property
+    QPixmap _minPixmap;
 };
 

@@ -279,6 +279,9 @@ public:
     QWidget *
     embeddedWidget() override { return mpEmbeddedWidget; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     void
     setModelProperty( QString &, const QVariant & ) override;
 
@@ -316,5 +319,7 @@ private:
     int miMaxLineCount{100};
 
     //std::shared_ptr< InformationData > mpInformationData { nullptr };
+
+    QPixmap _minPixmap;
 };
 

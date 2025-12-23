@@ -381,6 +381,9 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Handles property updates for command and arguments configuration.
      *
@@ -467,5 +470,7 @@ private:
      * @note Some implementations may parse this string, others may pass directly to shell
      */
     QString msArguments{""};
+
+    QPixmap _minPixmap;
 };
 

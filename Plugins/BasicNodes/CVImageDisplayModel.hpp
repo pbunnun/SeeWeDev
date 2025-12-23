@@ -144,6 +144,9 @@ public:
     QWidget *
     embeddedWidget() override { return mpEmbeddedWidget; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
      /**
      * @brief Event filter for capturing widget events
      * 

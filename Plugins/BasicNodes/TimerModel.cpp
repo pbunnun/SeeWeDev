@@ -20,7 +20,8 @@ const QString TimerModel::_model_name = QString( "Timer" );
 
 TimerModel::
 TimerModel()
-    : PBNodeDelegateModel( _model_name, true )
+    : PBNodeDelegateModel( _model_name, true ),
+    _minPixmap(":/Timer.png")
 {
     mpSyncData = std::make_shared< SyncData >();
 
