@@ -31,7 +31,7 @@ CVFloodFillModel::
 CVFloodFillModel()
     : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget(new CVFloodFillEmbeddedWidget),
-      _minPixmap( ":CVFloodFill.png" )
+      _minPixmap( ":/CVFloodFillModel.png" )
 {
     for(std::shared_ptr<CVImageData>& mp : mapCVImageData)
     {

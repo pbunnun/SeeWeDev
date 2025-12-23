@@ -51,5 +51,26 @@
         <file>CVInvertGrayModel.png</file>
         <file>CVOpticalFlow PyrLKModel.png</file>
         <file>CVOpticalFlowFarnebackModel.png</file>
+        <file>CVErodeAndDilate.png</file>
+        <file>CVBilateralFilterModel.png</file>
+        <file>CVFilter2DModel.png</file>
+        <file>CVFloodFillModel.png</file>
+        <file>CVImageInRangeModel.png</file>
+        <file>CVMedianBlurModel.png</file>
+        <file>CVImageResizeModel.png</file>
+        <file>CVBlendImagesModel.png</file>
+        <file>ROI.png</file>
+        <file>Rotate.png</file>
+        <file>Drawcontour.png</file>
+        <file>FindAndDraw.png</file>
+        <file>HoughCircle.png</file>
+        <file>HoughLine.png</file>
+        <file>HoughLinesPointSet.png</file>
+        <file>HoughLinesPoint.png</file>
+        <file>Findcontour.png</file>
+        <file>DistanceTransforms.png</file>
+        <file>Condition.png</file>
+        <file>ConvertToInteger.png</file>
+        <file>SumInteger.png</file>
     </qresource>
 </RCC>

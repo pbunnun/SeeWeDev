@@ -27,7 +27,8 @@ const QString CVRotateImageModel::_model_name = QString( "CV Rotate" );
 
 CVRotateImageModel::
 CVRotateImageModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/Rotate.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );

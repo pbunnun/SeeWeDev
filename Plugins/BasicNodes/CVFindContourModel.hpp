@@ -170,6 +170,9 @@ public:
     virtual
     ~CVFindContourModel() override {}
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Serializes the node state to JSON
      * 
@@ -291,6 +294,8 @@ private:
     
     /** @brief Synchronization signal */
     std::shared_ptr<SyncData> mpSyncData { nullptr };
+
+    QPixmap _minPixmap;
 };
 
 

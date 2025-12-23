@@ -26,7 +26,8 @@ const QString CVImageResizeModel::_model_name = QString( "CV Resize" );
 
 CVImageResizeModel::
 CVImageResizeModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/CVImageResizeModel.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );

@@ -209,6 +209,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /*
      * These two static members must be defined for every models. _category can be duplicate with existing categories.
      * However, _model_name has to be a unique name.
@@ -234,5 +237,6 @@ private:
     double mdConditionNumber;               ///< Numeric threshold value
     QString msConditionNumber;              ///< Threshold as string (for widget)
     int miConditionIndex;                   ///< Operator index (0-5)
+    QPixmap _minPixmap;
 };
 

@@ -63,6 +63,9 @@ public:
     QWidget* embeddedWidget() override { return nullptr; }
     void setModelProperty(QString& id, const QVariant& value) override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     unsigned int nPorts(PortType portType) const override;
     NodeDataType dataType(PortType portType, PortIndex portIndex) const override;
     std::shared_ptr<NodeData> outData(PortIndex port) override;

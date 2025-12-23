@@ -112,7 +112,7 @@ void CVHoughLinesPWorker::
 CVHoughLinesPModel::
 CVHoughLinesPModel()
     : PBAsyncDataModel(_model_name),
-      _minPixmap(":CVHoughLinesP.png")
+      _minPixmap(":/HoughLinesPoint.png")
 {
     mpIntegerData = std::make_shared<IntegerData>(int());
 

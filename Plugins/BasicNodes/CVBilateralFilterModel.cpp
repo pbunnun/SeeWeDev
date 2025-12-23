@@ -86,7 +86,8 @@ void CVBilateralFilterWorker::processFrame(cv::Mat input,
 }
 
 CVBilateralFilterModel::CVBilateralFilterModel()
-    : PBAsyncDataModel("CV Bilateral Filter")
+    : PBAsyncDataModel("CV Bilateral Filter"),
+    _minPixmap(":/CVBilateralFilterModel.png")
 {
     mpCVImageData = std::make_shared<CVImageData>(cv::Mat());
     mpSyncData = std::make_shared<SyncData>();

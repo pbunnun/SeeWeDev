@@ -23,7 +23,8 @@ const QString MathIntegerSumModel::_model_name = QString( "Sum Integer" );
 
 MathIntegerSumModel::
 MathIntegerSumModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/SumInteger.png")
 {
     mpIntegerData = std::make_shared< IntegerData >( );
 }

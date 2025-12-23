@@ -214,6 +214,9 @@ public:
     void
     load(QJsonObject const &p) override;
 
+    QPixmap
+    minPixmap() const override { return _minPixmap; }
+
     /**
      * @brief Returns the number of ports for the specified type.
      * @param portType Input or Output
@@ -338,5 +341,6 @@ private:
      * for outlier filtering. It assumes the mean is already computed for efficiency.
      */
     float get_stddev(const std::vector<float> & vec, float mean );
+    QPixmap _minPixmap;
 };
 

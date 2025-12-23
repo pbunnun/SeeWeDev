@@ -80,6 +80,9 @@ public:
     QWidget * embeddedWidget() override { return nullptr; }
     void setModelProperty(QString &id, const QVariant &value) override;
 
+    QPixmap
+    minPixmap() const override { return _minPixmap; }
+
     static const QString _category;
     static const QString _model_name;
 
@@ -96,4 +99,5 @@ private:
     // Pending frame state
     cv::Mat mPendingFrame;
     CVMedianBlurParameters mPendingParams;
+    QPixmap _minPixmap;
 };

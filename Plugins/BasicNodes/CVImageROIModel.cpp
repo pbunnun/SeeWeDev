@@ -33,7 +33,7 @@ CVImageROIModel::
 CVImageROIModel()
     : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget( new CVImageROIEmbeddedWidget() ),
-      _minPixmap(":ImageROI.png")
+      _minPixmap(":/ROI.png")
 {
     for(std::shared_ptr<CVImageData>& mp : mapCVImageData)
     {

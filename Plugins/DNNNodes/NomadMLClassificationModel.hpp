@@ -189,6 +189,9 @@ public:
     void
     late_constructor() override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     static const QString _category;
     static const QString _model_name;
 
@@ -208,4 +211,5 @@ private:
 
     void processData(const std::shared_ptr< CVImageData > & in);
     void load_model(bool bUpdateDisplayProperties = false);
+    QPixmap _minPixmap;
 };

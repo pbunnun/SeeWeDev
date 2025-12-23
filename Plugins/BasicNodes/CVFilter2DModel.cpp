@@ -101,7 +101,7 @@ const cv::Mat MatKernel::image() const//All kernels for CVFilter2D are defined h
 CVFilter2DModel::
 CVFilter2DModel()
     : PBAsyncDataModel( _model_name ),
-      _minPixmap( ":CVFilter2D.png" )
+      _minPixmap( ":/CVFilter2DModel.png" )
 {
     qRegisterMetaType<std::shared_ptr<CVImageData>>("std::shared_ptr<CVImageData>");
     qRegisterMetaType<std::shared_ptr<CVImagePool>>("std::shared_ptr<CVImagePool>");

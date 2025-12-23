@@ -79,6 +79,9 @@ public:
     CVBilateralFilterModel();
     virtual ~CVBilateralFilterModel() override = default;
 
+    QPixmap
+    minPixmap() const override { return _minPixmap; }
+
     QJsonObject save() const override;
     void load(const QJsonObject &p) override;
 
@@ -102,4 +105,5 @@ private:
     // Pending frame state
     cv::Mat mPendingFrame;
     CVBilateralFilterParameters mPendingParams;
+    QPixmap _minPixmap;
 };

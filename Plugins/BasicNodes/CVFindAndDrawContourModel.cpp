@@ -30,7 +30,8 @@ const QString CVFindAndDrawContourModel::_model_name = QString( "CV Find and Dra
 
 CVFindAndDrawContourModel::
 CVFindAndDrawContourModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/FindAndDraw.png")
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpIntegerData = std::make_shared< IntegerData >( int() );

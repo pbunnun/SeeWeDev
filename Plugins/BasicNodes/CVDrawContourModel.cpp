@@ -30,7 +30,7 @@ const QString CVDrawContourModel::_model_name = QString( "CV Draw Contour" );
 CVDrawContourModel::
 CVDrawContourModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap(":CVDrawContour.png")
+      _minPixmap(":/DrawContour.png")
 {
     mpCVImageOutData = std::make_shared< CVImageData >( cv::Mat() );
 

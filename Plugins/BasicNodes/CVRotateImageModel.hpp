@@ -203,6 +203,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     static const QString _category;    ///< Node category: "Image Processing"
     static const QString _model_name;  ///< Unique model name: "Rotate Image"
 
@@ -229,5 +232,6 @@ private:
     std::shared_ptr<CVImageData> mpCVImageOutData { nullptr }; ///< Output rotated image data
 
     double mdAngle { 180.f }; ///< Rotation angle in degrees (positive = counter-clockwise)
+    QPixmap _minPixmap;
 };
 

@@ -24,7 +24,8 @@ MathConditionModel::
 MathConditionModel()
     : PBNodeDelegateModel( _model_name ),
       // PBNodeDataModel( model's name, is it enable at start? )
-      mpEmbeddedWidget( new MathConditionEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
+      mpEmbeddedWidget( new MathConditionEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/Condition.png")
 {
     connect( mpEmbeddedWidget, &MathConditionEmbeddedWidget::condition_changed_signal, this, &MathConditionModel::em_changed );
     mpSyncData = std::make_shared< SyncData >( false );

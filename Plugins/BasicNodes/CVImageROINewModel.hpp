@@ -102,6 +102,9 @@ public:
     virtual
     ~CVImageROINewModel() override {}
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Serializes the node state to JSON
      * 
@@ -239,6 +242,7 @@ private:
      * @note Automatically clamped to image boundaries during processing
      */
     cv::Rect mRectROI { cv::Rect( 0, 0, 640, 480 ) };
+    QPixmap _minPixmap;
 };
 
 

@@ -151,6 +151,9 @@ public:
     virtual
     ~CVImageInRangeModel() override {}
 
+    QPixmap
+    minPixmap() const override { return _minPixmap; }
+
     /**
      * @brief Serializes the node state to JSON
      * 
@@ -270,6 +273,7 @@ private:
     
     /** @brief Pixel count output */
     std::shared_ptr<IntegerData> mpIntegerData {nullptr};
+    QPixmap _minPixmap;
 };
 
 

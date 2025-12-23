@@ -142,7 +142,7 @@ void CVHoughCircleTransformWorker::
 CVHoughCircleTransformModel::
 CVHoughCircleTransformModel()
     : PBAsyncDataModel( _model_name ),
-      _minPixmap( ":CVHoughCircleTransform.png" )
+      _minPixmap( ":/HoughCircle.png" )
 {
     mpIntegerData = std::make_shared< IntegerData >( int() );
 

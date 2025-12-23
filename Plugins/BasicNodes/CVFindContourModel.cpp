@@ -29,7 +29,8 @@ const QString CVFindContourModel::_model_name = QString( "CV Find Contour" );
 
 CVFindContourModel::
 CVFindContourModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/Findcontour.png")
 {
     mpContourPointsData = std::make_shared< ContourPointsData >( );
     mpSyncData = std::make_shared< SyncData >( );

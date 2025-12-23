@@ -26,7 +26,8 @@ const QString CVImageROINewModel::_model_name = QString( "CV ROI" );
 
 CVImageROINewModel::
 CVImageROINewModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/ROI.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );

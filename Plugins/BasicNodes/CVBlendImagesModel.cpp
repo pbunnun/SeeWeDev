@@ -28,7 +28,7 @@ CVBlendImagesModel::
 CVBlendImagesModel()
     : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget(new CVBlendImagesEmbeddedWidget),
-      _minPixmap( ":CVBlendImages.png" )
+      _minPixmap( ":/CVBlendImagesModel.png" )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
 
