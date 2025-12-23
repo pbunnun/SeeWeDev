@@ -40,8 +40,10 @@
 #include <QtCore/QObject>
 #include <QtWidgets/QLabel>
 
-#include "PBNodeDelegateModel.hpp"
+#include "PBAsyncDataModel.hpp"
 #include "CVImageData.hpp"
+#include "CVImagePool.hpp"
+#include "SyncData.hpp"
 #include "CVFloodFillEmbeddedWidget.hpp"
 
 using QtNodes::PortType;
@@ -49,6 +51,8 @@ using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeDataType;
 using QtNodes::NodeValidationState;
+using CVDevLibrary::FrameSharingMode;
+using CVDevLibrary::CVImagePool;
 
 /**
  * @struct CVFloodFillParameters
@@ -136,6 +140,7 @@ typedef struct CVFloodFillParameters{
     cv::Point mCVPointRect2;      ///< Bounding rectangle bottom-right corner
     int miFlags;                  ///< Connectivity (4/8) and behavior flags
     int miMaskColor;              ///< Value for mask pixels in filled region
+    bool mbActiveMask;            ///< Enable mask generation and output
     CVFloodFillParameters()
         : mCVPointSeed(cv::Point(0,0)),
           mucFillColor{0},
@@ -145,31 +150,36 @@ typedef struct CVFloodFillParameters{
           mCVPointRect1(cv::Point(0,0)),
           mCVPointRect2(cv::Point(0,0)),
           miFlags(4),
-          miMaskColor(255)
+          miMaskColor(255),
+          mbActiveMask(false)
     {
     }
 } CVFloodFillParameters;
 
 /**
- * @struct CVFloodFillProperties
- * @brief Runtime properties for flood fill state.
- *
- * Tracks whether a mask is actively being generated during flood fill operations.
- *
- * - **mbActiveMask**: True if mask output is enabled (default: false)
- *   * When true, generates a binary mask showing filled regions
- *   * Mask is output on second port
- *   * Useful for extracting segmentation results
+ * @class CVFloodFillWorker
+ * @brief Worker class for asynchronous flood fill operation
  */
-typedef struct CVFloodFillProperties
+class CVFloodFillWorker : public QObject
 {
-    bool mbActiveMask;  ///< Enable mask generation and output
-    CVFloodFillProperties()
-        : mbActiveMask(false)
-    {
-    }
-} CVFloodFillProperties;
+    Q_OBJECT
+public:
+    CVFloodFillWorker() {}
 
+public Q_SLOTS:
+    void processFrame(cv::Mat input,
+                     cv::Mat maskInput,
+                     const CVFloodFillParameters &params,
+                     FrameSharingMode mode,
+                     std::shared_ptr<CVImagePool> pool,
+                     long frameId,
+                     QString producerId);
+
+Q_SIGNALS:
+    // CRITICAL: This signal MUST be declared in each worker class
+    // CANNOT be inherited from base class due to Qt MOC limitation
+    void frameReady(std::shared_ptr<CVImageData> img, std::shared_ptr<CVImageData> mask);
+};
 
 /**
  * @class CVFloodFillModel
@@ -294,7 +304,7 @@ typedef struct CVFloodFillProperties
  * @see GrabCut for advanced interactive segmentation
  * @see Watershed for marker-based segmentation
  */
-class CVFloodFillModel : public PBNodeDelegateModel
+class CVFloodFillModel : public PBAsyncDataModel
 {
     Q_OBJECT
 
@@ -305,10 +315,9 @@ public:
     CVFloodFillModel();
 
     /**
-     * @brief Destructor.
+     * @brief Destructor - ensures safe cleanup of async operations
      */
-    virtual
-    ~CVFloodFillModel() override {}
+    ~CVFloodFillModel() override = default;
 
     /**
      * @brief Serializes model parameters to JSON.
@@ -390,10 +399,30 @@ private Q_SLOTS:
      * @param value New spinbox value
      */
     void em_spinbox_clicked( int spinbox, int value );
+    
+    /**
+     * @brief Handles frame completion from worker
+     * @param img Processed image
+     * @param mask Output mask
+     */
+    void handleFrameReady(std::shared_ptr<CVImageData> img, std::shared_ptr<CVImageData> mask);
 
 private:
+    // Implement PBAsyncDataModel pure virtuals
+    QObject* createWorker() override;
+    void connectWorker(QObject* worker) override;
+    void dispatchPendingWork() override;
+    void process_cached_input() override;
+    
+    /**
+     * @brief Updates point property bounds based on image dimensions.
+     * @param propId Property ID ("seed_point", "rect_point_1", "rect_point_2")
+     * @param maxWidth Maximum X value (image width - 1)
+     * @param maxHeight Maximum Y value (image height - 1)
+     */
+    void updatePointPropertyBounds(const QString& propId, int maxWidth, int maxHeight);
+
     CVFloodFillParameters mParams;                    ///< Flood fill configuration parameters
-    CVFloodFillProperties mProps;                     ///< Runtime properties (mask active state)
     std::shared_ptr<CVImageData> mapCVImageData[2] { {nullptr} };   ///< Output: [0]=filled image, [1]=mask
     std::shared_ptr<CVImageData> mapCVImageInData[2] { {nullptr} }; ///< Input: [0]=image, [1]=optional mask
     CVFloodFillEmbeddedWidget* mpEmbeddedWidget;      ///< Interactive control widget
@@ -401,70 +430,9 @@ private:
 
     static const std::string color[4];              ///< Color channel names for UI
 
-    /**
-     * @brief Processes data by performing flood fill operation.
-     * @param in Input images [0]=image to fill, [1]=optional mask
-     * @param out Output images [0]=filled image, [1]=fill mask
-     * @param params Flood fill parameters (seed, color, tolerance, etc.)
-     * @param props Runtime properties (mask activation)
-     *
-     * **Algorithm**:
-     * ```cpp
-     * // Clone input to preserve original
-     * cv::Mat output = in[0]->getData().clone();
-     * 
-     * // Create or use existing mask (must be 2 pixels larger on each dimension)
-     * cv::Mat mask;
-     * if (in[1] != nullptr) {
-     *     mask = in[1]->getData();  // Use provided mask
-     * } else if (props.mbActiveMask) {
-     *     mask = cv::Mat::zeros(output.rows + 2, output.cols + 2, CV_8U);  // Create new
-     * }
-     * 
-     * // Set up fill parameters
-     * cv::Scalar fillColor(params.mucFillColor[0], params.mucFillColor[1], 
-     *                      params.mucFillColor[2]);
-     * cv::Scalar lowerDiff(params.mucLowerDiff[0], params.mucLowerDiff[1], 
-     *                      params.mucLowerDiff[2]);
-     * cv::Scalar upperDiff(params.mucUpperDiff[0], params.mucUpperDiff[1], 
-     *                      params.mucUpperDiff[2]);
-     * 
-     * // Optional boundary rectangle
-     * cv::Rect* pRect = nullptr;
-     * if (params.mbDefineBoundaries) {
-     *     pRect = new cv::Rect(params.mCVPointRect1, params.mCVPointRect2);
-     * }
-     * 
-     * // Perform flood fill
-     * int area = cv::floodFill(
-     *     output,                 // Image to fill (modified in-place)
-     *     mask,                   // Optional mask (width+2 x height+2)
-     *     params.mCVPointSeed,    // Seed point to start filling
-     *     fillColor,              // New color for filled region
-     *     pRect,                  // Optional bounding rectangle (filled, returns actual bounds)
-     *     lowerDiff,              // Max color/brightness difference below seed
-     *     upperDiff,              // Max color/brightness difference above seed
-     *     params.miFlags          // Connectivity (4/8) and mode flags
-     * );
-     * 
-     * // Output results
-     * out[0]->setData(output);           // Filled image
-     * if (props.mbActiveMask && mask.data) {
-     *     out[1]->setData(mask);         // Fill mask
-     * }
-     * ```
-     *
-     * **Return Value**:
-     * cv::floodFill returns the number of pixels filled (area of region).
-     *
-     * **Mask Format**:
-     * - Input/output mask must be (width+2) × (height+2)
-     * - Extra border prevents edge artifacts
-     * - Non-zero mask pixels block filling (protection)
-     * - Filled pixels are marked with miMaskColor (typically 255)
-     */
-    void processData( const std::shared_ptr<CVImageData> (&in)[2], std::shared_ptr< CVImageData > (&out)[2],
-                      const CVFloodFillParameters & params, CVFloodFillProperties &props);
-
+    // Pending data for backpressure
+    cv::Mat mPendingFrame;
+    cv::Mat mPendingMask;
+    CVFloodFillParameters mPendingParams;
 };
 

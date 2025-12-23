@@ -290,5 +290,9 @@ private:
      * Can be adjusted for larger/smaller number ranges.
      */
     int miDigitCount {5};
+
+    /**
+     * @brief Minimized pixmap icon for the node.
+     */
     QPixmap _minPixmap;
 };

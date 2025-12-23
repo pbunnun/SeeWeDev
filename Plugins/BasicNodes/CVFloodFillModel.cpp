@@ -15,7 +15,7 @@
 #include "CVFloodFillModel.hpp"
 
 #include <QDebug> //for debugging using qDebug()
-
+#include <QtCore/QTimer>
 
 #include <opencv2/imgproc.hpp>
 #include "qtvariantproperty_p.h"
@@ -26,17 +26,102 @@ const QString CVFloodFillModel::_model_name = QString( "CV Flood Fill" );
 
 const std::string CVFloodFillModel::color[4] = {"B","G","R","Gray"};
 
-CVFloodFillModel::
+void CVFloodFillWorker::
+    processFrame(cv::Mat input,
+                 cv::Mat maskInput,
+                 const CVFloodFillParameters &params,
+                 FrameSharingMode mode,
+                 std::shared_ptr<CVImagePool> pool,
+                 long frameId,
+                 QString producerId)
+{
+    if(input.empty() || (input.channels()!=1 && input.channels()!=3) ||
+       (input.depth()!=CV_8U && input.depth()!=CV_8S && input.depth()!=CV_16F && input.depth()!=CV_32F && input.depth()!=CV_64F))
+    {
+        Q_EMIT frameReady(nullptr, nullptr);
+        return;
+    }
 
+    FrameMetadata metadata;
+    metadata.producerId = producerId;
+    metadata.frameId = frameId;
+
+    auto newImageData = std::make_shared<CVImageData>(cv::Mat());
+    auto newMaskData = std::make_shared<CVImageData>(cv::Mat());
+    
+    // Clone input to preserve original
+    cv::Mat output = input.clone();
+    
+    // Convert parameters to OpenCV Scalar format
+    cv::Scalar fillColor = cv::Scalar(params.mucFillColor[0], params.mucFillColor[1], params.mucFillColor[2]);
+    cv::Scalar lowerDiff = cv::Scalar(params.mucLowerDiff[0], params.mucLowerDiff[1], params.mucLowerDiff[2]);
+    cv::Scalar upperDiff = cv::Scalar(params.mucUpperDiff[0], params.mucUpperDiff[1], params.mucUpperDiff[2]);
+    
+    // Check if mask is valid
+    bool hasMask = (params.mbActiveMask && !maskInput.empty() && maskInput.type()==CV_8UC1 
+                    && maskInput.cols==input.cols+2 && maskInput.rows==input.rows+2);
+    
+    cv::Mat mask;
+    if (hasMask)
+    {
+        mask = maskInput.clone();
+    }
+    
+    // Perform flood fill - call appropriate overload based on mask availability
+    if (params.mbDefineBoundaries)
+    {
+        cv::Rect rect(params.mCVPointRect1, params.mCVPointRect2);
+        if (hasMask)
+        {
+            cv::floodFill(output, mask, params.mCVPointSeed, fillColor, &rect,
+                         lowerDiff, upperDiff, params.miFlags | (params.miMaskColor << 8));
+        }
+        else
+        {
+            cv::floodFill(output, params.mCVPointSeed, fillColor, &rect,
+                         lowerDiff, upperDiff, params.miFlags);
+        }
+    }
+    else
+    {
+        if (hasMask)
+        {
+            cv::floodFill(output, mask, params.mCVPointSeed, fillColor, nullptr,
+                         lowerDiff, upperDiff, params.miFlags | (params.miMaskColor << 8));
+        }
+        else
+        {
+            cv::floodFill(output, params.mCVPointSeed, fillColor,
+                         0, lowerDiff, upperDiff, params.miFlags);
+        }
+    }
+    
+    if(output.empty())
+    {
+        Q_EMIT frameReady(nullptr, nullptr);
+        return;
+    }
+    
+    newImageData->updateMove(std::move(output), metadata);
+    
+    if (hasMask && !mask.empty())
+    {
+        newMaskData->updateMove(std::move(mask), metadata);
+    }
+    
+    Q_EMIT frameReady(newImageData, hasMask ? newMaskData : nullptr);
+}
+
+CVFloodFillModel::
 CVFloodFillModel()
-    : PBNodeDelegateModel( _model_name ),
+    : PBAsyncDataModel( _model_name ),
       mpEmbeddedWidget(new CVFloodFillEmbeddedWidget),
-      _minPixmap( ":CVFloodFill.png" )
+      _minPixmap( ":FloodFill.png" )
 {
     for(std::shared_ptr<CVImageData>& mp : mapCVImageData)
-    {
         mp = std::make_shared< CVImageData >( cv::Mat() );
-    }
+    for(std::shared_ptr<CVImageData>& mp : mapCVImageInData)
+        mp = std::make_shared< CVImageData >( cv::Mat() );
 
     qRegisterMetaType<cv::Mat>( "cv::Mat&" );
     connect( mpEmbeddedWidget, &CVFloodFillEmbeddedWidget::spinbox_clicked_signal, this, &CVFloodFillModel::em_spinbox_clicked );
@@ -44,6 +129,10 @@ CVFloodFillModel()
     PointPropertyType pointPropertyType;
     pointPropertyType.miXPosition = mParams.mCVPointSeed.x;
     pointPropertyType.miYPosition = mParams.mCVPointSeed.y;
+    pointPropertyType.miXMin = 0;
+    pointPropertyType.miXMax = INT_MAX;
+    pointPropertyType.miYMin = 0;
+    pointPropertyType.miYMax = INT_MAX;
     QString propId = "seed_point";
     auto propSeedPoint = std::make_shared< TypedProperty< PointPropertyType > >( "Seed Point", propId, QMetaType::QPoint, pointPropertyType, "Operation");
     mvProperty.push_back( propSeedPoint );
@@ -78,6 +167,10 @@ CVFloodFillModel()
 
     pointPropertyType.miXPosition = mParams.mCVPointRect1.x;
     pointPropertyType.miYPosition = mParams.mCVPointRect1.y;
+    pointPropertyType.miXMin = 0;
+    pointPropertyType.miXMax = INT_MAX;
+    pointPropertyType.miYMin = 0;
+    pointPropertyType.miYMax = INT_MAX;
     propId = "rect_point_1";
     auto propRectPoint1 = std::make_shared< TypedProperty< PointPropertyType > >( "Boundary Point 1", propId, QMetaType::QPoint, pointPropertyType, "Display");
     mvProperty.push_back( propRectPoint1 );
@@ -85,6 +178,10 @@ CVFloodFillModel()
 
     pointPropertyType.miXPosition = mParams.mCVPointRect2.x;
     pointPropertyType.miYPosition = mParams.mCVPointRect2.y;
+    pointPropertyType.miXMin = 0;
+    pointPropertyType.miXMax = INT_MAX;
+    pointPropertyType.miYMin = 0;
+    pointPropertyType.miYMax = INT_MAX;
     propId = "rect_point_2";
     auto propRectPoint2 = std::make_shared< TypedProperty< PointPropertyType > >( "Boundary Point 2", propId, QMetaType::QPoint, pointPropertyType, "Display");
     mvProperty.push_back( propRectPoint2 );
@@ -107,25 +204,72 @@ CVFloodFillModel()
     mMapIdToProperty[propId] = propMaskColor;
 
     propId = "active_mask";
-    auto propActiveMask = std::make_shared<TypedProperty<bool>>("", propId, QMetaType::Bool, mProps.mbActiveMask);
+    auto propActiveMask = std::make_shared<TypedProperty<bool>>("", propId, QMetaType::Bool, mParams.mbActiveMask);
     mMapIdToProperty[ propId ] = propActiveMask;
+}
+
+QObject*
+CVFloodFillModel::
+createWorker()
+{
+    return new CVFloodFillWorker();
+}
+
+void
+CVFloodFillModel::
+connectWorker(QObject* worker)
+{
+    auto* w = qobject_cast<CVFloodFillWorker*>(worker);
+    if (w) {
+        connect(w, &CVFloodFillWorker::frameReady,
+                this, &CVFloodFillModel::handleFrameReady,
+                Qt::QueuedConnection);
+    }
+}
+
+void
+CVFloodFillModel::
+dispatchPendingWork()
+{
+    if (!hasPendingWork() || isShuttingDown())
+        return;
+
+    cv::Mat input = mPendingFrame;
+    cv::Mat maskInput = mPendingMask;
+    CVFloodFillParameters params = mPendingParams;
+    setPendingWork(false);
+
+    long frameId = getNextFrameId();
+    QString producerId = getNodeId();
+
+    std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+
+    setWorkerBusy(true);
+    QMetaObject::invokeMethod(mpWorker, "processFrame",
+                              Qt::QueuedConnection,
+                              Q_ARG(cv::Mat, input.clone()),
+                              Q_ARG(cv::Mat, maskInput.empty() ? cv::Mat() : maskInput.clone()),
+                              Q_ARG(CVFloodFillParameters, params),
+                              Q_ARG(FrameSharingMode, getSharingMode()),
+                              Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                              Q_ARG(long, frameId),
+                              Q_ARG(QString, producerId));
 }
 
 unsigned int
 CVFloodFillModel::
-
 nPorts(PortType portType) const
 {
-    unsigned int result = 1;
+    unsigned int result = 0;
 
     switch ( portType)
     {
     case PortType::In:
-        result = 2;
+        result = 3;  // Image input + mask input + sync input
         break;
 
     case PortType::Out:
-        result = 2;
+        result = 3;  // Image output + mask output + sync signal
         break;
 
     default:
@@ -138,52 +282,158 @@ nPorts(PortType portType) const
 
 NodeDataType
 CVFloodFillModel::
-
-dataType(PortType, PortIndex) const
+dataType(PortType portType, PortIndex portIndex) const
 {
+    if (portType == PortType::Out && portIndex == 2)
+        return SyncData().type();
+    if (portType == PortType::In && portIndex == 2)
+        return SyncData().type();
     return CVImageData().type();
 }
 
 
 std::shared_ptr<NodeData>
 CVFloodFillModel::
-
-outData(PortIndex I)
+outData(PortIndex portIndex)
 {
     if( isEnable() )
-        return mapCVImageData[I];
-    else
-        return nullptr;
+    {
+        if (portIndex < 2)
+            return mapCVImageData[portIndex];
+        else if (portIndex == 2)
+            return mpSyncData;
+    }
+    return nullptr;
 }
 
 void
 CVFloodFillModel::
-
 setInData(std::shared_ptr<NodeData> nodeData, PortIndex portIndex)
 {
     if (nodeData)
     {
-        auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
-        if (d)
+        if (portIndex == 0)
         {
-            mapCVImageInData[portIndex] = d;
-            if( mapCVImageInData[0] )
+            auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
+            if (d)
             {
-                mpEmbeddedWidget->toggle_widgets(mapCVImageInData[0]->data().channels());
-                processData( mapCVImageInData, mapCVImageData, mParams, mProps);
+                mapCVImageInData[0] = d;
+                if (mpCVImageInData)
+                    mpCVImageInData.reset();
+                mpCVImageInData = d;
+                
+                // Update bounds for all point properties when image dimensions change
+                if (!d->data().empty())
+                {
+                    int maxWidth = d->data().cols - 1;
+                    int maxHeight = d->data().rows - 1;
+                    updatePointPropertyBounds("seed_point", maxWidth, maxHeight);
+                    updatePointPropertyBounds("rect_point_1", maxWidth, maxHeight);
+                    updatePointPropertyBounds("rect_point_2", maxWidth, maxHeight);
+                }
+                
+                if( mpEmbeddedWidget && mpEmbeddedWidget->isVisible() )
+                {
+                    mpEmbeddedWidget->toggle_widgets(d->data().channels());
+                }
+                
+                if (!isShuttingDown())
+                    process_cached_input();
+            }
+        }
+        else if (portIndex == 1)
+        {
+            auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
+            if (d)
+            {
+                mapCVImageInData[1] = d;
+                
+                // Update active mask status
+                if (mapCVImageInData[0] && !mapCVImageInData[0]->data().empty())
+                {
+                    cv::Mat& in_image = mapCVImageInData[0]->data();
+                    mParams.mbActiveMask = (!d->data().empty() && d->data().type()==CV_8UC1
+                                          && d->data().cols==in_image.cols+2
+                                          && d->data().rows==in_image.rows+2);
+                    
+                    if( mpEmbeddedWidget && mpEmbeddedWidget->isVisible() )
+                    {
+                        mpEmbeddedWidget->set_maskStatus_label(mParams.mbActiveMask);
+                    }
+                }
+                
+                if (mapCVImageInData[0] && !isShuttingDown())
+                    process_cached_input();
+            }
+        }
+        else if (portIndex == 2)
+        {
+            // Sync input port - only process when sync signal is true
+            auto d = std::dynamic_pointer_cast<SyncData>(nodeData);
+            if (d && d->data() == true)
+            {
+                if (mapCVImageInData[0] && !isShuttingDown())
+                    process_cached_input();
             }
         }
     }
+    else
+    {
+        if (portIndex == 0)
+        {
+            mapCVImageInData[0].reset();
+            if (mpCVImageInData)
+                mpCVImageInData.reset();
+        }
+        else if (portIndex == 1)
+        {
+            mapCVImageInData[1].reset();
+            mParams.mbActiveMask = false;
+            if( mpEmbeddedWidget && mpEmbeddedWidget->isVisible() )
+            {
+                mpEmbeddedWidget->set_maskStatus_label(false);
+            }
+        }
+    }
+}
 
-    updateAllOutputPorts();
+void
+CVFloodFillModel::
+handleFrameReady(std::shared_ptr<CVImageData> img, std::shared_ptr<CVImageData> mask)
+{
+    setWorkerBusy(false);
+    
+    if (img)
+    {
+        mapCVImageData[0] = img;
+        Q_EMIT dataUpdated(0);
+    }
+    
+    if (mask)
+    {
+        mapCVImageData[1] = mask;
+        Q_EMIT dataUpdated(1);
+    }
+    
+    // Emit sync "true" on port 2
+    if (mpSyncData)
+    {
+        mpSyncData->data() = true;
+        Q_EMIT dataUpdated(2);
+    }
+    
+    // Process pending work if available
+    if (hasPendingWork())
+    {
+        dispatchPendingWork();
+    }
 }
 
 QJsonObject
 CVFloodFillModel::
-
 save() const
 {
-    QJsonObject modelJson = PBNodeDelegateModel::save();
+    QJsonObject modelJson = PBAsyncDataModel::save();
 
     QJsonObject cParams;
     cParams["seedPointX"] = mParams.mCVPointSeed.x;
@@ -201,7 +451,7 @@ save() const
     cParams["rectPoint2Y"] = mParams.mCVPointRect2.y;
     cParams["flags"] = mParams.miFlags;
     cParams["maskColor"] = mParams.miMaskColor;
-    cParams["activeMask"] = mProps.mbActiveMask;
+    cParams["activeMask"] = mParams.mbActiveMask;
     modelJson["cParams"] = cParams;
 
     return modelJson;
@@ -209,10 +459,9 @@ save() const
 
 void
 CVFloodFillModel::
-
 load(QJsonObject const& p)
 {
-    PBNodeDelegateModel::load(p);
+    PBAsyncDataModel::load(p);
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -323,199 +572,98 @@ load(QJsonObject const& p)
 
 void
 CVFloodFillModel::
-
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDelegateModel::setModelProperty( id, value );
-
     if( !mMapIdToProperty.contains( id ) )
         return;
-
-    const int& maxX = mapCVImageInData[0]->data().cols;
-    const int& maxY = mapCVImageInData[0]->data().rows;
 
     auto prop = mMapIdToProperty[ id ];
     if( id == "seed_point" )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
         QPoint sPoint =  value.toPoint();
-        bool adjValue = false;
-        if( sPoint.x() > maxX )
-        {
-            sPoint.setX( maxX);
-            adjValue = true;
-        }
-        else if( sPoint.x() < 0)
-        {
-            sPoint.setX(0);
-            adjValue = true;
-        }
-        if( sPoint.y() > maxY)
-        {
-            sPoint.setY( maxY);
-            adjValue = true;
-        }
-        else if( sPoint.y() < 0)
-        {
-            sPoint.setY(0);
-            adjValue = true;
-        }
-        if( adjValue )
-        {
-            typedProp->getData().miXPosition = sPoint.x();
-            typedProp->getData().miYPosition = sPoint.y();
-
-            Q_EMIT property_changed_signal( prop );
-            return;
-        }
-        else
-        {
-            auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
-            typedProp->getData().miXPosition = sPoint.x();
-            typedProp->getData().miYPosition = sPoint.y();
-
-            mParams.mCVPointSeed = cv::Point( sPoint.x(), sPoint.y() );
-        }
+        
+        // Clamp to property bounds
+        int x = std::max(typedProp->getData().miXMin, std::min(sPoint.x(), typedProp->getData().miXMax));
+        int y = std::max(typedProp->getData().miYMin, std::min(sPoint.y(), typedProp->getData().miYMax));
+        
+        typedProp->getData().miXPosition = x;
+        typedProp->getData().miYPosition = y;
+        mParams.mCVPointSeed = cv::Point( x, y );
     }
-    for(int i=0; i<4; i++)
+    else if ( id.startsWith("fill_color_"))
     {
-        if( id == QString("fill_color_%1").arg(i) )
+        for(int i=0; i<4; i++)
         {
-            auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );
-            typedProp->getData().mucValue = value.toInt();
-
-            mParams.mucFillColor[i] = value.toInt();
+            if( id == QString("fill_color_%1").arg(i) )
+            {
+                auto typedProp = std::static_pointer_cast< TypedProperty< UcharPropertyType > >( prop );
+                typedProp->getData().mucValue = value.toInt();
+                mParams.mucFillColor[i] = value.toInt();
+            }
         }
     }
-    if( id == "define_boundaries")
+    else if( id == "define_boundaries")
     {
         auto typedProp = std::static_pointer_cast< TypedProperty <bool>>( prop);
         typedProp->getData() = value.toBool();
-
         mParams.mbDefineBoundaries = value.toBool();
     }
     else if( id == "rect_point_1" )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
         QPoint rPoint1 =  value.toPoint();
-        bool adjValue = false;
-        if( rPoint1.x() > maxX )
-        {
-            rPoint1.setX( maxX);
-            adjValue = true;
-        }
-        else if( rPoint1.x() < 0)
-        {
-            rPoint1.setX(0);
-            adjValue = true;
-        }
-        if( rPoint1.y() > maxY)
-        {
-            rPoint1.setY( maxY);
-            adjValue = true;
-        }
-        else if( rPoint1.y() < 0)
-        {
-            rPoint1.setY(0);
-            adjValue = true;
-        }
-        if( adjValue )
-        {
-            typedProp->getData().miXPosition = rPoint1.x();
-            typedProp->getData().miYPosition = rPoint1.y();
-
-            Q_EMIT property_changed_signal( prop );
-            return;
-        }
-        else
-        {
-            auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
-            typedProp->getData().miXPosition = rPoint1.x();
-            typedProp->getData().miYPosition = rPoint1.y();
-
-            mParams.mCVPointRect1 = cv::Point( rPoint1.x(), rPoint1.y() );
-        }
+        
+        // Clamp to property bounds
+        int x = std::max(typedProp->getData().miXMin, std::min(rPoint1.x(), typedProp->getData().miXMax));
+        int y = std::max(typedProp->getData().miYMin, std::min(rPoint1.y(), typedProp->getData().miYMax));
+        
+        typedProp->getData().miXPosition = x;
+        typedProp->getData().miYPosition = y;
+        mParams.mCVPointRect1 = cv::Point( x, y );
     }
     else if( id == "rect_point_2" )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
         QPoint rPoint2 =  value.toPoint();
-        bool adjValue = false;
-        if( rPoint2.x() > maxX )
-        {
-            rPoint2.setX( maxX);
-            adjValue = true;
-        }
-        else if( rPoint2.x() < 0)
-        {
-            rPoint2.setX(0);
-            adjValue = true;
-        }
-        if( rPoint2.y() > maxY)
-        {
-            rPoint2.setY( maxY);
-            adjValue = true;
-        }
-        else if( rPoint2.y() < 0)
-        {
-            rPoint2.setY(0);
-            adjValue = true;
-        }
-        if( adjValue )
-        {
-            typedProp->getData().miXPosition = rPoint2.x();
-            typedProp->getData().miYPosition = rPoint2.y();
-
-            Q_EMIT property_changed_signal( prop );
-            return;
-        }
-        else
-        {
-            auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
-            typedProp->getData().miXPosition = rPoint2.x();
-            typedProp->getData().miYPosition = rPoint2.y();
-
-            mParams.mCVPointRect2 = cv::Point( rPoint2.x(), rPoint2.y() );
-        }
+        
+        // Clamp to property bounds
+        int x = std::max(typedProp->getData().miXMin, std::min(rPoint2.x(), typedProp->getData().miXMax));
+        int y = std::max(typedProp->getData().miYMin, std::min(rPoint2.y(), typedProp->getData().miYMax));
+        
+        typedProp->getData().miXPosition = x;
+        typedProp->getData().miYPosition = y;
+        mParams.mCVPointRect2 = cv::Point( x, y );
     }
     else if( id == "flags" )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty < EnumPropertyType > >( prop);
         typedProp->getData().miCurrentIndex = value.toInt();
-
         switch(value.toInt())
         {
-        case 0:
-            mParams.miFlags = 4;
-            break;
-
-        case 1:
-            mParams.miFlags = 8;
-            break;
-
-        case 2:
-            mParams.miFlags = cv::FLOODFILL_MASK_ONLY;
-            break;
-
-        case 3:
-            mParams.miFlags = cv::FLOODFILL_FIXED_RANGE;
-            break;
+        case 0: mParams.miFlags = 4; break;
+        case 1: mParams.miFlags = 8; break;
+        case 2: mParams.miFlags = cv::FLOODFILL_MASK_ONLY; break;
+        case 3: mParams.miFlags = cv::FLOODFILL_FIXED_RANGE; break;
         }
     }
     else if( id == "mask_color" )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty <IntPropertyType>>( prop);
         typedProp->getData().miValue = value.toInt();
-
         mParams.miMaskColor = value.toInt();
     }
-
-    if( mapCVImageInData[0] )
+    else
     {
-        mpEmbeddedWidget->toggle_widgets(mapCVImageInData[0]->data().channels());
-        processData( mapCVImageInData, mapCVImageData, mParams, mProps );
-        updateAllOutputPorts();
+        // Base class handles pool_size and sharing_mode
+        // Need to call base class to handle pool_size and sharing_mode
+        PBAsyncDataModel::setModelProperty(id, value);
+        // No need to process_cached_input() here
+        return;
     }
+    // Process cached input if available
+    if (mapCVImageData[0] && !isShuttingDown())
+        process_cached_input();
 }
 
 void CVFloodFillModel::em_spinbox_clicked(int spinbox, int value)
@@ -525,145 +673,113 @@ void CVFloodFillModel::em_spinbox_clicked(int spinbox, int value)
     else if( spinbox < 8 )
         mParams.mucUpperDiff[ spinbox - 4 ] = value;
 
-    if( mapCVImageInData[0] )
+    if( mapCVImageInData[0] && !isShuttingDown() )
     {
-        processData( mapCVImageInData,mapCVImageData,mParams,mProps);
-        updateAllOutputPorts();
+        process_cached_input();
     }
 }
 
 void
 CVFloodFillModel::
-
-processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVImageData> (&out)[2],
-            const CVFloodFillParameters & params, CVFloodFillProperties &props)
+process_cached_input()
 {
-    cv::Mat& in_image = in[0]->data();
-    if(in_image.empty() || (in_image.channels()!=1 && in_image.channels()!=3) ||
-    (in_image.depth()!=CV_8U && in_image.depth()!=CV_8S && in_image.depth()!=CV_16F && in_image.depth()!=CV_32F && in_image.depth()!=CV_64F))
-    {
+    if (!mpCVImageInData || mpCVImageInData->data().empty())
         return;
-    }
-    cv::Mat& out_image = out[0]->data();
-    out[0]->set_image(in_image);
-    props.mbActiveMask = (in[1]!=nullptr && !in[1]->data().empty() && in[1]->data().type()==CV_8UC1
-    &&in[1]->data().cols==in_image.cols+2
-    && in[1]->data().rows==in_image.rows+2)? true : false ;
-    mpEmbeddedWidget->set_maskStatus_label( props.mbActiveMask);
-    if( params.mbDefineBoundaries)
+    
+    cv::Mat input = mpCVImageInData->data();
+    cv::Mat maskInput;
+    if (mapCVImageInData[1] && !mapCVImageInData[1]->data().empty())
     {
-        cv::Rect rect( params.mCVPointRect1, params.mCVPointRect2);
-        switch(in_image.channels())
-        {
-        case 1:
-            if( props.mbActiveMask)
-            {
-            out[1]->set_image(in[1]->data());
-            cv::floodFill(out_image,
-                          out[1]->data(),
-                          params.mCVPointSeed,
-                          cv::Scalar( params.mucFillColor[3] ),
-                          &rect,
-                          cv::Scalar( params.mucLowerDiff[3] ),
-                          cv::Scalar( params.mucUpperDiff[3] ),
-                          params.miFlags | ( params.miMaskColor<<8));
-            }
-            else
-            {
-                cv::floodFill(out_image,
-                              cv::Mat(),
-                              params.mCVPointSeed,
-                              cv::Scalar( params.mucFillColor[3] ),
-                              &rect,
-                              cv::Scalar( params.mucLowerDiff[3] ),
-                              cv::Scalar( params.mucUpperDiff[3] ),
-                              params.miFlags | ( params.miMaskColor<<8));
-            }
-            break;
-
-        case 3:
-            if( props.mbActiveMask)
-            {
-                out[1]->set_image(in[1]->data());
-                cv::floodFill(out_image,
-                              out[1]->data(),
-                              params.mCVPointSeed,
-                              cv::Scalar( params.mucFillColor[0], params.mucFillColor[1], params.mucFillColor[2] ),
-                              &rect,
-                              cv::Scalar( params.mucLowerDiff[0], params.mucLowerDiff[1], params.mucLowerDiff[2] ),
-                              cv::Scalar( params.mucUpperDiff[0], params.mucUpperDiff[1], params.mucUpperDiff[2] ),
-                              params.miFlags | ( params.miMaskColor<<8));
-            }
-            else
-            {
-                cv::floodFill(out_image,
-                              cv::Mat(),
-                              params.mCVPointSeed,
-                              cv::Scalar( params.mucFillColor[0], params.mucFillColor[1], params.mucFillColor[2] ),
-                              &rect,
-                              cv::Scalar( params.mucLowerDiff[0], params.mucLowerDiff[1], params.mucLowerDiff[2] ),
-                              cv::Scalar( params.mucUpperDiff[0], params.mucUpperDiff[1], params.mucUpperDiff[2] ),
-                              params.miFlags | ( params.miMaskColor<<8));
-            }
-            break;
-        }
+        maskInput = mapCVImageInData[1]->data();
+    }
+    
+    // Emit sync "false" signal in next event loop
+    QTimer::singleShot(0, this, [this]() {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(2);
+    });
+    
+    if (isWorkerBusy())
+    {
+        // Store as pending - will be processed when worker finishes
+        mPendingFrame = input.clone();
+        if (!maskInput.empty())
+            mPendingMask = maskInput.clone();
+        else
+            mPendingMask = cv::Mat();
+        mPendingParams = mParams;
+        setPendingWork(true);
     }
     else
     {
-        switch(in_image.channels())
+        setWorkerBusy(true);
+        
+        long frameId = getNextFrameId();
+        QString producerId = getNodeId();
+        
+        std::shared_ptr<CVImagePool> poolCopy = getFramePool();
+        
+        // Prepare scalar values based on channel count
+        cv::Scalar fillColor, lowerDiff, upperDiff;
+        if (input.channels() == 1)
         {
-        case 1:
-            if( props.mbActiveMask)
-            {
-                out[1]->set_image(in[1]->data());
-                cv::floodFill(out_image,
-                              out[1]->data(),
-                              params.mCVPointSeed,
-                              cv::Scalar( params.mucFillColor[3] ),
-                              0,
-                              cv::Scalar( params.mucLowerDiff[3] ),
-                              cv::Scalar( params.mucUpperDiff[3] ),
-                              params.miFlags | ( params.miMaskColor<<8));
-            }
-            else
-            {
-                cv::floodFill(out_image,
-                              cv::Mat(),
-                              params.mCVPointSeed,
-                              cv::Scalar( params.mucFillColor[3] ),
-                              0,
-                              cv::Scalar( params.mucLowerDiff[3] ),
-                              cv::Scalar( params.mucUpperDiff[3] ),
-                              params.miFlags | ( params.miMaskColor<<8));
-            }
-            break;
-
-        case 3:
-            if( props.mbActiveMask)
-            {
-                out[1]->set_image(in[1]->data());
-                cv::floodFill(out_image,
-                              out[1]->data(),
-                              params.mCVPointSeed,
-                              cv::Scalar( params.mucFillColor[0], params.mucFillColor[1], params.mucFillColor[2] ),
-                              0,
-                              cv::Scalar( params.mucLowerDiff[0], params.mucLowerDiff[1], params.mucLowerDiff[2] ),
-                              cv::Scalar( params.mucUpperDiff[0], params.mucUpperDiff[1], params.mucUpperDiff[2] ),
-                              params.miFlags | ( params.miMaskColor<<8));
-            }
-            else
-            {
-                cv::floodFill(out_image,
-                              cv::Mat(),
-                              params.mCVPointSeed,
-                              cv::Scalar( params.mucFillColor[0], params.mucFillColor[1], params.mucFillColor[2] ),
-                              0,
-                              cv::Scalar( params.mucLowerDiff[0], params.mucLowerDiff[1], params.mucLowerDiff[2] ),
-                              cv::Scalar( params.mucUpperDiff[0], params.mucUpperDiff[1], params.mucUpperDiff[2] ),
-                              params.miFlags | ( params.miMaskColor<<8));
-            }
-            break;
+            fillColor = cv::Scalar(mParams.mucFillColor[3]);
+            lowerDiff = cv::Scalar(mParams.mucLowerDiff[3]);
+            upperDiff = cv::Scalar(mParams.mucUpperDiff[3]);
         }
+        else
+        {
+            fillColor = cv::Scalar(mParams.mucFillColor[0], mParams.mucFillColor[1], mParams.mucFillColor[2]);
+            lowerDiff = cv::Scalar(mParams.mucLowerDiff[0], mParams.mucLowerDiff[1], mParams.mucLowerDiff[2]);
+            upperDiff = cv::Scalar(mParams.mucUpperDiff[0], mParams.mucUpperDiff[1], mParams.mucUpperDiff[2]);
+        }
+        
+        QMetaObject::invokeMethod(mpWorker, "processFrame",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(cv::Mat, input.clone()),
+                                  Q_ARG(cv::Mat, maskInput.empty() ? cv::Mat() : maskInput.clone()),
+                                  Q_ARG(CVFloodFillParameters, mParams),
+                                  Q_ARG(FrameSharingMode, getSharingMode()),
+                                  Q_ARG(std::shared_ptr<CVImagePool>, poolCopy),
+                                  Q_ARG(long, frameId),
+                                  Q_ARG(QString, producerId));
     }
 }
 
+void
+CVFloodFillModel::
+updatePointPropertyBounds(const QString& propId, int maxWidth, int maxHeight)
+{
+    if (!mMapIdToProperty.contains(propId))
+        return;
+    
+    auto prop = mMapIdToProperty[propId];
+    auto typedProp = std::static_pointer_cast<TypedProperty<PointPropertyType>>(prop);
+    
+    // Update the bounds in the property data
+    typedProp->getData().miXMin = 0;
+    typedProp->getData().miXMax = maxWidth;
+    typedProp->getData().miYMin = 0;
+    typedProp->getData().miYMax = maxHeight;
+    
+    // Clamp current values to new bounds
+    int clampedX = std::max(0, std::min(typedProp->getData().miXPosition, maxWidth));
+    int clampedY = std::max(0, std::min(typedProp->getData().miYPosition, maxHeight));
+    
+    typedProp->getData().miXPosition = clampedX;
+    typedProp->getData().miYPosition = clampedY;
+    
+    // Update mParams to match
+    if (propId == "seed_point")
+    {
+        mParams.mCVPointSeed = cv::Point(clampedX, clampedY);
+    }
+    else if (propId == "rect_point_1")
+    {
+        mParams.mCVPointRect1 = cv::Point(clampedX, clampedY);
+    }
+    else if (propId == "rect_point_2")
+    {
+        mParams.mCVPointRect2 = cv::Point(clampedX, clampedY);
+    }
+}

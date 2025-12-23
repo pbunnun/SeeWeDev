@@ -249,6 +249,5 @@ private:
     // Pending data for backpressure
     cv::Mat mPendingFrame;
     CVCannyEdgeParameters mPendingParams;
-    QPixmap _minpixmap;
 };
 

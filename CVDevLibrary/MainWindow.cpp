@@ -465,16 +465,24 @@ nodeInSceneSelectionChanged()
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
+                // Clamp the point editor to the provided bounds so UI matches runtime checks
+                const auto& pointData = typedProp->getData();
+                property->setAttribute( QLatin1String( "minimum" ), QPoint(pointData.miXMin, pointData.miYMin) );
+                property->setAttribute( QLatin1String( "maximum" ), QPoint(pointData.miXMax, pointData.miYMax) );
                 property->setAttribute( "readOnly", typedProp->isReadOnly());
-                property->setValue( QPoint( typedProp->getData().miXPosition, typedProp->getData().miYPosition ) );
+                property->setValue( QPoint( pointData.miXPosition, pointData.miYPosition ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
             else if( type == QMetaType::QPointF )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< PointFPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
+                // Clamp the point editor to the provided bounds so UI matches runtime checks
+                const auto& pointData = typedProp->getData();
+                property->setAttribute( QLatin1String( "minimum" ), QPointF(pointData.mfXMin, pointData.mfYMin) );
+                property->setAttribute( QLatin1String( "maximum" ), QPointF(pointData.mfXMax, pointData.mfYMax) );
                 property->setAttribute( "readOnly", typedProp->isReadOnly());
-                property->setValue( QPointF( typedProp->getData().mfXPosition, typedProp->getData().mfYPosition ) );
+                property->setValue( QPointF( pointData.mfXPosition, pointData.mfYPosition ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
             it++;
@@ -1546,6 +1554,9 @@ actionSave_slot()
 
         QFileInfo file( mitSceneProperty->sFilename );
         ui->mpTabWidget->setTabText( ui->mpTabWidget->currentIndex(), file.completeBaseName() );
+        
+        // Add file to recent files list
+        addToRecentFiles(mitSceneProperty->sFilename);
     }
     else
         actionSaveAs_slot();
@@ -1677,6 +1688,9 @@ actionSaveAs_slot()
 
             QFileInfo file(filename);
             ui->mpTabWidget->setTabText( ui->mpTabWidget->currentIndex(), file.completeBaseName() );
+            
+            // Add file to recent files list
+            addToRecentFiles(filename);
         }
         if( QFileInfo::exists(msSettingFilename) )
         {
@@ -2524,6 +2538,27 @@ updateRecentFiles(const QString& filename)
     saveSettings();
     
     // Rebuild the menu
+    createRecentFilesMenu();
+}
+
+void
+MainWindow::
+addToRecentFiles(const QString& filename)
+{
+    // Remove if already in list (so it can be moved to the top)
+    msRecentFiles.removeAll(filename);
+    
+    // Add to the beginning of the list
+    msRecentFiles.prepend(filename);
+    
+    // Keep only the most recent 10 files
+    while (msRecentFiles.size() > 10)
+        msRecentFiles.removeLast();
+    
+    // Save to settings
+    saveSettings();
+    
+    // Update the menu
     createRecentFilesMenu();
 }
 

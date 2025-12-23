@@ -6,249 +6,155 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>248</width>
-    <height>200</height>
+    <width>256</width>
+    <height>188</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QSpinBox" name="mpLowerBSpinbox">
-   <property name="geometry">
-    <rect>
-     <x>70</x>
-     <y>50</y>
-     <width>51</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpLowerTitleLabel">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>10</y>
-     <width>91</width>
-     <height>31</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Lower Differences</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpLowerBLabel">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>50</y>
-     <width>47</width>
-     <height>13</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>B value</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpLowerGLabel">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>80</y>
-     <width>47</width>
-     <height>13</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>G value</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpLowerRLabel">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>110</y>
-     <width>47</width>
-     <height>13</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>R value</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpLowerGrayLabel">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>140</y>
-     <width>51</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Grayscale</string>
-   </property>
-  </widget>
-  <widget class="QSpinBox" name="mpLowerGSpinbox">
-   <property name="geometry">
-    <rect>
-     <x>70</x>
-     <y>80</y>
-     <width>51</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QSpinBox" name="mpLowerRSpinbox">
-   <property name="geometry">
-    <rect>
-     <x>70</x>
-     <y>110</y>
-     <width>51</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QSpinBox" name="mpLowerGraySpinbox">
-   <property name="geometry">
-    <rect>
-     <x>70</x>
-     <y>140</y>
-     <width>51</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QSpinBox" name="mpUpperGSpinbox">
-   <property name="geometry">
-    <rect>
-     <x>180</x>
-     <y>80</y>
-     <width>51</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpUpperTitleLabel">
-   <property name="geometry">
-    <rect>
-     <x>130</x>
-     <y>10</y>
-     <width>91</width>
-     <height>31</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Upper Differences</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpUpperBLabel">
-   <property name="geometry">
-    <rect>
-     <x>130</x>
-     <y>50</y>
-     <width>47</width>
-     <height>13</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>B value</string>
-   </property>
-  </widget>
-  <widget class="QSpinBox" name="mpUpperBSpinbox">
-   <property name="geometry">
-    <rect>
-     <x>180</x>
-     <y>50</y>
-     <width>51</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QSpinBox" name="mpUpperRSpinbox">
-   <property name="geometry">
-    <rect>
-     <x>180</x>
-     <y>110</y>
-     <width>51</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpUpperGLabel">
-   <property name="geometry">
-    <rect>
-     <x>130</x>
-     <y>80</y>
-     <width>47</width>
-     <height>13</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>G value</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpUpperGrayLabel">
-   <property name="geometry">
-    <rect>
-     <x>130</x>
-     <y>140</y>
-     <width>51</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Grayscale</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpUpperRLabel">
-   <property name="geometry">
-    <rect>
-     <x>130</x>
-     <y>110</y>
-     <width>47</width>
-     <height>13</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>R value</string>
-   </property>
-  </widget>
-  <widget class="QSpinBox" name="mpUpperGraySpinbox">
-   <property name="geometry">
-    <rect>
-     <x>180</x>
-     <y>140</y>
-     <width>51</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpMaskTitleLabel">
-   <property name="geometry">
-    <rect>
-     <x>80</x>
-     <y>170</y>
-     <width>41</width>
-     <height>21</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Mask  :</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="mpMaskStatusLabel">
-   <property name="geometry">
-    <rect>
-     <x>120</x>
-     <y>170</y>
-     <width>61</width>
-     <height>21</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Inactive</string>
-   </property>
-  </widget>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0" colspan="2">
+    <widget class="QLabel" name="mpLowerTitleLabel">
+     <property name="text">
+      <string>Lower Differences</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2" colspan="2">
+    <widget class="QLabel" name="mpUpperTitleLabel">
+     <property name="text">
+      <string>Upper Differences</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="mpLowerBLabel">
+     <property name="text">
+      <string>B value</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QSpinBox" name="mpLowerBSpinbox">
+     <property name="maximum">
+      <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QLabel" name="mpUpperBLabel">
+     <property name="text">
+      <string>B value</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="3">
+    <widget class="QSpinBox" name="mpUpperBSpinbox">
+     <property name="maximum">
+      <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="mpLowerGLabel">
+     <property name="text">
+      <string>G value</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QSpinBox" name="mpLowerGSpinbox">
+     <property name="maximum">
+      <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="2">
+    <widget class="QLabel" name="mpUpperGLabel">
+     <property name="text">
+      <string>G value</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="3">
+    <widget class="QSpinBox" name="mpUpperGSpinbox">
+     <property name="maximum">
+      <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="mpLowerRLabel">
+     <property name="text">
+      <string>R value</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QSpinBox" name="mpLowerRSpinbox">
+     <property name="maximum">
+      <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="2">
+    <widget class="QLabel" name="mpUpperRLabel">
+     <property name="text">
+      <string>R value</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="3">
+    <widget class="QSpinBox" name="mpUpperRSpinbox">
+     <property name="maximum">
+      <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="mpLowerGrayLabel">
+     <property name="text">
+      <string>Grayscale</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QSpinBox" name="mpLowerGraySpinbox">
+     <property name="maximum">
+      <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="2">
+    <widget class="QLabel" name="mpUpperGrayLabel">
+     <property name="text">
+      <string>Grayscale</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="3">
+    <widget class="QSpinBox" name="mpUpperGraySpinbox">
+     <property name="maximum">
+      <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <widget class="QLabel" name="mpMaskTitleLabel">
+     <property name="text">
+      <string>Mask  :</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="2">
+    <widget class="QLabel" name="mpMaskStatusLabel">
+     <property name="text">
+      <string>Inactive</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections/>

@@ -273,6 +273,10 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    /**
+     * @brief Returns the node's minimap icon.
+     * @return QPixmap for minimap representation.
+     */
     QPixmap
     minPixmap() const { return _minPixmap; }
 
@@ -338,5 +342,9 @@ private:
      * Can be persisted via save/load.
      */
     std::shared_ptr< IntegerData > mpIntData;
+
+    /**
+     * @brief Minimap icon pixmap.
+     */
     QPixmap _minPixmap;
 };
