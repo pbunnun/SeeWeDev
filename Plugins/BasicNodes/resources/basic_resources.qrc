@@ -49,7 +49,7 @@
         <file>CVCreateHistogramModel.png</file>
         <file>CVGaussianBlurModel.png</file>
         <file>CVInvertGrayModel.png</file>
-        <file>CVOpticalFlow PyrLKModel.png</file>
+        <file>CVOpticalFlowPyrLKModel.png</file>
         <file>CVOpticalFlowFarnebackModel.png</file>
         <file>CVErodeAndDilate.png</file>
         <file>CVBilateralFilterModel.png</file>

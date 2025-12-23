@@ -99,6 +99,7 @@
 #include <memory>
 #include <QString>
 #include <QVariant>
+#include <float.h>
 
 #if				           \
    defined( linux )     || \
@@ -416,34 +417,50 @@ typedef struct RectPropertyType {
 
 /**
  * @struct PointPropertyType
- * @brief Integer point property (x, y coordinates).
+ * @brief Integer point property (x, y coordinates) with optional bounds.
  *
- * Stores a 2D point with integer coordinates.
+ * Stores a 2D point with integer coordinates and optional min/max constraints.
  *
  * **Members:**
  * - miXPosition: X coordinate
  * - miYPosition: Y coordinate
+ * - miXMin: Minimum X value (default: 0)
+ * - miXMax: Maximum X value (default: INT_MAX)
+ * - miYMin: Minimum Y value (default: 0)
+ * - miYMax: Maximum Y value (default: INT_MAX)
  *
  * **Example:**
  * @code
- * // Anchor point for drawing
- * PointPropertyType anchor{320, 240};  // Center of 640×480
+ * // Seed point with image bounds
+ * PointPropertyType seed;
+ * seed.miXPosition = 320;
+ * seed.miYPosition = 240;
+ * seed.miXMin = 0;
+ * seed.miXMax = 639;  // Image width - 1
+ * seed.miYMin = 0;
+ * seed.miYMax = 479;  // Image height - 1
  * 
  * auto prop = std::make_shared<TypedProperty<PointPropertyType>>(
- *     "Anchor", "anchor", QMetaType::User, anchor
+ *     "Seed Point", "seed_point", QMetaType::User, seed
  * );
  * @endcode
  *
  * **Usage with OpenCV:**
  * @code
- * PointPropertyType& anchorProp = getAnchorProperty();
- * cv::Point anchor(anchorProp.miXPosition, anchorProp.miYPosition);
- * cv::circle(image, anchor, 5, cv::Scalar(0, 255, 0), -1);
+ * PointPropertyType& seedProp = getSeedProperty();
+ * cv::Point seed(seedProp.miXPosition, seedProp.miYPosition);
+ * cv::floodFill(image, seed, cv::Scalar(255, 0, 0));
  * @endcode
+
+
  */
 typedef struct PointPropertyType {
     int miXPosition{0};          ///< X coordinate
     int miYPosition{0};          ///< Y coordinate
+    int miXMin{0};               ///< Minimum X value
+    int miXMax{INT_MAX};         ///< Maximum X value
+    int miYMin{0};               ///< Minimum Y value
+    int miYMax{INT_MAX};         ///< Maximum Y value
 } PointPropertyType;
 
 /**
@@ -474,15 +491,19 @@ typedef struct SizeFPropertyType {
 
 /**
  * @struct PointFPropertyType
- * @brief Floating-point point property (x, y coordinates).
+ * @brief Floating-point point property (x, y coordinates) with optional bounds.
  *
- * Stores a 2D point with floating-point coordinates for sub-pixel
+ * Stores a 2D point with floating-point coordinates for sub-pixel and optional min/max constraints.
  * precision or normalized coordinates.
  *
  * **Members:**
  * - mfXPosition: X coordinate (float)
  * - mfYPosition: Y coordinate (float)
- *
+ * - mfXMin: Minimum X value (default: 0.0)
+ * - mfXMax: Maximum X value (default: FLT_MAX)
+ * - mfYMin: Minimum Y value (default: 0.0)
+ * - mfYMax: Maximum Y value (default: FLT_MAX)
+ * 
  * **Example:**
  * @code
  * // Normalized center point (0.5, 0.5 = image center)
@@ -503,6 +524,10 @@ typedef struct SizeFPropertyType {
 typedef struct PointFPropertyType {
     float mfXPosition{0.};       ///< X coordinate (float)
     float mfYPosition{0.};       ///< Y coordinate (float)
+    float mfXMin{0.};            ///< Minimum X value
+    float mfXMax{FLT_MAX};       ///< Maximum X value
+    float mfYMin{0.};            ///< Minimum Y value
+    float mfYMax{FLT_MAX};       ///< Maximum Y value
 } PointFPropertyType;
 
 /**

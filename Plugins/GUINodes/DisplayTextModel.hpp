@@ -239,7 +239,6 @@ public:
     QPixmap
     minPixmap() const override { return _minPixmap; }
 
-
     /**
      * @brief Model category name.
      */
@@ -320,6 +319,10 @@ private:
      * @brief Vector to store input data from multiple ports.
      */
     std::vector<std::shared_ptr<InformationData>> mvInputData;
+    
+    /*
+     * @brief Minimum pixmap for node representation.
+     */
     QPixmap _minPixmap;
 };
 

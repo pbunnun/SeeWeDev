@@ -13,7 +13,7 @@ LCDNumberModel()
     : PBNodeDelegateModel( _model_name ),
       // PBNodeDataModel( model's name, is it source data, is it enable at start? )
       mpEmbeddedWidget( new QLCDNumber( qobject_cast<QWidget *>(this) ) ),
-    _minPixmap(":/LCDNumberModel.png")
+      _minPixmap(":/LCDNumberModel.png")
 {
     mpIntData = std::make_shared< IntegerData >();
 

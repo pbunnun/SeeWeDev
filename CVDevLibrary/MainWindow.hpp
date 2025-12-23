@@ -487,6 +487,16 @@ private:
     void updateRecentFiles(const QString& filename);
     
     /**
+     * @brief Adds a file to the recent files list
+     * 
+     * Updates the recent files list by moving the file to the top (most recent),
+     * limiting the list to 10 items, saving settings, and updating the menu display.
+     * 
+     * @param filename The absolute path to the file to add
+     */
+    void addToRecentFiles(const QString& filename);
+    
+    /**
      * @brief Populates the recent files menu with current list
      * 
      * Creates QActions for each recent file and connects to onRecentFileTriggered.
