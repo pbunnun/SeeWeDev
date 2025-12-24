@@ -448,6 +448,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Late constructor for thread initialization.
      *
@@ -493,4 +496,5 @@ private:
      * Reads model files and initializes network.
      */
     void load_model();
+    QPixmap _minPixmap;
 };

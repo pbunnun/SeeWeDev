@@ -1,5 +1,12 @@
 <RCC>
     <qresource prefix="/">
-
+        <file>FaceDetection.png</file>
+        <file>NecML.png</file>
+        <file>NomadML.png</file>
+        <file>ONNX.png</file>
+        <file>TextDectection.png</file>
+        <file>TextRecognition.png</file>
+        <file>NodePlugin.png</file>
+        <file>YoLo.png</file>
     </qresource>
 </RCC>

@@ -352,6 +352,9 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     void
     late_constructor() override;
 
@@ -374,4 +377,5 @@ private:
 
     void processData(const std::shared_ptr< CVImageData > & in);
     void load_model();
+    QPixmap _minPixmap;
 };

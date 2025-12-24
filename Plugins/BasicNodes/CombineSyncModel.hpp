@@ -280,6 +280,9 @@ public:
     QWidget *
     embeddedWidget() override { return mpEmbeddedWidget; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     bool
     resizable() const override { return false; }
 
@@ -329,5 +332,7 @@ private:
     std::vector<bool> mvbReady;                     ///< Ready state for each input
     std::vector<bool> mvSyncValues;                 ///< Stored sync values from inputs
     std::shared_ptr< SyncData > mpSyncData;         ///< Output combined sync signal
+
+    QPixmap _minPixmap;
 };
 

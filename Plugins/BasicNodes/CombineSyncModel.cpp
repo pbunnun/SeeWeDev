@@ -25,7 +25,8 @@ const QString CombineSyncModel::_model_name = QString( "Combine Sync" );
 CombineSyncModel::
 CombineSyncModel()
     : PBNodeDelegateModel( _model_name ),
-    mpEmbeddedWidget( new CombineSyncEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
+    mpEmbeddedWidget( new CombineSyncEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
+    _minPixmap(":/Combinesync.png")
 {
     mpSyncData = std::make_shared< SyncData >( );
     

@@ -89,6 +89,9 @@ public:
     virtual
     ~CVImageResizeModel() override {}
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Serializes the node state to JSON
      * 
@@ -226,6 +229,7 @@ private:
      * @note Used when not scaling by factor; overrides scale-based sizing
      */
     cv::Size mSize { cv::Size(640, 480) };
+    QPixmap _minPixmap;
 };
 
 

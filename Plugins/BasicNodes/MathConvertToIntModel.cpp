@@ -23,7 +23,8 @@ const QString MathConvertToIntModel::_model_name = QString( "Convert to Integer"
 
 MathConvertToIntModel::
 MathConvertToIntModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/ConvertToInteger.png")
 {
     mpIntegerData = std::make_shared< IntegerData >( );
 }

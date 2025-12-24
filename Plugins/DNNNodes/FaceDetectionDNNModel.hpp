@@ -372,6 +372,9 @@ public:
     void
     setInData( std::shared_ptr< NodeData > nodeData, PortIndex ) override;
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Returns null (no embedded widget).
      * @return nullptr.
@@ -433,4 +436,5 @@ private:
      * Reads model files and initializes DNN.
      */
     void load_model();
+    QPixmap _minPixmap;
 };

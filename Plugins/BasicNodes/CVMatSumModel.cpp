@@ -25,8 +25,9 @@ const QString CVMatSumModel::_model_name = QString( "CV Sum" );
 
 CVMatSumModel::
 CVMatSumModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
       // PBNodeDataModel( model's name, is it enable at start? )
+    _minPixmap(":/Sum.png")
 {
     mpIntegerData = std::make_shared< IntegerData >();
 }

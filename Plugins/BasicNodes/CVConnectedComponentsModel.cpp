@@ -26,7 +26,7 @@ const QString CVConnectedComponentsModel::_model_name = QString( "CV Connected C
 CVConnectedComponentsModel::
 CVConnectedComponentsModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":CVConnectedComponents.png" )
+      _minPixmap( ":/ConnectedComponents.png" )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpIntegerData = std::make_shared< IntegerData >( int() );

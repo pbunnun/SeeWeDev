@@ -292,6 +292,9 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     void
     setModelProperty( QString &, const QVariant & ) override;
 
@@ -315,4 +318,5 @@ private:
 
     void processData(const std::shared_ptr< CVImageData > & in);
     void load_model();
+    QPixmap _minPixmap;
 };

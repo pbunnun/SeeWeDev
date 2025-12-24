@@ -305,6 +305,9 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Late constructor for thread initialization.
      *
@@ -371,5 +374,7 @@ private:
 
     QString msPrefix_Filename {"image"};                   ///< Filename prefix
     QString msImage_Format {"jpg"};                        ///< Output format
+
+    QPixmap _minPixmap;
 };
 

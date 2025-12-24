@@ -228,7 +228,8 @@ setParams(CVYoloDNNImageParameters & params)
 
 CVYoloDNNModel::
 CVYoloDNNModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/YoLo.png")
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >();

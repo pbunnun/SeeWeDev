@@ -27,7 +27,7 @@ const QString CVMakeBorderModel::_model_name = QString( "CV Make Border" );
 CVMakeBorderModel::
 CVMakeBorderModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":CVMakeBorder.png" )
+      _minPixmap( ":/MakeBorder.png" )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
 

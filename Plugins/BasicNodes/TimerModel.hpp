@@ -235,6 +235,9 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     /**
      * @brief Sets a model property.
      * @param Property name ("millisecond_interval").
@@ -271,5 +274,6 @@ private:
     std::shared_ptr<SyncData> mpSyncData { nullptr };  ///< Output sync signal
 
     int miMillisecondInterval { 1000 };                ///< Timer interval in milliseconds
+    QPixmap _minPixmap;
 };
 

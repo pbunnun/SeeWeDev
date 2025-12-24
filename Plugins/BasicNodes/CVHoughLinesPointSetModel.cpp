@@ -120,7 +120,7 @@ void CVHoughLinesPointSetWorker::processFrame(cv::Mat input,
     Q_EMIT frameReady(newImageData, countData);
 }
 
-CVHoughLinesPointSetModel::CVHoughLinesPointSetModel() : PBAsyncDataModel(_model_name), _minPixmap(":CVHoughLinesPointSet.png")
+CVHoughLinesPointSetModel::CVHoughLinesPointSetModel() : PBAsyncDataModel(_model_name), _minPixmap(":/HoughLinesPointSet.png")
 {
     mpIntegerData = std::make_shared<IntegerData>(int());
 

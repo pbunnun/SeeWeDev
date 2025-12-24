@@ -164,6 +164,9 @@ public:
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    QPixmap
+    minPixmap() const override{ return _minPixmap; }
+
     bool
     resizable() const override { return false; }
 
@@ -175,5 +178,6 @@ private:
 
     std::shared_ptr< InformationData > mpInformationData; ///< Input text data
     std::shared_ptr< IntegerData > mpIntegerData;         ///< Output integer data
+    QPixmap _minPixmap;
 };
 

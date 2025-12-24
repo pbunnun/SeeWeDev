@@ -134,7 +134,8 @@ NomadMLClassificationThread::
 
 NomadMLClassificationModel::
 NomadMLClassificationModel()
-    : PBNodeDelegateModel( _model_name )
+    : PBNodeDelegateModel( _model_name ),
+    _minPixmap(":/NomadML.png")
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared< SyncData >( true );
