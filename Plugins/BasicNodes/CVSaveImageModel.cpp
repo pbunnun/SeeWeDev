@@ -94,7 +94,7 @@ set_saving_directory( QString dirname )
 CVSaveImageModel::
 CVSaveImageModel()
     : PBNodeDelegateModel( _model_name ),
-    _minPixmap(":/Save Image.png")
+    _minPixmap(":/SaveImage.png")
 {
     mpSyncData = std::make_shared<SyncData>( true );
 

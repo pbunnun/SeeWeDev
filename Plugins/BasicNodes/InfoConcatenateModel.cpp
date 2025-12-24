@@ -25,7 +25,7 @@ const QString InfoConcatenateModel::_model_name = QString( "Info Concatenate" );
 InfoConcatenateModel::
 InfoConcatenateModel()
     : PBNodeDelegateModel( _model_name ),
-    _minPixmap(":/Info Concatenate.png")
+    _minPixmap(":/InfoConcatenate.png")
 {
     mpInformationData = std::make_shared< InformationData >( );
     mpInformationData_1 = std::make_shared< InformationData >( );

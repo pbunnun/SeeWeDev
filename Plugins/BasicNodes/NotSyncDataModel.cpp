@@ -27,7 +27,7 @@ NotSyncDataModel::
 NotSyncDataModel()
     : PBNodeDelegateModel( _model_name ),
       // PBNodeDataModel( model's name, is it enable at start? )
-    _minPixmap(":/Not sync.png")
+    _minPixmap(":/Notsync.png")
 {
     mpSyncData = std::make_shared< SyncData >();
 }

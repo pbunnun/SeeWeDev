@@ -180,7 +180,7 @@ CVVideoWriterModel::
 CVVideoWriterModel()
     : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget( new QPushButton( qobject_cast<QWidget *>(this) ) ),
-    _minPixmap(":/Video Writer.png")
+    _minPixmap(":/VideoWriter.png")
 {
     mpEmbeddedWidget->setText("Start");
     mpEmbeddedWidget->setStyleSheet("QPushButton { background-color : yellow; }");

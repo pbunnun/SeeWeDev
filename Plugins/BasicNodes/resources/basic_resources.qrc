@@ -71,19 +71,19 @@
         <file>DistanceTransforms.png</file>
         <file>Condition.png</file>
         <file>ConvertToInteger.png</file>
-        <file>SumInteger.png</file>
         <file>Image Display.png</file>
-        <file>Info Display.png</file>
-        <file>Video Writer.png</file>
         <file>VideoLoader.png</file>
         <file>ImageLoader.png</file>
-        <file>Template Model.png</file>
-        <file>Call External command.png</file>
         <file>Combinesync.png</file>
-        <file>Info Concatenate.png</file>
-        <file>Not sync.png</file>
-        <file>Save Image.png</file>
         <file>Timer.png</file>
         <file>Sum.png</file>
+        <file>InfoDisplay.png</file>
+        <file>VideoWriter.png</file>
+        <file>TemplateModel.png</file>
+        <file>InfoConcatenate.png</file>
+        <file>CallExternalcommand.png</file>
+        <file>Notsync.png</file>
+        <file>SaveImage.png</file>
+        <file>SumInteger.png</file>
     </qresource>
 </RCC>

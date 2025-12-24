@@ -25,7 +25,7 @@ InformationDisplayModel::
 InformationDisplayModel()
     : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget( new InformationDisplayEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
-    _minPixmap(":/Info Display.png")
+    _minPixmap(":/InfoDisplay.png")
 {
     IntPropertyType intPropertyType;
     intPropertyType.miMax = 2000;
