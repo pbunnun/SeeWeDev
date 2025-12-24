@@ -61,7 +61,7 @@
         <file>CVBlendImagesModel.png</file>
         <file>ROI.png</file>
         <file>Rotate.png</file>
-        <file>Drawcontour.png</file>
+        <file>DrawContour.png</file>
         <file>FindAndDraw.png</file>
         <file>HoughCircle.png</file>
         <file>HoughLine.png</file>
@@ -71,7 +71,7 @@
         <file>DistanceTransforms.png</file>
         <file>Condition.png</file>
         <file>ConvertToInteger.png</file>
-        <file>Image Display.png</file>
+        <file>ImageDisplay.png</file>
         <file>VideoLoader.png</file>
         <file>ImageLoader.png</file>
         <file>Combinesync.png</file>
@@ -81,8 +81,8 @@
         <file>VideoWriter.png</file>
         <file>TemplateModel.png</file>
         <file>InfoConcatenate.png</file>
-        <file>CallExternalcommand.png</file>
-        <file>Notsync.png</file>
+        <file>CallExternalCommand.png</file>
+        <file>NotSync.png</file>
         <file>SaveImage.png</file>
         <file>SumInteger.png</file>
     </qresource>

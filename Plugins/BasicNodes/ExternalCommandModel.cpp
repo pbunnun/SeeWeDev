@@ -25,7 +25,7 @@ const QString ExternalCommandModel::_model_name = QString( "Call External Comman
 ExternalCommandModel::
 ExternalCommandModel()
     : PBNodeDelegateModel( _model_name ),
-    _minPixmap(":/CallExternalcommand.png")
+    _minPixmap(":/CallExternalCommand.png")
 {
     QString propId = "ext_command";
     auto propCommand = std::make_shared< TypedProperty< QString > >( "External Command", propId, QMetaType::QString, msExternalCommand);
