@@ -27,7 +27,7 @@ const QString CVColorMapModel::_model_name = QString( "CV Color Map" );
 CVColorMapModel::
 CVColorMapModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":/CVColorMapModel.png" )
+      _minPixmap( ":/ColorMap.png" )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpSyncData = std::make_shared<SyncData>();

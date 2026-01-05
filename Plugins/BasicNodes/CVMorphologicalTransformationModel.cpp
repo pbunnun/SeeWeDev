@@ -79,7 +79,7 @@ void CVMorphologicalTransformationWorker::processFrame(cv::Mat input,
 CVMorphologicalTransformationModel::
 CVMorphologicalTransformationModel()
     : PBAsyncDataModel( _model_name ),
-      _minPixmap( ":MorphologicalTransformation.png" )
+      _minPixmap( ":/MorphologicalTransformation.png" )
 {
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList({"MORPH_OPEN", "MORPH_CLOSE", "MORPH_GRADIENT", "MORPH_TOPHAT", "MORPH_BLACKHAT"});

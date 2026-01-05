@@ -28,7 +28,7 @@ CVSplitImageModel::
 
 CVSplitImageModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":SplitImage.png" )
+      _minPixmap( ":/CVSpiltImage.png" )
 {
     for(std::shared_ptr<CVImageData>& mp : mapCVImageData)
     {

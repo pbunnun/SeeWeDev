@@ -27,7 +27,7 @@ const QString CVDistanceTransformModel::_model_name = QString( "CV Distance Tran
 CVDistanceTransformModel::
 CVDistanceTransformModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":/DistanceTransform.png" )
+      _minPixmap( ":/DistanceTrasform.png" )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
 

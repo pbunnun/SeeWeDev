@@ -88,7 +88,7 @@ CVErodeAndDilateModel::
 CVErodeAndDilateModel()
     : PBAsyncDataModel( _model_name ),
       mpEmbeddedWidget(new CVErodeAndDilateEmbeddedWidget),
-      _minPixmap( ":CVErodeAndDilate.png" )
+      _minPixmap( ":/CVErodeAndDilate.png" )
 {
     qRegisterMetaType<CVErodeAndDilateParameters>("CVErodeAndDilateParameters");
 

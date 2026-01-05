@@ -27,7 +27,7 @@ const QString CVThresholdingModel::_model_name = QString( "CV Thresholding" );
 CVThresholdingModel::
 CVThresholdingModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":Thresholding.png" )
+      _minPixmap( ":/CVThresholding.png" )
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpIntegerData = std::make_shared< IntegerData >( int() );
