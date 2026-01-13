@@ -88,7 +88,7 @@ void CVMedianBlurWorker::processFrame(cv::Mat input,
 
 CVMedianBlurModel::CVMedianBlurModel()
     : PBAsyncDataModel("CV Median Blur"),
-    _minPixmap(":/CVMedianBlurModel.png")
+    _minPixmap(":/MedianBlur.png")
 {
     // Add kernel size property (odd numbers only, 3-31)
     IntPropertyType intPropertyType;

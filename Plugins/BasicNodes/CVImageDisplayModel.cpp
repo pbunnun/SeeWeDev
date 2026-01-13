@@ -30,7 +30,7 @@ CVImageDisplayModel::
 CVImageDisplayModel()
     : PBNodeDelegateModel( _model_name ),
       mpEmbeddedWidget( new PBImageDisplayWidget(qobject_cast<QWidget *>(this)) ),
-    _minPixmap(":/Image Display.png")
+    _minPixmap(":/ImageDisplay.png")
 {
     mpEmbeddedWidget->installEventFilter( this );
     mpEmbeddedWidget->resize(640, 480);

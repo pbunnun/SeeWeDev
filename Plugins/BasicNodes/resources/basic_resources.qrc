@@ -2,31 +2,20 @@
     <qresource prefix="/">
         <file>RGBtoGray.png</file>
         <file>Test_Sharpen.png</file>
-        <file>GaussianBlur.png</file>
-        <file>CannyEdge.png</file>
         <file>USBCamera.png</file>
         <file>RGBsetValue.png</file>
         <file>ColorSpace.png</file>
         <file>SobelAndScharr.png</file>
         <file>DrawContour.png</file>
-        <file>CreateHistogram.png</file>
-        <file>ErodeAndDilate.png</file>
         <file>InvertGray.png</file>
         <file>Thresholding.png</file>
-        <file>BlendImages.png</file>
         <file>FloodFill.png</file>
         <file>MakeBorder.png</file>
-        <file>FaceDetection.png</file>
         <file>ImageDisplay.png</file>
         <file>BitwiseOperation.png</file>
         <file>Addition.png</file>
         <file>OverlayImage.png</file>
-        <file>ImageROI.png</file>
         <file>MorphologicalTransformation.png</file>
-        <file>HoughCircleTransform.png</file>
-        <file>DistanceTransform.png</file>
-        <file>Filter2D.png</file>
-        <file>SplitImage.png</file>
         <file>TemplateMatching.png</file>
         <file>MatrixOperation.png</file>
         <file>MinMaxLocation.png</file>
@@ -41,13 +30,9 @@
         <file>ColorMap.png</file>
         <file>NodeDataTimer.png</file>
         <file>HistogramEqualization.png</file>
-        <file>CLAHEEqualization.png</file>
         <file>CVCannyEdgeModel.png</file>
         <file>CVColorMapModel.png</file>
-        <file>CVColorSpaceModel.png</file>
-        <file>CVConvertDepthModel.png</file>
         <file>CVCreateHistogramModel.png</file>
-        <file>CVGaussianBlurModel.png</file>
         <file>CVInvertGrayModel.png</file>
         <file>CVOpticalFlowPyrLKModel.png</file>
         <file>CVOpticalFlowFarnebackModel.png</file>
@@ -62,20 +47,16 @@
         <file>ROI.png</file>
         <file>Rotate.png</file>
         <file>DrawContour.png</file>
-        <file>FindAndDraw.png</file>
         <file>HoughCircle.png</file>
         <file>HoughLine.png</file>
         <file>HoughLinesPointSet.png</file>
-        <file>HoughLinesPoint.png</file>
         <file>Findcontour.png</file>
-        <file>DistanceTransforms.png</file>
         <file>Condition.png</file>
         <file>ConvertToInteger.png</file>
         <file>ImageDisplay.png</file>
         <file>VideoLoader.png</file>
         <file>ImageLoader.png</file>
         <file>Combinesync.png</file>
-        <file>Timer.png</file>
         <file>Sum.png</file>
         <file>InfoDisplay.png</file>
         <file>VideoWriter.png</file>
@@ -84,6 +65,15 @@
         <file>CallExternalCommand.png</file>
         <file>NotSync.png</file>
         <file>SaveImage.png</file>
+        <file>CVConvertDepthModel.png</file>
+        <file>CVThresholding.png</file>
+        <file>CVSpiltImage.png</file>
+        <file>ClaehEqualization.png</file>
+        <file>GaussionBlurr.png</file>
+        <file>MedianBlur.png</file>
+        <file>ImageROI.png</file>
+        <file>FindAndDrawContour.png</file>
+        <file>DistanceTrasform.png</file>
         <file>SumInteger.png</file>
     </qresource>
 </RCC>

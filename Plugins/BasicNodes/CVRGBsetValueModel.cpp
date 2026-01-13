@@ -29,7 +29,7 @@ const QString CVRGBsetValueModel::_model_name = QString("CV RGB Values");
 CVRGBsetValueModel::CVRGBsetValueModel()
     :PBNodeDelegateModel( _model_name ),
      mpEmbeddedWidget(new CVRGBsetValueEmbeddedWidget()),
-     _minPixmap(":RGBsetValue.png")
+     _minPixmap(":/RGBsetValue.png")
 {
     mpCVImageData = std::make_shared<CVImageData>( cv::Mat() );
 

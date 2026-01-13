@@ -66,7 +66,7 @@ void CVNormalizationWorker::processFrame(
 
 CVNormalizationModel::CVNormalizationModel()
     : PBAsyncDataModel(_model_name),
-      _minPixmap(":Normalization.png")
+      _minPixmap(":/Normalization.png")
 {
     DoublePropertyType doublePropertyType;
     
