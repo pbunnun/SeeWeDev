@@ -85,6 +85,11 @@
 #include "MathConvertToIntModel.hpp"
 #include "CombineSyncModel.hpp"
 
+#include "PlotGraphModel.hpp"
+#include "DetectionConverterModel.hpp"
+#include "ObjectCounterModel.hpp"
+#include "SmartCounterModel.hpp"
+
 //#include "FaceDetectionModel.hpp"
 
 QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModelRegistry > model_regs )
@@ -165,6 +170,11 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateMod
     registerModel< CombineSyncModel >( model_regs, duplicate_model_names );
     registerModel< CVHistogramEqualizationModel >( model_regs, duplicate_model_names );
     registerModel< CVCLAHEEqualizationModel >( model_regs, duplicate_model_names );
+
+    registerModel< PlotGraphModel >(model_regs, duplicate_model_names);
+    registerModel< DetectionConverterModel >(model_regs, duplicate_model_names);
+    registerModel< ObjectCounterModel >(model_regs, duplicate_model_names);
+    registerModel< SmartCounterModel >(model_regs, duplicate_model_names);
 
  //   registerModel< CVCameraCalibrationModel >( model_regs, duplicate_model_names );
 

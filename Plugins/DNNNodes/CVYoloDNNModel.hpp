@@ -128,7 +128,13 @@ public:
      * @param parent Parent QObject (typically the model).
      */
     explicit
-    CVYoloDNNThread( QObject *parent = nullptr );
+        CVYoloDNNThread( QObject *parent = nullptr );
+
+    //ลองเพิ่ม
+    float getMaxConfidence() const { return mMaxConf; }
+
+    void detect( const cv::Mat & in_image );
+    bool readNet( QString & model, QString & classes, QString & config );
 
     /**
      * @brief Destructor.
@@ -143,8 +149,8 @@ public:
      *
      * Thread-safe method to submit images for detection.
      */
-    void
-    detect( const cv::Mat & );
+    //void
+    //detect( const cv::Mat & );
 
     /**
      * @brief Loads YOLO model files.
@@ -166,8 +172,8 @@ public:
      * ...
      * @endcode
      */
-    bool
-    readNet( QString & , QString & , QString & );
+    //bool
+    //readNet( QString & , QString & , QString & );
 
     /**
      * @brief Sets preprocessing parameters.
@@ -218,7 +224,7 @@ private:
      * Draws rectangle and label with class name and confidence percentage.
      */
     void drawPrediction( int classId, float conf, int left, int top, int right, int bottom );
-    
+
     QSemaphore mWaitingSemaphore;              ///< Synchronization semaphore
     QMutex mLockMutex;                         ///< Mutex for thread-safe access
 
@@ -230,6 +236,8 @@ private:
 
     std::vector<cv::String> mvStrOutNames;     ///< Output layer names
     CVYoloDNNImageParameters mParams;          ///< Preprocessing parameters
+
+    float mMaxConf = 0.0f; //เพิ่ม
 };
 
 /**
@@ -285,11 +293,11 @@ private:
  * @code
  * // Basic object detection
  * [Camera] -> [YoloDNN] -> [ImageDisplay]
- * 
+ *
  * // Detection with filtering
  * [Image] -> [YoloDNN] -> [ImageDisplay]
  *         -> [InformationDisplay]  // Show detected classes
- * 
+ *
  * // Multi-stage processing
  * [Camera] -> [Preprocess] -> [YoloDNN] -> [TrackingNode] -> [Display]
  * @endcode
@@ -376,7 +384,7 @@ public:
      * Stops detection thread and releases resources.
      */
     virtual
-    ~CVYoloDNNModel() override
+        ~CVYoloDNNModel() override
     {
         if( mpCVYoloDNNThread )
             delete mpCVYoloDNNThread;
@@ -462,6 +470,10 @@ public:
     static const QString _category;   ///< Node category
     static const QString _model_name; ///< Node display name
 
+private:
+     //static const QString _category;   ///< Node category
+    //static const QString _model_name; ///< Node display name
+
 private Q_SLOTS:
     /**
      * @brief Slot to receive detection results from worker thread.
@@ -489,7 +501,7 @@ private:
      * Enqueues image for detection.
      */
     void processData(const std::shared_ptr< CVImageData > & in);
-    
+
     /**
      * @brief Loads YOLO model into worker thread.
      *

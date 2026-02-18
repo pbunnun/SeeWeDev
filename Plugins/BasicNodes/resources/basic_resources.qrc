@@ -16,7 +16,7 @@
         <file>Addition.png</file>
         <file>OverlayImage.png</file>
         <file>MorphologicalTransformation.png</file>
-        <file>TemplateMatching.png</file>
+        <file>TemPlateMatching.png</file>
         <file>MatrixOperation.png</file>
         <file>MinMaxLocation.png</file>
         <file>ConvertDepth.png</file>
@@ -65,15 +65,14 @@
         <file>CallExternalCommand.png</file>
         <file>NotSync.png</file>
         <file>SaveImage.png</file>
-        <file>CVConvertDepthModel.png</file>
         <file>CVThresholding.png</file>
         <file>CVSpiltImage.png</file>
         <file>ClaehEqualization.png</file>
         <file>GaussionBlurr.png</file>
         <file>MedianBlur.png</file>
-        <file>ImageROI.png</file>
         <file>FindAndDrawContour.png</file>
         <file>DistanceTrasform.png</file>
         <file>SumInteger.png</file>
+        <file>CVConvertDepth.png</file>
     </qresource>
 </RCC>

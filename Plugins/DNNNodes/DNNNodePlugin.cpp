@@ -21,6 +21,8 @@
 #include "TextRecognitionDNNModel.hpp"
 #include "CVYoloDNNModel.hpp"
 
+#include "NCNNDetectModel.hpp"
+
 QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModelRegistry > model_regs )
 {
     QStringList duplicate_model_names;
@@ -32,6 +34,8 @@ QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModel
     registerModel< TextDetectionDNNModel >( model_regs, duplicate_model_names );
     registerModel< TextRecognitionDNNModel >( model_regs, duplicate_model_names );
     registerModel< CVYoloDNNModel >( model_regs, duplicate_model_names );
+
+    registerModel< NCNNDetectModel >( model_regs, duplicate_model_names );
 
     return duplicate_model_names;
 }

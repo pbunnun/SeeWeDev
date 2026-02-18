@@ -68,7 +68,7 @@
 #include "CVImageData.hpp"
 #include "CVCameraCalibrationEmbeddedWidget.hpp"
 #include <opencv2/aruco.hpp>
-#include <opencv2/objdetect/charuco_detector.hpp>
+//#include <opencv2/objdetect/charuco_detector.hpp>
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;

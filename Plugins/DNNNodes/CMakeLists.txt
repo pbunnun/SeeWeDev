@@ -20,9 +20,16 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(ncnn_DIR "/home/kawtom/ncnn/build/install/lib/cmake/ncnn")
+
+find_package(Threads REQUIRED)
+
+find_package(OpenMP REQUIRED)
 
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
+
+find_package(ncnn REQUIRED)
 
 file(GLOB CPP_FILES *.cpp)
 file(GLOB HPP_FILES *.hpp)
@@ -56,9 +63,18 @@ add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DQT_NO_KEYWORDS)
 
 include_directories(${CVDevLibrary_INCLUDE_DIRS})
 
+# บอกให้ CMake รู้ว่าไฟล์ Header ของเราอยู่ที่โฟลเดอร์ปัจจุบัน
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary/qtpropertybrowser)
+include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary)
+
 target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
     ${OpenCV_LIBS}
+    ncnn
+    Threads::Threads
+    OpenMP::OpenMP_CXX
 )
 
 if(WIN32)
