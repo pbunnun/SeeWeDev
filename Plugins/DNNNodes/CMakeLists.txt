@@ -13,27 +13,43 @@ if( NOT WIN32 )
 endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(ncnn_DIR "/home/kawtom/ncnn/build/install/lib/cmake/ncnn")
 
 find_package(Threads REQUIRED)
-
 find_package(OpenMP REQUIRED)
-
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
 
-find_package(ncnn REQUIRED)
+# =========================================================
+# 📌 ตั้งค่า NCNN
+# =========================================================
+set(NCNN_INC "/home/kawtom/ncnn/build_final/install/include")
+set(NCNN_INC_NCNN "/home/kawtom/ncnn/build_final/install/include/ncnn")
+set(NCNN_LIB "/home/kawtom/ncnn/build_final/install/lib")
+
+include_directories(${NCNN_INC} ${NCNN_INC_NCNN})
+link_directories(${NCNN_LIB})
+
+# =========================================================
+# 📌 ตั้งค่า MNN
+# =========================================================
+# ชี้ไปที่โฟลเดอร์ไลบรารี MNN ที่เราสร้างไว้
+set(MNN_DIR "/home/kawtom/MNN_Library")
+# เพิ่มที่อยู่ Header ของ MNN
+include_directories(${MNN_DIR}/include)
+# (ลบ target_link_libraries ของ MNN ตรงนี้ออก แล้วย้ายไปรวมด้านล่าง)
+
 
 file(GLOB CPP_FILES *.cpp)
 file(GLOB HPP_FILES *.hpp)
 file(GLOB UI_FILES *.ui)
+
+# >>> สร้าง Target ชื่อ DNNNodes ตรงนี้ <<<
 add_library(${PROJECT_NAME} SHARED
     ${CPP_FILES}
     ${HPP_FILES}
@@ -41,9 +57,9 @@ add_library(${PROJECT_NAME} SHARED
     resources/dnn_resources.qrc
 )
 
-# ---- MODIFIED THIS SECTION ----
-# Replaced RUNTIME_OUTPUT_DIRECTORY with LIBRARY_OUTPUT_DIRECTORY to ensure
-# the plugin is built into the correct subfolder for local execution.
+# บังคับ MOC ให้รู้จัก NCNN อย่างเด็ดขาด
+target_include_directories(${PROJECT_NAME} PRIVATE ${NCNN_INC} ${NCNN_INC_NCNN})
+
 set_target_properties(${PROJECT_NAME}
                       PROPERTIES
                       POSITION_INDEPENDENT_CODE ON
@@ -57,29 +73,27 @@ set_target_properties(${PROJECT_NAME}
                       ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
                       ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
                       )
-# -----------------------------
 
 add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DQT_NO_KEYWORDS)
 
 include_directories(${CVDevLibrary_INCLUDE_DIRS})
-
-# บอกให้ CMake รู้ว่าไฟล์ Header ของเราอยู่ที่โฟลเดอร์ปัจจุบัน
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
 include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary/qtpropertybrowser)
 include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary)
 
+# =========================================================
+# 📌 รวบรวมไลบรารีทั้งหมดมาลิงก์เข้ากับโปรเจกต์ที่นี่
+# =========================================================
 target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
     ${OpenCV_LIBS}
     ncnn
+    ${MNN_DIR}/lib/libMNN.so 
     Threads::Threads
     OpenMP::OpenMP_CXX
 )
 
 if(WIN32)
-    # Move the built runtime DLL from CVDev -> CVDev/cvdev_plugins.
-    # Assumes CVDev/cvdev_plugins already exists and the runtime DLL is placed in CVDev.
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E echo "Moving $<TARGET_FILE_NAME:${PROJECT_NAME}> to ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins"
         COMMAND ${CMAKE_COMMAND} -E rename
@@ -89,15 +103,9 @@ if(WIN32)
         VERBATIM)
 endif()
 
-# ---- MODIFIED SECTION FOR CPACK ----
-# The old 'add_custom_command' has been removed.
-#
-# This install command places the compiled plugin library (.so file) into the
-# application's dedicated plugins directory upon installation.
 if( NOT WIN32 )
     install(TARGETS ${PROJECT_NAME}
         LIBRARY DESTINATION bin/cvdev_plugins
         COMPONENT Runtime
     )
 endif()
-# ------------------------------------

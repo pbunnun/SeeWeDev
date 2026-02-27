@@ -22,6 +22,7 @@
 #include "CVYoloDNNModel.hpp"
 
 #include "NCNNDetectModel.hpp"
+#include "MNNDetectModel.hpp"
 
 QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModelRegistry > model_regs )
 {
@@ -36,6 +37,7 @@ QStringList DNNNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModel
     registerModel< CVYoloDNNModel >( model_regs, duplicate_model_names );
 
     registerModel< NCNNDetectModel >( model_regs, duplicate_model_names );
+    registerModel< MNNDetectModel >( model_regs, duplicate_model_names );
 
     return duplicate_model_names;
 }
