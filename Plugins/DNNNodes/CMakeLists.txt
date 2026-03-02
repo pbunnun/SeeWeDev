@@ -17,7 +17,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17) # แนะนำให้ใช้ 17 ตามมาตรฐานโปรเจกต์เดิม
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Threads REQUIRED)
@@ -26,30 +26,36 @@ find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
 
 # =========================================================
-# 📌 ตั้งค่า NCNN
+# 📌 ตั้งค่า NCNN และ MNN แบบ Portable (อ้างอิงภายในโปรเจกต์)
 # =========================================================
-set(NCNN_INC "/home/kawtom/ncnn/build_final/install/include")
-set(NCNN_INC_NCNN "/home/kawtom/ncnn/build_final/install/include/ncnn")
-set(NCNN_LIB "/home/kawtom/ncnn/build_final/install/lib")
 
-include_directories(${NCNN_INC} ${NCNN_INC_NCNN})
-link_directories(${NCNN_LIB})
+# กำหนด Root ของ Library (ถอยกลับไป 2 ชั้นจาก Plugins/DNNNodes)
+set(NCNN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../3rdpartyncnn")
+set(MNN_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/../../3rdpartymnn")
+
+# 1. ตั้งค่า Include Paths
+set(NCNN_INC      "${NCNN_DIR}/include")
+set(NCNN_INC_NCNN "${NCNN_DIR}/include/ncnn")
+set(MNN_INC       "${MNN_DIR}/include")
+
+include_directories(
+    ${NCNN_INC} 
+    ${NCNN_INC_NCNN} 
+    ${MNN_INC}
+    ${MNN_INC}/MNN # เผื่อกรณี #include <MNN/Interpreter.hpp>
+)
+
+# 2. ตั้งค่า Library Paths (.so files)
+# สมมติว่าเก็บไฟล์ .so ไว้ในโฟลเดอร์ lib/ ภายในของแต่ละตัว
+set(NCNN_LIBRARY "${NCNN_DIR}/lib/libncnn.so.1") # หรือ .so
+set(MNN_LIBRARY  "${MNN_DIR}/lib/libMNN.so")
 
 # =========================================================
-# 📌 ตั้งค่า MNN
-# =========================================================
-# ชี้ไปที่โฟลเดอร์ไลบรารี MNN ที่เราสร้างไว้
-set(MNN_DIR "/home/kawtom/MNN_Library")
-# เพิ่มที่อยู่ Header ของ MNN
-include_directories(${MNN_DIR}/include)
-# (ลบ target_link_libraries ของ MNN ตรงนี้ออก แล้วย้ายไปรวมด้านล่าง)
-
 
 file(GLOB CPP_FILES *.cpp)
 file(GLOB HPP_FILES *.hpp)
 file(GLOB UI_FILES *.ui)
 
-# >>> สร้าง Target ชื่อ DNNNodes ตรงนี้ <<<
 add_library(${PROJECT_NAME} SHARED
     ${CPP_FILES}
     ${HPP_FILES}
@@ -57,8 +63,12 @@ add_library(${PROJECT_NAME} SHARED
     resources/dnn_resources.qrc
 )
 
-# บังคับ MOC ให้รู้จัก NCNN อย่างเด็ดขาด
-target_include_directories(${PROJECT_NAME} PRIVATE ${NCNN_INC} ${NCNN_INC_NCNN})
+# บังคับ MOC ให้รู้จัก Include Paths
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${NCNN_INC} 
+    ${NCNN_INC_NCNN} 
+    ${MNN_INC}
+)
 
 set_target_properties(${PROJECT_NAME}
                       PROPERTIES
@@ -67,11 +77,7 @@ set_target_properties(${PROJECT_NAME}
                       LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
                       LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
                       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
-                      RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
-                      RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
                       ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
-                      ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
-                      ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
                       )
 
 add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DQT_NO_KEYWORDS)
@@ -82,13 +88,13 @@ include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary/qtpropertybrows
 include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary)
 
 # =========================================================
-# 📌 รวบรวมไลบรารีทั้งหมดมาลิงก์เข้ากับโปรเจกต์ที่นี่
+# 📌 ลิงก์ไลบรารีทั้งหมด
 # =========================================================
 target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
     ${OpenCV_LIBS}
-    ncnn
-    ${MNN_DIR}/lib/libMNN.so 
+    ${NCNN_LIBRARY} # ลิงก์ตรงไปที่ไฟล์ใน 3rdpartyncnn
+    ${MNN_LIBRARY}  # ลิงก์ตรงไปที่ไฟล์ใน 3rdpartymnn
     Threads::Threads
     OpenMP::OpenMP_CXX
 )

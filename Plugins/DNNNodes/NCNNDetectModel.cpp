@@ -59,7 +59,8 @@ void NCNNDetectModelThread::run() {
             if (out.w == 6) {
                 for (int i = 0; i < out.h; i++) {
                     const float* v = out.row(i);
-                    if (v[1] > 0.45f) {
+                    // ใช้ค่า Confidence จาก Property
+                    if (v[1] > p.mConfThreshold) {
                         NanoDetObject obj; obj.label = (int)v[0]; obj.score = v[1];
                         obj.rect = cv::Rect_<float>(v[2], v[3], v[4], v[5]);
                         objects.push_back(obj);
@@ -110,13 +111,17 @@ bool NCNNDetectModelThread::read_net(const QString& param, const QString& bin) {
 void NCNNDetectModelThread::setParams(const NcnnDetectParameters& p) { QMutexLocker l(&mLockMutex); mParams = p; }
 
 void NCNNDetectModelThread::decode_yolov5_raw(const ncnn::Mat& out, int /*img_w*/, int /*img_h*/, std::vector<NanoDetObject>& objects) {
+    mLockMutex.lock();
+    float conf_thresh = mParams.mConfThreshold;
+    mLockMutex.unlock();
+
     std::vector<NanoDetObject> proposals;
     for (int i = 0; i < out.h; i++) {
         const float* ptr = out.row(i);
-        if (ptr[4] > 0.45f) {
+        if (ptr[4] > conf_thresh) {
             float max_score = -1.f; int label = 0;
             for (int j = 5; j < out.w; j++) { if (ptr[j] > max_score) { max_score = ptr[j]; label = j - 5; } }
-            if (ptr[4] * max_score > 0.45f) {
+            if (ptr[4] * max_score > conf_thresh) {
                 NanoDetObject obj; obj.rect = cv::Rect_<float>(ptr[0] - ptr[2] / 2, ptr[1] - ptr[3] / 2, ptr[2], ptr[3]);
                 obj.label = label; obj.score = ptr[4] * max_score; proposals.push_back(obj);
             }
@@ -126,6 +131,10 @@ void NCNNDetectModelThread::decode_yolov5_raw(const ncnn::Mat& out, int /*img_w*
 }
 
 void NCNNDetectModelThread::decode_yolov8(const ncnn::Mat& out, int /*img_w*/, int /*img_h*/, std::vector<NanoDetObject>& objects) {
+    mLockMutex.lock();
+    float conf_thresh = mParams.mConfThreshold;
+    mLockMutex.unlock();
+
     std::vector<NanoDetObject> proposals;
     const int num_anchors = out.w; 
     const int num_classes = out.h - 4;
@@ -139,7 +148,6 @@ void NCNNDetectModelThread::decode_yolov8(const ncnn::Mat& out, int /*img_w*/, i
         float max_score = -1.f;
         int label = -1;
 
-        // หา Class ที่มีคะแนนสูงสุด
         for (int c = 0; c < num_classes; c++) {
             float score = out.row(4 + c)[i];
             if (score > max_score) {
@@ -148,8 +156,7 @@ void NCNNDetectModelThread::decode_yolov8(const ncnn::Mat& out, int /*img_w*/, i
             }
         }
 
-        // --- [แก้ไข] ต้องอยู่ภายใน Loop "i" เพื่อให้รู้จักตัวแปรทั้งหมด ---
-        if (max_score > 0.35f) { 
+        if (max_score > conf_thresh) { 
             NanoDetObject obj;
             obj.rect.x = ptr_cx[i] - ptr_w[i] * 0.5f;
             obj.rect.y = ptr_cy[i] - ptr_h[i] * 0.5f;
@@ -159,9 +166,8 @@ void NCNNDetectModelThread::decode_yolov8(const ncnn::Mat& out, int /*img_w*/, i
             obj.score = max_score;
             proposals.push_back(obj);
         }
-    } // จบ Loop i
+    } 
 
-    // --- [แก้ไข] เรียกใช้ NMS หลังจบ Loop เพื่อคัดกรองกรอบที่ซ้อนกัน ---
     nms_sorted_bboxes(proposals, objects, 0.25f); 
 }
 
@@ -189,7 +195,12 @@ NCNNDetectModel::NCNNDetectModel() : PBNodeDelegateModel(Name()) {
     mpSyncData = std::make_shared<SyncData>(true);
 
     // กำหนดค่า Default ไว้ที่นี่
-    msInputBlob = "in0"; msOutputBlob = "out0"; msMeanVals = "0,0,0"; msNormVals = "0.00392,0.00392,0.00392"; msClassNames = "person";
+    msInputBlob = "in0"; 
+    msOutputBlob = "out0"; 
+    msMeanVals = "0,0,0"; 
+    msNormVals = "0.00392,0.00392,0.00392"; 
+    msClassNames = "person";
+    msConfThresh = "0.45";
 
     FilePathPropertyType fType; fType.msFilter = "*.param"; fType.msMode = "open";
     auto pParam = std::make_shared<TypedProperty<FilePathPropertyType>>("Model Param", "param_file", QtVariantPropertyManager::filePathTypeId(), fType);
@@ -207,6 +218,9 @@ NCNNDetectModel::NCNNDetectModel() : PBNodeDelegateModel(Name()) {
     SizePropertyType sType; sType.miWidth = 640; sType.miHeight = 640;
     mvProperty.push_back(std::make_shared<TypedProperty<SizePropertyType>>("Target Size", "size", QMetaType::QSize, sType, "Config"));
     mMapIdToProperty["size"] = mvProperty.back();
+
+    mvProperty.push_back(std::make_shared<TypedProperty<QString>>("Confidence", "conf_thresh", QMetaType::QString, msConfThresh, "Config"));
+    mMapIdToProperty["conf_thresh"] = mvProperty.back();
 
     mvProperty.push_back(std::make_shared<TypedProperty<QString>>("Mean (R,G,B)", "mean_vals", QMetaType::QString, msMeanVals, "Config"));
     mMapIdToProperty["mean_vals"] = mvProperty.back();
@@ -247,7 +261,6 @@ void NCNNDetectModel::late_constructor() {
     }
 }
 
-// [FIXED] แก้ฟังก์ชัน Save ให้เก็บค่าครบทุกตัว
 QJsonObject NCNNDetectModel::save() const {
     QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
@@ -258,8 +271,8 @@ QJsonObject NCNNDetectModel::save() const {
     cParams["class_names"] = msClassNames;
     cParams["mean_vals"] = msMeanVals;
     cParams["norm_vals"] = msNormVals;
-    
-    // บันทึก Target Size
+    cParams["conf_thresh"] = msConfThresh;
+
     auto propSize = std::static_pointer_cast<TypedProperty<SizePropertyType>>(mMapIdToProperty.value("size"));
     if (propSize) {
         cParams["target_w"] = propSize->getData().miWidth;
@@ -270,13 +283,11 @@ QJsonObject NCNNDetectModel::save() const {
     return modelJson;
 }
 
-// [FIXED] แก้ฟังก์ชัน Load ให้ดึงค่ากลับมาแสดงบน UI
 void NCNNDetectModel::load(QJsonObject const& p) {
     PBNodeDelegateModel::load(p);
     late_constructor();
     QJsonObject paramsObj = p["cParams"].toObject();
     if (!paramsObj.isEmpty()) {
-        // โหลดและอัปเดตไฟล์โมเดล
         if (paramsObj.contains("param_filename")) {
             msParam_Filename = paramsObj["param_filename"].toString();
             if (mMapIdToProperty.contains("param_file"))
@@ -288,29 +299,32 @@ void NCNNDetectModel::load(QJsonObject const& p) {
                 std::static_pointer_cast<TypedProperty<FilePathPropertyType>>(mMapIdToProperty["bin_file"])->getData().msFilename = msBin_Filename;
         }
 
-        // โหลด Network Config
-        msInputBlob = paramsObj["in_blob"].toString();
-        if (mMapIdToProperty.contains("in_blob"))
-            std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["in_blob"])->getData() = msInputBlob;
+        // ⭐ เพิ่ม if (paramsObj.contains(...)) คลุมไว้ทุกตัว
+        if (paramsObj.contains("in_blob")) {
+            msInputBlob = paramsObj["in_blob"].toString();
+            if (mMapIdToProperty.contains("in_blob")) std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["in_blob"])->getData() = msInputBlob;
+        }
+        if (paramsObj.contains("out_blob")) {
+            msOutputBlob = paramsObj["out_blob"].toString();
+            if (mMapIdToProperty.contains("out_blob")) std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["out_blob"])->getData() = msOutputBlob;
+        }
+        if (paramsObj.contains("class_names")) {
+            msClassNames = paramsObj["class_names"].toString();
+            if (mMapIdToProperty.contains("class_names")) std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["class_names"])->getData() = msClassNames;
+        }
+        if (paramsObj.contains("mean_vals")) {
+            msMeanVals = paramsObj["mean_vals"].toString();
+            if (mMapIdToProperty.contains("mean_vals")) std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["mean_vals"])->getData() = msMeanVals;
+        }
+        if (paramsObj.contains("norm_vals")) {
+            msNormVals = paramsObj["norm_vals"].toString();
+            if (mMapIdToProperty.contains("norm_vals")) std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["norm_vals"])->getData() = msNormVals;
+        }
+        if (paramsObj.contains("conf_thresh")) {
+            msConfThresh = paramsObj["conf_thresh"].toString();
+            if (mMapIdToProperty.contains("conf_thresh")) std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["conf_thresh"])->getData() = msConfThresh;
+        }
 
-        msOutputBlob = paramsObj["out_blob"].toString();
-        if (mMapIdToProperty.contains("out_blob"))
-            std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["out_blob"])->getData() = msOutputBlob;
-
-        // โหลด Image Processing Config
-        msClassNames = paramsObj["class_names"].toString();
-        if (mMapIdToProperty.contains("class_names"))
-            std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["class_names"])->getData() = msClassNames;
-
-        msMeanVals = paramsObj["mean_vals"].toString();
-        if (mMapIdToProperty.contains("mean_vals"))
-            std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["mean_vals"])->getData() = msMeanVals;
-
-        msNormVals = paramsObj["norm_vals"].toString();
-        if (mMapIdToProperty.contains("norm_vals"))
-            std::static_pointer_cast<TypedProperty<QString>>(mMapIdToProperty["norm_vals"])->getData() = msNormVals;
-
-        // โหลด Target Size
         if (paramsObj.contains("target_w") && mMapIdToProperty.contains("size")) {
             auto prop = std::static_pointer_cast<TypedProperty<SizePropertyType>>(mMapIdToProperty["size"]);
             prop->getData().miWidth = paramsObj["target_w"].toInt();
@@ -321,7 +335,6 @@ void NCNNDetectModel::load(QJsonObject const& p) {
     }
 }
 
-// [FIXED] อัปเดตตัวแปร Property เมื่อมีการแก้ไขผ่านหน้า UI
 void NCNNDetectModel::setModelProperty(QString& id, const QVariant& v) {
     PBNodeDelegateModel::setModelProperty(id, v);
     if (!mMapIdToProperty.contains(id)) return;
@@ -333,23 +346,19 @@ void NCNNDetectModel::setModelProperty(QString& id, const QVariant& v) {
     } else if (id == "bin_file") {
         msBin_Filename = v.toString();
         std::static_pointer_cast<TypedProperty<FilePathPropertyType>>(prop)->getData().msFilename = msBin_Filename;
-    } else if (id == "in_blob") {
-        msInputBlob = v.toString();
-        std::static_pointer_cast<TypedProperty<QString>>(prop)->getData() = msInputBlob;
-    } else if (id == "out_blob") {
-        msOutputBlob = v.toString();
-        std::static_pointer_cast<TypedProperty<QString>>(prop)->getData() = msOutputBlob;
-    } else if (id == "class_names") {
-        msClassNames = v.toString();
-        std::static_pointer_cast<TypedProperty<QString>>(prop)->getData() = msClassNames;
-    } else if (id == "mean_vals") {
-        msMeanVals = v.toString();
-        std::static_pointer_cast<TypedProperty<QString>>(prop)->getData() = msMeanVals;
-    } else if (id == "norm_vals") {
-        msNormVals = v.toString();
-        std::static_pointer_cast<TypedProperty<QString>>(prop)->getData() = msNormVals;
-    }
-
+    } 
+    // มัดรวมตัวแปรที่เป็น Text กลุ่มเดียวกันไว้ในบล็อกเดียว
+    else if (id == "in_blob" || id == "out_blob" || id == "class_names" || id == "mean_vals" || id == "norm_vals" || id == "conf_thresh") {
+        QString val = v.toString();
+        std::static_pointer_cast<TypedProperty<QString>>(prop)->getData() = val;
+        
+        if (id == "in_blob") msInputBlob = val;
+        else if (id == "out_blob") msOutputBlob = val;
+        else if (id == "class_names") msClassNames = val;
+        else if (id == "mean_vals") msMeanVals = val;
+        else if (id == "norm_vals") msNormVals = val;
+        else if (id == "conf_thresh") msConfThresh = val;
+    } 
     else if (id == "size") {
         if (v.canConvert<QSize>()) {
             QSize newSize = v.toSize();
@@ -370,29 +379,22 @@ void NCNNDetectModel::draw_object(cv::Mat& frame, float x, float y, float w, flo
     cv::Rect roi = cv::Rect(x1, y1, w1, h1) & cv::Rect(0, 0, frame.cols, frame.rows);
     if (roi.width <= 0 || roi.height <= 0) return;
 
-    // --- [แก้ไขจุดนี้] คำนวณขนาดตามสัดส่วนภาพจริง ---
-    // ปรับความหนาเส้นตามความกว้างภาพ (ประมาณ 0.3% - 0.5% ของภาพ)
     int dynamic_thickness = std::max(1, (int)(frame.cols * 0.002)); 
-    // ปรับสเกลตัวอักษรตามสัดส่วนภาพ
     double dynamic_font_scale = frame.cols * 0.0007; 
     
     int fontFace = cv::FONT_HERSHEY_SIMPLEX;
     int padding = std::max(5, (int)(frame.cols * 0.01)); 
 
-    // วาดกรอบวัตถุด้วยความหนาที่คำนวณใหม่
     cv::rectangle(frame, roi, cv::Scalar(0, 255, 0), dynamic_thickness);
 
-    // 2. เตรียมข้อความ
     std::string text = QString("%1: %2").arg((label < (int)p.mClassNames.size()) ? p.mClassNames[label] : QString::number(label)).arg(score, 0, 'f', 2).toStdString();
 
-    // 3. คำนวณขนาดพื้นหลังโดยใช้ค่า Dynamic
     int baseLine = 0;
     cv::Size textSize = cv::getTextSize(text, fontFace, dynamic_font_scale, dynamic_thickness, &baseLine);
     
     cv::Rect bgRect(roi.x, roi.y - textSize.height - padding, textSize.width + padding, textSize.height + padding);
     cv::rectangle(frame, bgRect, cv::Scalar(0, 100, 0), -1);
 
-    // 4. วาดตัวหนังสือโดยใช้ค่า Dynamic
     cv::putText(frame, text, cv::Point(roi.x + (padding/2), roi.y - (padding/2)), 
                 fontFace, dynamic_font_scale, cv::Scalar(255, 255, 255), dynamic_thickness, cv::LINE_AA);
 }
@@ -416,6 +418,10 @@ void NCNNDetectModel::load_model(bool) {
         p.mClassNames = msClassNames.split(",", Qt::SkipEmptyParts);
         p.meanVals = stringToVecFloat(msMeanVals, 0.f);
         p.normVals = stringToVecFloat(msNormVals, 1.0f/255.0f);
+        
+        // แปลงค่าจาก String ที่รับมาจาก UI ให้เป็น Float ก่อนส่งไปให้ AI ประมวลผล
+        p.mConfThreshold = msConfThresh.toFloat();
+
         if (mpNCNNDetectModelThread) {
             mpNCNNDetectModelThread->read_net(msParam_Filename, msBin_Filename);
             mpNCNNDetectModelThread->setParams(p);

@@ -39,6 +39,8 @@ struct MnnDetectParameters {
     QStringList mClassNames;
     std::vector<float> meanVals = { 0.f, 0.f, 0.f };
     std::vector<float> normVals = { 1 / 255.f, 1 / 255.f, 1 / 255.f };
+
+    float mConfThreshold = 0.50f;
 };
 
 class MNNDetectModelThread : public QThread {
@@ -122,4 +124,10 @@ private:
     MNNDetectModelThread* mpMNNDetectModelThread = nullptr;
 
     QString msModel_Filename;
+    QString msInputBlob;
+    QString msOutputBlob;
+    QString msClassNames;
+    QString msMeanVals;
+    QString msNormVals;
+    QString msConfThresh;
 };

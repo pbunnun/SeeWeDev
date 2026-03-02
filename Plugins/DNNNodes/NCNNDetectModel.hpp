@@ -34,6 +34,8 @@ struct NcnnDetectParameters {
     QStringList mClassNames;
     std::vector<float> meanVals = { 0.f, 0.f, 0.f };
     std::vector<float> normVals = { 1 / 255.f, 1 / 255.f, 1 / 255.f };
+
+    float mConfThreshold = 0.45f;
 };
 
 class NCNNDetectModelThread : public QThread {
@@ -116,5 +118,6 @@ private:
     QString msOutputBlob;
     QString msMeanVals;
     QString msNormVals;
-    QString msClassNames;       
+    QString msClassNames;
+    QString msConfThresh;       
 };
