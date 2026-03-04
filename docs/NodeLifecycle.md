@@ -139,7 +139,7 @@ mpCameraThread->start();
 // In constructor: create objects but do not start threads
 mpCameraThread = nullptr;
 
-void CVCameraModel::late_constructor() {
+void CVUSBCameraModel::late_constructor() {
     if (mbLateConstructed) return;
     mbLateConstructed = true;
     mpCameraThread = new CVCameraThread(this, mpCVImageData);

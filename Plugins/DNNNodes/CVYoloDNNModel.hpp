@@ -394,7 +394,7 @@ public:
      * @param p QJsonObject with saved configuration.
      */
     void
-    restore(QJsonObject const &p);
+    load(QJsonObject const &p) override;
 
     /**
      * @brief Returns the number of ports.

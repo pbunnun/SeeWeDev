@@ -223,7 +223,7 @@ save() const
 
 void
 FaceDetectionDNNModel::
-restore( QJsonObject const &p )
+load( QJsonObject const &p )
 {
     PBNodeDelegateModel::load( p );
     late_constructor();

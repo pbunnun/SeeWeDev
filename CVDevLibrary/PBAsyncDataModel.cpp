@@ -18,8 +18,8 @@
 #include <QtNodes/internal/ConnectionIdUtils.hpp>
 #include <QTimer>
 
-PBAsyncDataModel::PBAsyncDataModel(const QString& modelName)
-    : PBNodeDelegateModel(modelName)
+PBAsyncDataModel::PBAsyncDataModel(const QString& modelName, bool bSource, bool bEnable)
+    : PBNodeDelegateModel(modelName, bSource, bEnable)
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );

@@ -782,6 +782,12 @@ public:
      */
     bool isReadOnly() { return mbReadOnly; };
 
+    /**
+     * @brief Updates the read-only flag so UIs can enable/disable editing dynamically.
+     * @param readOnly True to make the property display-only, false to allow editing
+     */
+    void setReadOnly(bool readOnly) { mbReadOnly = readOnly; };
+
 private:
     T mData;                     ///< Property data (type-specific structure)
     QString msSubPropertyText;   ///< Optional descriptive text

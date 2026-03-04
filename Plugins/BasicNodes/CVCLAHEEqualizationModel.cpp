@@ -87,7 +87,7 @@ void CVCLAHEEqualizationWorker::processFrame(cv::Mat input,
 }
 
 CVCLAHEEqualizationModel::CVCLAHEEqualizationModel()
-    : PBAsyncDataModel(_model_name), _minPixmap(":/ClaehEqualization.png")
+    : PBAsyncDataModel(_model_name), _minPixmap(":/CLAHEEqualization.png")
 {
     qRegisterMetaType<CVCLAHEEqualizationParameters>("CVCLAHEEqualizationParameters");
     

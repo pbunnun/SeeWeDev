@@ -22,7 +22,8 @@
 #include "CVRGBtoGrayModel.hpp"
 #include "CVColorSpaceModel.hpp"
 #include "Test_SharpenModel.hpp"
-#include "CVCameraModel.hpp"
+#include "CVUSBCameraModel.hpp"
+#include "CVRTSPCameraModel.hpp"
 #include "CVGaussianBlurModel.hpp"
 #include "CVMedianBlurModel.hpp"
 #include "CVBilateralFilterModel.hpp"
@@ -96,7 +97,8 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateMod
     registerModel< InformationDisplayModel > ( model_regs, duplicate_model_names );
     registerModel< NodeDataTimerModel > ( model_regs, duplicate_model_names );
 
-    registerModel< CVCameraModel >( model_regs, duplicate_model_names );
+    registerModel< CVUSBCameraModel >( model_regs, duplicate_model_names );
+    registerModel< CVRTSPCameraModel >( model_regs, duplicate_model_names );
     registerModel< CVImageLoaderModel >( model_regs, duplicate_model_names );
     registerModel< CVVideoLoaderModel >( model_regs, duplicate_model_names );
 

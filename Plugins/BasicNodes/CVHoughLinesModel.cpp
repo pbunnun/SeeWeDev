@@ -138,7 +138,7 @@ void CVHoughLinesWorker::
 CVHoughLinesModel::
 CVHoughLinesModel()
     : PBAsyncDataModel(_model_name),
-      _minPixmap(":/HoughLine.png")
+      _minPixmap(":CVHoughLine.png")
 {
     // Register params metatype for invokeMethod path
     qRegisterMetaType<CVHoughLinesParameters>("CVHoughLinesParameters");
