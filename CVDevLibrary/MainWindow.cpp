@@ -886,54 +886,64 @@ nodePropertyChanged( std::shared_ptr< Property > prop)
     if( type == QMetaType::QString )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         property->setValue( typedProp->getData() );
     }
     else if( type == QMetaType::Int )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         property->setValue( typedProp->getData().miValue );
     }
     else if( type == QtVariantPropertyManager::enumTypeId() )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         property->setValue( typedProp->getData().miCurrentIndex );
     }
     else if( type == QMetaType::Bool )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         property->setValue( typedProp->getData() );
     }
     else if( type == QtVariantPropertyManager::filePathTypeId() )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         property->setValue( typedProp->getData().msFilename );
     }
     else if( type == QtVariantPropertyManager::pathTypeId() )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         property->setValue( typedProp->getData().msPath );
     }
     else if( type == QMetaType::QSize )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         auto size = QSize( typedProp->getData().miWidth, typedProp->getData().miHeight );
         property->setValue( size );
     }
     else if( type == QMetaType::QSizeF )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< SizeFPropertyType > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         auto sizef = QSizeF( typedProp->getData().mfWidth, typedProp->getData().mfHeight );
         property->setValue( sizef );
     }
     else if( type == QMetaType::QPoint )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         auto point = QPoint( typedProp->getData().miXPosition, typedProp->getData().miYPosition );
         property->setValue( point );
     }
     else if( type == QMetaType::QPointF )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointFPropertyType > >( prop );
+        property->setAttribute( "readOnly", typedProp->isReadOnly() );
         auto pointf = QPointF( typedProp->getData().mfXPosition, typedProp->getData().mfYPosition );
         property->setValue( pointf );
     }
@@ -2589,6 +2599,11 @@ createRecentFilesMenu()
         // Connect to the recent file triggered slot
         connect(action, &QAction::triggered, this, &MainWindow::onRecentFileTriggered);
     }
+    
+    // Add separator and clear action
+    ui->mpActionLoadRecentFiles->addSeparator();
+    QAction* clearAction = ui->mpActionLoadRecentFiles->addAction("Clear Recent List");
+    connect(clearAction, &QAction::triggered, this, &MainWindow::onClearRecentFiles);
 }
 
 void
@@ -2617,5 +2632,15 @@ onRecentFileTriggered()
     }
     
     loadScene(filename);
+}
+
+void
+MainWindow::
+onClearRecentFiles()
+{
+    // Clear the recent files list
+    msRecentFiles.clear();
+    saveSettings();
+    createRecentFilesMenu();
 }
 

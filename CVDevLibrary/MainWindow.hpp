@@ -510,6 +510,13 @@ private:
      */
     void onRecentFileTriggered();
     
+    /**
+     * @brief Slot for clearing recent files list
+     * 
+     * Clears all entries from the recent files menu.
+     */
+    void onClearRecentFiles();
+    
     // Helper methods for dynamic querying (avoiding stale cached pointers)
     
     /**

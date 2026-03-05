@@ -332,7 +332,7 @@ public:
     save() const override;
 
     void
-    restore(QJsonObject const &p);
+    load(QJsonObject const &p) override;
 
     unsigned int
     nPorts(PortType portType) const override;

@@ -36,7 +36,7 @@ CVYoloDNNThread::CVYoloDNNThread( QObject * parent )
 
 
 CVYoloDNNThread::
-    ~CVYoloDNNThread()
+~CVYoloDNNThread()
 {
     mbAbort = true;
     mWaitingSemaphore.release();
@@ -45,8 +45,8 @@ CVYoloDNNThread::
 
 
 void
-    CVYoloDNNThread::
-    run()
+CVYoloDNNThread::
+run()
 {
     while( !mbAbort )
     {
@@ -56,9 +56,6 @@ void
         if( mbAbort )
             break;
         mLockMutex.lock();
-
-        // --- เพิ่มการ Reset ค่าคะแนนสูงสุดสำหรับเฟรมนี้ ---
-        mMaxConf = 0.0f;
 
         cv::Mat blob;
         cv::dnn::blobFromImage( mCVImage, blob, 1.0, mParams.mCVSize, cv::Scalar(), mParams.mbSwapRB, false, CV_8U );
@@ -71,7 +68,6 @@ void
         std::vector<int> classIds;
         std::vector<float> confidences;
         std::vector<cv::Rect> boxes;
-
         if( outLayerType == "Region" )
         {
             for( size_t i = 0; i < outs.size(); ++i )
@@ -83,15 +79,8 @@ void
                     cv::Point classIdPoint;
                     double confidence;
                     cv::minMaxLoc(scores, 0, &confidence, 0, &classIdPoint);
-
-                    // --- แก้ไขจุดที่ 1: เปลี่ยน Threshold เป็น 0.5 ---
-                    if( confidence > 0.5 )
+                    if( confidence > 0.7 )
                     {
-                        // --- ส่วนที่เพิ่ม: เก็บค่า Confidence ที่สูงที่สุดของเฟรมนี้ไว้ ---
-                        if ((float)confidence > mMaxConf) {
-                            mMaxConf = (float)confidence;
-                        }
-
                         int centerX = (int)(data[0] * mCVImage.cols );
                         int centerY = (int)(data[1] * mCVImage.rows );
                         int width = (int)(data[2] * mCVImage.cols );
@@ -105,20 +94,18 @@ void
                     }
                 }
             }
-
             if( outLayers.size() > 1 )
             {
                 std::map< int, std::vector<size_t> > class2indices;
                 for(size_t i = 0; i < classIds.size(); i++ )
                 {
-                    // --- แก้ไขจุดที่ 2: เปลี่ยน Threshold เป็น 0.5 ---
-                    if( confidences[i] >= 0.5 )
+                    if( confidences[i] >= 0.7 )
                         class2indices[classIds[i]].push_back(i);
                 }
                 std::vector<cv::Rect> nmsBoxes;
                 std::vector<float> nmsConfidences;
                 std::vector<int> nmsClassIds;
-                for( auto it = class2indices.begin(); it != class2indices.end(); ++it )
+                for( std::map<int, std::vector<size_t> >::iterator it = class2indices.begin(); it != class2indices.end(); ++ it )
                 {
                     std::vector< cv::Rect > localBoxes;
                     std::vector< float > localConfidences;
@@ -129,8 +116,7 @@ void
                         localConfidences.push_back(confidences[classIndices[i]]);
                     }
                     std::vector<int> nmsIndices;
-                    // --- แก้ไขจุดที่ 3: เปลี่ยน Threshold เป็น 0.5 ---
-                    cv::dnn::NMSBoxes(localBoxes, localConfidences, 0.5, 0.4, nmsIndices);
+                    cv::dnn::NMSBoxes(localBoxes, localConfidences, 0.7, 0.4, nmsIndices);
                     for( size_t i = 0; i < nmsIndices.size(); i++ )
                     {
                         size_t idx = nmsIndices[i];
@@ -143,14 +129,27 @@ void
                 classIds = nmsClassIds;
                 confidences = nmsConfidences;
             }
-
             for( size_t idx = 0; idx < boxes.size(); ++idx )
             {
                 cv::Rect box = boxes[idx];
                 drawPrediction(classIds[idx], confidences[idx], box.x, box.y, box.x + box.width, box.y + box.height);
             }
         }
-
+        /*double min, max;
+        cv::Point minLoc, maxLoc;
+        cv::minMaxLoc(out, &min, &max, &minLoc, &maxLoc);
+        float sumScores = 0;
+        for( int idx = 0; idx < out.cols; ++idx )
+            sumScores += exp(out.at<float>(idx));
+        float confidence = exp(max)/sumScores;
+        if( maxLoc.x < mvStrClasses.size() )
+        {
+            QString out_text = "Class : " + QString::fromStdString(mvStrClasses[maxLoc.x]);
+            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+            out_text = "Prob. : " + QString::number(confidence);
+            cv::putText(mCVImage, out_text.toStdString(), cv::Point(25, 100), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+        }
+        */
         Q_EMIT result_ready( mCVImage );
         mLockMutex.unlock();
     }
@@ -158,8 +157,8 @@ void
 
 
 void
-    CVYoloDNNThread::
-    drawPrediction(int classId, float conf, int left, int top, int right, int bottom )
+CVYoloDNNThread::
+drawPrediction(int classId, float conf, int left, int top, int right, int bottom )
 {
     cv::rectangle(mCVImage, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(0, 255, 0));
 
@@ -175,13 +174,13 @@ void
 
     top = std::max(top, labelSize.height);
     cv::rectangle(mCVImage, cv::Point(left, top - labelSize.height),
-                  cv::Point(left + labelSize.width, top + baseLine), cv::Scalar::all(255), cv::FILLED);
+              cv::Point(left + labelSize.width, top + baseLine), cv::Scalar::all(255), cv::FILLED);
     putText(mCVImage, label, cv::Point(left, top), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(), 2);
 }
 
 void
-    CVYoloDNNThread::
-    detect( const cv::Mat & in_image )
+CVYoloDNNThread::
+detect( const cv::Mat & in_image )
 {
     if( mLockMutex.tryLock() )
     {
@@ -193,15 +192,15 @@ void
 
 
 bool
-    CVYoloDNNThread::
-    readNet( QString & model, QString & classes, QString & config )
+CVYoloDNNThread::
+readNet( QString & model, QString & classes, QString & config )
 {
     try {
         mCVYoloDNN = cv::dnn::readNet(model.toStdString(), config.toStdString());
-        mCVYoloDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
-        mCVYoloDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
-        //mCVYoloDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
-        //mCVYoloDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+        mCVYoloDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
+        mCVYoloDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+        //mCVYoloDNN.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+        //mCVYoloDNN.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
 
         mvStrOutNames = mCVYoloDNN.getUnconnectedOutLayersNames();
 
@@ -221,14 +220,14 @@ bool
 }
 
 void
-    CVYoloDNNThread::
-    setParams(CVYoloDNNImageParameters & params)
+CVYoloDNNThread::
+setParams(CVYoloDNNImageParameters & params)
 {
     mParams = params;
 }
 
 CVYoloDNNModel::
-    CVYoloDNNModel()
+CVYoloDNNModel()
     : PBNodeDelegateModel( _model_name ),
     _minPixmap(":/YoLo.png")
 {
@@ -285,8 +284,8 @@ CVYoloDNNModel::
 }
 
 unsigned int
-    CVYoloDNNModel::
-    nPorts(PortType portType) const
+CVYoloDNNModel::
+nPorts(PortType portType) const
 {
     unsigned int result = 1;
 
@@ -308,8 +307,8 @@ unsigned int
 }
 
 NodeDataType
-    CVYoloDNNModel::
-    dataType(PortType, PortIndex portIndex) const
+CVYoloDNNModel::
+dataType(PortType, PortIndex portIndex) const
 {
     if(portIndex == 0)
     {
@@ -323,8 +322,8 @@ NodeDataType
 }
 
 std::shared_ptr<NodeData>
-    CVYoloDNNModel::
-    outData(PortIndex port)
+CVYoloDNNModel::
+outData(PortIndex port)
 {
     if( isEnable() )
     {
@@ -341,15 +340,15 @@ std::shared_ptr<NodeData>
 }
 
 void
-    CVYoloDNNModel::
-    setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
+CVYoloDNNModel::
+setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 {
     if( !isEnable() )
         return;
-
-    // Bypass การเช็ค SyncData เพื่อแก้ปัญหาภาพค้าง (ตามที่คุณทำไว้ถูกต้องแล้ว)
-    if( nodeData )
+    if( nodeData && mpSyncData->data() == true )
     {
+        mpSyncData->data() = false;
+        Q_EMIT dataUpdated(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
             processData( d );
@@ -358,8 +357,8 @@ void
 
 
 QJsonObject
-    CVYoloDNNModel::
-    save() const
+CVYoloDNNModel::
+save() const
 {
     QJsonObject modelJson = PBNodeDelegateModel::save();
     QJsonObject cParams;
@@ -377,8 +376,8 @@ QJsonObject
 
 
 void
-    CVYoloDNNModel::
-    restore( QJsonObject const &p )
+CVYoloDNNModel::
+load( QJsonObject const &p )
 {
     PBNodeDelegateModel::load( p );
     late_constructor();
@@ -453,8 +452,8 @@ void
 
 
 void
-    CVYoloDNNModel::
-    setModelProperty( QString & id, const QVariant & value )
+CVYoloDNNModel::
+setModelProperty( QString & id, const QVariant & value )
 {
     PBNodeDelegateModel::setModelProperty( id, value );
     if( !mMapIdToProperty.contains( id ) )
@@ -519,8 +518,8 @@ void
 
 
 void
-    CVYoloDNNModel::
-    late_constructor()
+CVYoloDNNModel::
+late_constructor()
 {
     if( !mpCVYoloDNNThread )
     {
@@ -533,20 +532,18 @@ void
 
 
 void
-    CVYoloDNNModel::
-    received_result( cv::Mat & result )
+CVYoloDNNModel::
+received_result( cv::Mat & result )
 {
-    mpCVImageData->set_image( result ); // นำภาพที่ตรวจแล้วมาแสดงผล (แก้ unused warning)
-    //ดึงค่าคะแนนจาก Thread มาใส่ใน SyncData ---
-    float conf = mpCVYoloDNNThread->getMaxConfidence();
-    mpSyncData->data() = conf; // ส่งค่า เช่น 0.85 หรือ 0.92 ออกไป
+    mpCVImageData->set_image( result );
+    mpSyncData->data() = true;
 
     updateAllOutputPorts();
 }
 
 void
-    CVYoloDNNModel::
-    load_model()
+CVYoloDNNModel::
+load_model()
 {
     if( msWeights_Filename.isEmpty() || msClasses_Filename.isEmpty() || msConfig_Filename.isEmpty() )
         return;
@@ -572,10 +569,12 @@ void
 }
 
 void
-    CVYoloDNNModel::
-    processData(const std::shared_ptr< CVImageData > & in)
+CVYoloDNNModel::
+processData(const std::shared_ptr< CVImageData > & in)
 {
     cv::Mat& in_image = in->data();
     if( !in_image.empty() )
         mpCVYoloDNNThread->detect( in_image );
 }
+
+

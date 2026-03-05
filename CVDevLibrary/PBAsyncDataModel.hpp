@@ -64,7 +64,7 @@ class CVDEVSHAREDLIB_EXPORT PBAsyncDataModel : public PBNodeDelegateModel
     Q_OBJECT
 
 public:
-    explicit PBAsyncDataModel(const QString& modelName);
+    explicit PBAsyncDataModel(const QString& modelName, bool bSource = false, bool bEnable = true);
     ~PBAsyncDataModel() override;
 
     /**

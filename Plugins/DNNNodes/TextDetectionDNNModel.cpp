@@ -264,7 +264,7 @@ save() const
 
 void
 TextDetectionDNNModel::
-restore( QJsonObject const &p )
+load( QJsonObject const &p )
 {
     PBNodeDelegateModel::load( p );
     late_constructor();

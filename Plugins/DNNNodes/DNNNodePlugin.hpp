@@ -78,7 +78,7 @@
  * @see NodeDelegateModelRegistry
  */
 class DNNNodePlugin : public QObject,
-                        public PluginInterface
+                      public PluginInterface
 {
     Q_OBJECT
     Q_PLUGIN_METADATA( IID "CVDev.PluginInterface" FILE "basicnodes.json" )
