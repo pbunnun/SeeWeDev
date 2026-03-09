@@ -28,7 +28,7 @@ const std::string CVTemplateMatchingModel::color[3] = {"B", "G", "R"};
 CVTemplateMatchingModel::
 CVTemplateMatchingModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":TemplateMatching.png" )
+      _minPixmap( ":/TemPlateMatching.png" )
 {
     for(std::shared_ptr<CVImageData>& mp : mapCVImageData)
     {

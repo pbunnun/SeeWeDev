@@ -17,40 +17,13 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CMAKE_CXX_STANDARD 17) # แนะนำให้ใช้ 17 ตามมาตรฐานโปรเจกต์เดิม
+set(CMAKE_CXX_STANDARD 17) 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Threads REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
-
-# =========================================================
-# 📌 ตั้งค่า NCNN และ MNN แบบ Portable (อ้างอิงภายในโปรเจกต์)
-# =========================================================
-
-# กำหนด Root ของ Library (ถอยกลับไป 2 ชั้นจาก Plugins/DNNNodes)
-set(NCNN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../3rdpartyncnn")
-set(MNN_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/../../3rdpartymnn")
-
-# 1. ตั้งค่า Include Paths
-set(NCNN_INC      "${NCNN_DIR}/include")
-set(NCNN_INC_NCNN "${NCNN_DIR}/include/ncnn")
-set(MNN_INC       "${MNN_DIR}/include")
-
-include_directories(
-    ${NCNN_INC} 
-    ${NCNN_INC_NCNN} 
-    ${MNN_INC}
-    ${MNN_INC}/MNN # เผื่อกรณี #include <MNN/Interpreter.hpp>
-)
-
-# 2. ตั้งค่า Library Paths (.so files)
-# สมมติว่าเก็บไฟล์ .so ไว้ในโฟลเดอร์ lib/ ภายในของแต่ละตัว
-set(NCNN_LIBRARY "${NCNN_DIR}/lib/libncnn.so.1") # หรือ .so
-set(MNN_LIBRARY  "${MNN_DIR}/lib/libMNN.so")
-
-# =========================================================
 
 file(GLOB CPP_FILES *.cpp)
 file(GLOB HPP_FILES *.hpp)
@@ -61,13 +34,6 @@ add_library(${PROJECT_NAME} SHARED
     ${HPP_FILES}
     ${UI_FILES}
     resources/dnn_resources.qrc
-)
-
-# บังคับ MOC ให้รู้จัก Include Paths
-target_include_directories(${PROJECT_NAME} PRIVATE 
-    ${NCNN_INC} 
-    ${NCNN_INC_NCNN} 
-    ${MNN_INC}
 )
 
 set_target_properties(${PROJECT_NAME}
@@ -87,14 +53,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary/qtpropertybrowser)
 include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary)
 
-# =========================================================
-# 📌 ลิงก์ไลบรารีทั้งหมด
-# =========================================================
 target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
     ${OpenCV_LIBS}
-    ${NCNN_LIBRARY} # ลิงก์ตรงไปที่ไฟล์ใน 3rdpartyncnn
-    ${MNN_LIBRARY}  # ลิงก์ตรงไปที่ไฟล์ใน 3rdpartymnn
     Threads::Threads
     OpenMP::OpenMP_CXX
 )
