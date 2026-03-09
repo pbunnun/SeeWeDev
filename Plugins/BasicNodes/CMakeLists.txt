@@ -31,11 +31,17 @@ endif()
 file(GLOB CPP_FILES *.cpp)
 file(GLOB HPP_FILES *.hpp)
 file(GLOB UI_FILES *.ui)
+
+list(REMOVE_ITEM CPP_FILES "${CMAKE_CURRENT_SOURCE_DIR}/CVCameraCalibrationModel.cpp")
+list(REMOVE_ITEM HPP_FILES "${CMAKE_CURRENT_SOURCE_DIR}/CVCameraCalibrationModel.hpp")
+
 add_library(${PROJECT_NAME} SHARED
     ${CPP_FILES}
     ${HPP_FILES}
     ${UI_FILES}
     resources/basic_resources.qrc
+    SmartCounterModel.hpp
+    SmartCounterModel.cpp
 )
 
 # Required on Unix OS family to be able to be linked into shared libraries.

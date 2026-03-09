@@ -13,6 +13,9 @@ set(CMAKE_COLOR_MAKEFILE ON)
 
 if( WIN32 )
     set(CMAKE_SHARED_LIBRARY_PREFIX "")
+
+set(OpenCV_DIR "C:/opencv/build/x64/vc15/lib")
+
 endif()
 
 add_subdirectory(NodeEditor)
@@ -110,4 +113,5 @@ cpack_add_component(Development
 
 # Load CPack after component definitions so components are honored.
 include(CPack)
+
 

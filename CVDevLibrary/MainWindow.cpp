@@ -107,7 +107,7 @@ MainWindow::MainWindow( QWidget *parent )
     clipboard->clear();
 
     // Version warning: Alert users if software is older than 1 year
-    QDate check_day(2026, 1, 1);
+    QDate check_day(2028, 1, 1);
     QDate current = QDate::currentDate();
     int no_days = check_day.daysTo(current);
     if( no_days >= 365 )

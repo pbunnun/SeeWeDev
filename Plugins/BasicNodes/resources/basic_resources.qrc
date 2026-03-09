@@ -30,7 +30,7 @@
         <file>ConnectedComponents.png</file>
         <file>ConvertDepth.png</file>
         <file>ConvertToInteger.png</file>
-        <file>DNNNodePlugin.png</file> 
+        <file>DNNNodePlugin.png</file>
         <file>DataGenerator.png</file>
         <file>DistanceTransform.png</file>
         <file>DrawContour.png</file>
@@ -39,11 +39,11 @@
         <file>Findcontour.png</file>
         <file>HistogramEqualization.png</file>
         <file>HoughCircle.png</file>
-        <file>HoughLinePoin.png</file> 
+        <file>HoughLinePoin.png</file>
         <file>HoughLinesPointSet.png</file>
         <file>ImageDisplay.png</file>
         <file>ImageLoader.png</file>
-        <file>ImageROI.png</file> 
+        <file>ImageROI.png</file>
         <file>InfoConcatenate.png</file>
         <file>InfoDisplay.png</file>
         <file>MakeBorder.png</file>
@@ -66,12 +66,15 @@
         <file>Sum.png</file>
         <file>SumInteger.png</file>
         <file>SyncGate.png</file>
-        <file>TemplateMatching.png</file>
         <file>TemplateModel.png</file>
         <file>Test_Sharpen.png</file>
         <file>Thresholding.png</file>
         <file>VideoLoader.png</file>
         <file>VideoWriter.png</file>
         <file>Watershed.png</file>
+        <file>TemPlateMatching.png</file>
+        <file>Timer.png</file>
+        <file>USBCamera.png</file>
+        <file>RTSPCamera.png</file>
     </qresource>
 </RCC>
