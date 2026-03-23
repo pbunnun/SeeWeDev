@@ -13,20 +13,22 @@ if( NOT WIN32 )
 endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17) 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(Threads REQUIRED)
+find_package(OpenMP REQUIRED)
 find_package(Qt6 COMPONENTS Widgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
 
 file(GLOB CPP_FILES *.cpp)
 file(GLOB HPP_FILES *.hpp)
 file(GLOB UI_FILES *.ui)
+
 add_library(${PROJECT_NAME} SHARED
     ${CPP_FILES}
     ${HPP_FILES}
@@ -34,9 +36,6 @@ add_library(${PROJECT_NAME} SHARED
     resources/dnn_resources.qrc
 )
 
-# ---- MODIFIED THIS SECTION ----
-# Replaced RUNTIME_OUTPUT_DIRECTORY with LIBRARY_OUTPUT_DIRECTORY to ensure
-# the plugin is built into the correct subfolder for local execution.
 set_target_properties(${PROJECT_NAME}
                       PROPERTIES
                       POSITION_INDEPENDENT_CODE ON
@@ -44,26 +43,24 @@ set_target_properties(${PROJECT_NAME}
                       LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
                       LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins
                       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
-                      RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
-                      RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
                       ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/CVDev/
-                      ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/CVDev/
-                      ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/CVDev/
                       )
-# -----------------------------
 
 add_definitions(-DQT_DEPRECATED_WARNINGS -DNODE_EDITOR_SHARED -DQT_NO_KEYWORDS)
 
 include_directories(${CVDevLibrary_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary/qtpropertybrowser)
+include_directories(${CMAKE_SOURCE_DIR}/QtPropertyBrowserLibrary)
 
 target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
     ${OpenCV_LIBS}
+    Threads::Threads
+    OpenMP::OpenMP_CXX
 )
 
 if(WIN32)
-    # Move the built runtime DLL from CVDev -> CVDev/cvdev_plugins.
-    # Assumes CVDev/cvdev_plugins already exists and the runtime DLL is placed in CVDev.
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E echo "Moving $<TARGET_FILE_NAME:${PROJECT_NAME}> to ${CMAKE_BINARY_DIR}/CVDev/cvdev_plugins"
         COMMAND ${CMAKE_COMMAND} -E rename
@@ -73,15 +70,9 @@ if(WIN32)
         VERBATIM)
 endif()
 
-# ---- MODIFIED SECTION FOR CPACK ----
-# The old 'add_custom_command' has been removed.
-#
-# This install command places the compiled plugin library (.so file) into the
-# application's dedicated plugins directory upon installation.
 if( NOT WIN32 )
     install(TARGETS ${PROJECT_NAME}
         LIBRARY DESTINATION bin/cvdev_plugins
         COMPONENT Runtime
     )
 endif()
-# ------------------------------------

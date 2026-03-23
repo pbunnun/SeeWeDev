@@ -116,7 +116,7 @@ CVFloodFillModel::
 CVFloodFillModel()
     : PBAsyncDataModel( _model_name ),
       mpEmbeddedWidget(new CVFloodFillEmbeddedWidget),
-      _minPixmap( ":FloodFill.png" )
+      _minPixmap( ":/CVFloodFillModel.png" )
 {
     for(std::shared_ptr<CVImageData>& mp : mapCVImageData)
         mp = std::make_shared< CVImageData >( cv::Mat() );

@@ -37,3 +37,6 @@ NodeEditor : https://github.com/paceholder/nodeeditor
 Qt : https://www.qt.io 
 
 OpenCV : https://opencv.org
+
+## Documentation
+You can find the full manual here: https://kawtommudd.github.io/CVDev-Manual/

@@ -189,7 +189,7 @@ CVUSBCameraModel::
 CVUSBCameraModel()
     : PBAsyncDataModel( _model_name, true ),
         mpEmbeddedWidget( new CVUSBCameraEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
-        mMinPixmap(":USBCamera.png")
+        mMinPixmap(":/USBCamera.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVUSBCameraEmbeddedWidget::button_clicked_signal, this, &CVUSBCameraModel::em_button_clicked );

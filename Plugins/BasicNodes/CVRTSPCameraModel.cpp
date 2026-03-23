@@ -192,7 +192,7 @@ CVRTSPCameraModel::
 CVRTSPCameraModel()
     : PBAsyncDataModel( _model_name, true ),
         mpEmbeddedWidget( new CVRTSPCameraEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
-        mMinPixmap(":USBCamera.png")
+        mMinPixmap(":/RTSPCamera.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVRTSPCameraEmbeddedWidget::button_clicked_signal, this, &CVRTSPCameraModel::em_button_clicked );
