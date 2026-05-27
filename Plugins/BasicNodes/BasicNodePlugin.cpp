@@ -85,6 +85,7 @@
 #include "MathConditionModel.hpp"
 #include "MathConvertToIntModel.hpp"
 #include "CombineSyncModel.hpp"
+#include "PythonEditorModel.hpp"
 
 //#include "FaceDetectionModel.hpp"
 
@@ -167,7 +168,7 @@ QStringList BasicNodePlugin::registerDataModel( std::shared_ptr< NodeDelegateMod
     registerModel< CombineSyncModel >( model_regs, duplicate_model_names );
     registerModel< CVHistogramEqualizationModel >( model_regs, duplicate_model_names );
     registerModel< CVCLAHEEqualizationModel >( model_regs, duplicate_model_names );
-
+    registerModel< PythonEditorModel >( model_regs, duplicate_model_names );
  //   registerModel< CVCameraCalibrationModel >( model_regs, duplicate_model_names );
 
     return duplicate_model_names;
