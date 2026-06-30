@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2024 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -149,7 +149,6 @@ TemplateThreadModel::
 load(QJsonObject const &p)
 {
     PBNodeDelegateModel::load(p);
-    late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -173,7 +172,7 @@ void
 TemplateThreadModel::
 late_constructor()
 {
-    if( !mpTemplateThread )
+    if( start_late_constructor() )
     {
         mpTemplateThread = new TemplateThread(this);
         connect( mpTemplateThread, &TemplateThread::error_signal, this, &TemplateThreadModel::thread_error_occured );

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -102,7 +102,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
     if (nodeData)
     {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
         auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
         if (d)
         {
@@ -110,10 +110,10 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
             processData( mpCVImageInData, mpCVImageData, mParams );
         }
         mpSyncData->data() = true;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
     }
 
-    Q_EMIT dataUpdated(0);
+    emitOutputPort(0);
 }
 
 QJsonObject
@@ -155,7 +155,7 @@ CVColorMapModel::
 setModelProperty( QString & id, const QVariant & value )
 {
     mpSyncData->data() = false;
-    Q_EMIT dataUpdated(1);
+    emitOutputPort(1);
 
     PBNodeDelegateModel::setModelProperty( id, value );
 
@@ -260,11 +260,11 @@ setModelProperty( QString & id, const QVariant & value )
     {
         processData( mpCVImageInData, mpCVImageData, mParams );
 
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
 
     mpSyncData->data() = true;
-    Q_EMIT dataUpdated(1);
+    emitOutputPort(1);
 }
 
 void

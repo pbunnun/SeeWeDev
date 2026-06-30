@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2021 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ CVImageROIModel()
     {
         mp = std::make_shared<CVImageData>(cv::Mat());
     }
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVImageROIEmbeddedWidget::button_clicked_signal, this, &CVImageROIModel::em_button_clicked );
 
     PointPropertyType pointPropertyType;
@@ -147,13 +147,13 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
             {
                 overwrite( mapCVImageInData[0], mParams);
                 processData( mapCVImageInData, mapCVImageData, mParams, mProps);
-                mParams.mbLockOutputROI ? Q_EMIT dataUpdated( 1 ) : updateAllOutputPorts();
+                mParams.mbLockOutputROI ? emitOutputPort(1) : updateAllOutputPorts();
             }
             else if(mapCVImageInData[0] && mapCVImageInData[1])
             {
                 overwrite( mapCVImageInData[0], mParams);
                 processData( mapCVImageInData, mapCVImageData, mParams, mProps);
-                Q_EMIT dataUpdated(1);
+                emitOutputPort(1);
             }
         }
     }
@@ -403,13 +403,13 @@ setModelProperty( QString & id, const QVariant & value )
     {
         processData( mapCVImageInData, mapCVImageData, mParams, mProps);
         mParams.mbLockOutputROI?
-        Q_EMIT dataUpdated( 1 ) : updateAllOutputPorts();
+        emitOutputPort(1) : updateAllOutputPorts();
     }
     else if(mapCVImageInData[0] && mapCVImageInData[1])
     {
         processData( mapCVImageInData, mapCVImageData, mParams, mProps);
         mParams.mbLockOutputROI?
-        Q_EMIT dataUpdated( 1 ) : updateAllOutputPorts();
+        emitOutputPort(1) : updateAllOutputPorts();
     }
 }
 
@@ -432,14 +432,14 @@ void CVImageROIModel::em_button_clicked( int button )
         mProps.mbReset = true;
         processData( mapCVImageInData, mapCVImageData, mParams, mProps);
         mParams.mbLockOutputROI?
-        Q_EMIT dataUpdated( 1 ) : updateAllOutputPorts();
+        emitOutputPort(1) : updateAllOutputPorts();
     }
     else if(button ==1) //APPLY
     {
         DEBUG_LOG_INFO() << "[em_button_clicked] APPLY button";
         mProps.mbApply = true;
         processData( mapCVImageInData, mapCVImageData, mParams, mProps);
-        Q_EMIT dataUpdated( 1 );
+        emitOutputPort(1);
     }
 }
 

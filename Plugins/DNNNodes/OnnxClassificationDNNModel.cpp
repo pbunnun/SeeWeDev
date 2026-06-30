@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2021 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -270,7 +270,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if( nodeData && mpSyncData->data() == true )
     {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
             processData( d );
@@ -306,7 +306,6 @@ OnnxClassificationDNNModel::
 load( QJsonObject const &p )
 {
     PBNodeDelegateModel::load( p );
-    late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -329,14 +328,13 @@ load( QJsonObject const &p )
             msClasses_Filename = v.toString();
         }
 
-        OnnxClassificationDNNBlobImageParameters params;
         v = paramsObj["inv_scale_factor"];
         if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["inv_scale_factor"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mdInvScaleFactor = v.toDouble();
+            mBlobImageParams.mdInvScaleFactor = v.toDouble();
         }
 
         v = paramsObj["mean_r"];
@@ -345,7 +343,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["mean_r"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mCVScalarMean[0] = v.toDouble();
+            mBlobImageParams.mCVScalarMean[0] = v.toDouble();
         }
 
         v = paramsObj["mean_g"];
@@ -354,7 +352,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["mean_g"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mCVScalarMean[1] = v.toDouble();
+            mBlobImageParams.mCVScalarMean[1] = v.toDouble();
         }
 
         v = paramsObj["mean_b"];
@@ -363,7 +361,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["mean_b"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mCVScalarMean[0] = v.toDouble();
+            mBlobImageParams.mCVScalarMean[2] = v.toDouble();
         }
 
         v = paramsObj["std_r"];
@@ -372,7 +370,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["std_r"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mCVScalarStd[0] = v.toDouble();
+            mBlobImageParams.mCVScalarStd[0] = v.toDouble();
         }
 
         v = paramsObj["std_g"];
@@ -381,7 +379,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["std_g"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mCVScalarStd[1] = v.toDouble();
+            mBlobImageParams.mCVScalarStd[1] = v.toDouble();
         }
 
         v = paramsObj["std_b"];
@@ -390,7 +388,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["std_b"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mCVScalarStd[2] = v.toDouble();
+            mBlobImageParams.mCVScalarStd[2] = v.toDouble();
         }
 
         auto width = paramsObj["size_width"];
@@ -402,11 +400,8 @@ load( QJsonObject const &p )
             typedProp->getData().miWidth = width.toInt();
             typedProp->getData().miHeight = height.toInt();
 
-            params.mCVSize = cv::Size( width.toInt(), height.toInt() );
+            mBlobImageParams.mCVSize = cv::Size( width.toInt(), height.toInt() );
         }
-        mpOnnxClassificationDNNThread->setParams( params );
-
-        load_model();
     }
 }
 
@@ -520,11 +515,12 @@ void
 OnnxClassificationDNNModel::
 late_constructor()
 {
-    if( !mpOnnxClassificationDNNThread )
+    if( start_late_constructor() )
     {
         mpOnnxClassificationDNNThread = new OnnxClassificationDNNThread(this);
         connect( mpOnnxClassificationDNNThread, &OnnxClassificationDNNThread::result_ready, this, &OnnxClassificationDNNModel::received_result );
         load_model();
+        mpOnnxClassificationDNNThread->setParams( mBlobImageParams );
         mpOnnxClassificationDNNThread->start();
     }
 }

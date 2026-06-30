@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -165,7 +165,7 @@ save() const
 {
     QJsonObject modelJson = PBAsyncDataModel::save();
 
-    QJsonObject cParams;
+    QJsonObject cParams = modelJson["cParams"].toObject();
     cParams["kernelWidth"] = mParams.mCVSizeKernel.width;
     cParams["kernelHeight"] = mParams.mCVSizeKernel.height;
     cParams["sigmaX"] = mParams.mdSigmaX;
@@ -330,7 +330,7 @@ process_cached_input()
     // Emit sync "false" signal in next event loop
     QTimer::singleShot(0, this, [this]() {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
     });
     
     if(isWorkerBusy())

@@ -1,4 +1,4 @@
-﻿//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -275,6 +275,9 @@ class CVVideoWriterModel : public PBNodeDelegateModel
     Q_OBJECT
 
 public:
+    /// @name Construction & Destruction
+    /// @{
+
     /**
      * @brief Constructs a CVVideoWriterModel.
      *
@@ -294,6 +297,11 @@ public:
             delete mpVideoWriterThread;
     }
 
+    /// @}
+
+    /// @name Persistence
+    /// @{
+
     /**
      * @brief Saves model state to JSON.
      * @return QJsonObject containing filename, FPS, and segmentation settings.
@@ -307,6 +315,11 @@ public:
      */
     void
     load(QJsonObject const &p) override;
+
+    /// @}
+
+    /// @name Port Interface
+    /// @{
 
     /**
      * @brief Returns the number of ports.
@@ -342,16 +355,25 @@ public:
     QWidget *
     embeddedWidget() override { return mpEmbeddedWidget; }
 
+    /**
+     * @brief Returns the minimized node icon.
+     * @return Icon pixmap (CVVideoWriter.png).
+     */
     QPixmap
-    minPixmap() const override{ return _minPixmap; }
+    minPixmap() const override { return _minPixmap; }
 
     /**
-     * @brief Sets a model property.
-     * @param Property name ("output_filename", "fps", "frame_per_video").
-     * @param QVariant value.
+     * @brief Updates a model property by name.
+     * @param id Property name ("output_filename", "fps", "frame_per_video").
+     * @param value New property value.
      */
     void
-    setModelProperty( QString &, const QVariant & ) override;
+    setModelProperty( QString & id, const QVariant & value ) override;
+
+    /// @}
+
+    /// @name Deferred Initialization
+    /// @{
 
     /**
      * @brief Late constructor for thread initialization.
@@ -365,7 +387,6 @@ public:
     static const QString _model_name; ///< Node display name
 
 private Q_SLOTS:
-
     /**
      * @brief Slot for Start/Stop button clicks.
      * @param Button checked state (true=Start, false=Stop).

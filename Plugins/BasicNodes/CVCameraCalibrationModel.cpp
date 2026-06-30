@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2024 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -294,7 +294,7 @@ CVCameraCalibrationModel()
     : PBNodeDelegateModel( _model_name ),
     mpEmbeddedWidget( new CVCameraCalibrationEmbeddedWidget( qobject_cast<QWidget *>(this) ) )
 {
-    qRegisterMetaType<cv::Mat>( "cv::Mat&");
+    qRegisterMetaType<cv::Mat>( "cv::Mat");
     connect( mpEmbeddedWidget, &CVCameraCalibrationEmbeddedWidget::button_clicked_signal, this, &CVCameraCalibrationModel::em_button_clicked );
 
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
@@ -729,7 +729,6 @@ load(QJsonObject const &p)
         }
     }
     set_flags();
-    late_constructor();
 }
 
 
@@ -874,7 +873,7 @@ void
 CVCameraCalibrationModel::
 late_constructor()
 {
-    if( !mpCameraCalibrationThread )
+    if( start_late_constructor() )
     {
         mpCameraCalibrationThread = new CameraCalibrationThread(this);
         mpCameraCalibrationThread->set_params( mCameraCalibrationParams );

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -194,7 +194,7 @@ save() const
 {
     QJsonObject modelJson = PBAsyncDataModel::save();
 
-    QJsonObject cParams;
+    QJsonObject cParams = modelJson["cParams"].toObject();
     cParams["kernelShape"] = mParams.miKernelShape;
     cParams["kernelWidth"] = mParams.mCVSizeKernel.width;
     cParams["kernelHeight"] = mParams.mCVSizeKernel.height;
@@ -442,7 +442,7 @@ void CVErodeAndDilateModel::process_cached_input()
     // Emit sync "false" before processing
     QTimer::singleShot(0, this, [this]() {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
     });
 
     int op = mpEmbeddedWidget ? mpEmbeddedWidget->getCurrentState() : 0;

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -140,7 +140,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex )
                 if( mpContourPointsData )
                 {
                     processData(mpCVImageInData, mpCVImageOutData, mpContourPointsData, mParams);
-                    Q_EMIT dataUpdated(0);
+                    emitOutputPort(0);
                 }
             }
         }
@@ -158,7 +158,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex )
                 if( mpCVImageInData )
                 {
                     processData(mpCVImageInData, mpCVImageOutData, mpContourPointsData, mParams);
-                    Q_EMIT dataUpdated(0);
+                    emitOutputPort(0);
                 }
             }
         }
@@ -304,7 +304,7 @@ setModelProperty( QString & id, const QVariant & value )
     if(mpCVImageInData && mpContourPointsData)
     {
         processData(mpCVImageInData, mpCVImageOutData, mpContourPointsData, mParams);
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
 }
 

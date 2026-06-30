@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -32,8 +32,6 @@
 //#define __ENABLE_DEBUG_LOG_INFO__
 //#define __ENABLE_DEBUG_LOG_WARNING__
 
-#define __CHECK_LICENSE_KEY__
-
 #if defined (__SAVE_LOG__)
 
 QMutex lLockMutex;
@@ -60,9 +58,9 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName("NECTEC");
     QCoreApplication::setApplicationName("CVDev");
 
-    QString homePath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    QString appHomePath = CVDev::appHomePath();
 #if defined( __SAVE_LOG__)
-    QDir logDir(homePath + "/.CVDev/log");
+    QDir logDir(appHomePath + "/log");
     if( !logDir.exists() )
         logDir.mkpath(".");
 

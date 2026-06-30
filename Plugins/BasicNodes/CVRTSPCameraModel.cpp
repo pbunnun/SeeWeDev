@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -195,16 +195,13 @@ CVRTSPCameraModel()
         mMinPixmap(":USBCamera.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat" );
+    qRegisterMetaType<CVRTSPCameraParameters>( "CVRTSPCameraParameters" );
     connect( mpEmbeddedWidget, &CVRTSPCameraEmbeddedWidget::button_clicked_signal, this, &CVRTSPCameraModel::em_button_clicked );
     //There are two interactive methods for an embeeded widget.
     //The first method is calling the following line and mpEmbeddedWidget->set_active must not be called again.
     //setEnable and enable_changed functions must be called explicitly in em_button_clicked slot.
     //The embedded widget will always accept a mouse interaction.
     mpEmbeddedWidget->set_active( true );
-
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-    mpInformationData = std::make_shared< InformationData >( );
-    mpSyncData = std::make_shared< SyncData >();
 
     // RTSP URL string property
     QString propId = "rtsp_url";
@@ -450,10 +447,10 @@ CVRTSPCameraModel::
 load(const QJsonObject &p)
 {
     PBAsyncDataModel::load(p);
+
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     const bool restoringSavedState = !paramsObj.isEmpty();
     mAutoRefreshAllowed = !restoringSavedState;
-    late_constructor();
 
     if( !restoringSavedState )
         return;
@@ -584,7 +581,12 @@ void
 CVRTSPCameraModel::
 late_constructor()
 {
-    start_late_constructor();
+    PBAsyncDataModel::late_constructor();
+
+    if( mpInformationData == nullptr )
+    {
+        mpInformationData = std::make_shared< InformationData >( );
+    }
 }
 
 void

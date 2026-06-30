@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ CVRGBsetValueModel::CVRGBsetValueModel()
 {
     mpCVImageData = std::make_shared<CVImageData>( cv::Mat() );
 
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVRGBsetValueEmbeddedWidget::button_clicked_signal, this, &CVRGBsetValueModel::em_button_clicked );
 
     UcharPropertyType ucharPropertyType;
@@ -104,7 +104,7 @@ void CVRGBsetValueModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex
         }
     }
 
-    Q_EMIT dataUpdated(0);
+    emitOutputPort(0);
 }
 
 QJsonObject CVRGBsetValueModel::save() const
@@ -147,7 +147,7 @@ em_button_clicked( int button )
     if(mpCVImageInData)
     {
         mpCVImageData->set_image(mpCVImageInData->data());
-        Q_EMIT dataUpdated( 0 );
+        emitOutputPort(0);
     }
 }
 
@@ -197,7 +197,7 @@ void CVRGBsetValueModel::setModelProperty(QString &id, const QVariant & value)
         }
         processData(mpCVImageData,mProps);
 
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
 }
 

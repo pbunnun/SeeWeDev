@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -22,12 +22,20 @@
 #include <QtCore/QTime>
 #include <QtCore/QMetaObject>
 #include <QtCore/QMutexLocker>
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+#include <QtCore/QCoreApplication>
+#include <QtCore/QPointer>
 #include <memory>
 #include <vector>
 #include <utility>
 #include <QtWidgets/QFileDialog>
+#include <QtWidgets/QApplication>
 #include <QVariant>
 #include "qtvariantproperty_p.h"
+#include "TransportModeManager.hpp"
+#include "ZenohBridge.hpp"
 
 const QString CVUSBCameraModel::_category = QString( "Source" );
 
@@ -41,6 +49,15 @@ CVUSBCameraWorker(QObject *parent)
       mpTimer(new QTimer(this))
 {
     connect(mpTimer, &QTimer::timeout, this, &CVUSBCameraWorker::captureFrame);
+}
+
+CVUSBCameraWorker::~CVUSBCameraWorker()
+{
+    if( mpTimer )
+        mpTimer->stop();
+
+    if( mCVVideoCapture.isOpened() )
+        mCVVideoCapture.release();
 }
 
 void
@@ -69,7 +86,16 @@ setSingleShotMode(bool enabled)
     if (mpTimer)
     {
         if (mbSingleShotMode)
+        {
+#if defined(__linux__)
+            if (mbConnected)
+                mpTimer->start(static_cast<int>(miDelayTime));
+            else
+                mpTimer->stop();
+#else
             mpTimer->stop();
+#endif
+        }
         else if (mbConnected)
             mpTimer->start(static_cast<int>(miDelayTime));
     }
@@ -81,7 +107,29 @@ fireSingleShot()
 {
     if (!mbConnected)
         return;
+
+#if defined(__linux__)
+    if (mbSingleShotMode && !mLatestFrame.empty())
+    {
+        Q_EMIT frameCaptured(mLatestFrame.clone());
+        return;
+    }
+#endif
+
     captureFrame();
+}
+
+bool
+CVUSBCameraWorker::
+captureFrameFromDevice( cv::Mat &frame )
+{
+    if (!mCVVideoCapture.grab())
+        return false;
+
+    if (!mCVVideoCapture.retrieve(frame))
+        return false;
+
+    return !frame.empty();
 }
 
 void
@@ -91,13 +139,19 @@ captureFrame()
     if (!mbConnected)
         return;
 
-    if (!mCVVideoCapture.grab())
-        return;
     cv::Mat frame;
-    if (!mCVVideoCapture.retrieve(frame))
+    if (!captureFrameFromDevice( frame ))
         return;
-    if (!frame.empty())
-        Q_EMIT frameCaptured(frame);
+
+#if defined(__linux__)
+    if (mbSingleShotMode)
+    {
+        mLatestFrame = std::move(frame);
+        return;
+    }
+#endif
+
+    Q_EMIT frameCaptured(frame);
 }
 
 void
@@ -111,6 +165,7 @@ checkCamera()
         mCVVideoCapture.release();
 
     mbConnected = false;
+    mLatestFrame.release();
 
     if (miCameraID == -1)
     {
@@ -169,8 +224,15 @@ checkCamera()
             mbConnected = true;
             Q_EMIT cameraReady(true);
 
-            if (!mbSingleShotMode && mpTimer)
+            if (mpTimer)
+            {
+#if defined(__linux__)
                 mpTimer->start(static_cast<int>(miDelayTime));
+#else
+                if (!mbSingleShotMode)
+                    mpTimer->start(static_cast<int>(miDelayTime));
+#endif
+            }
         }
         else
         {
@@ -189,18 +251,17 @@ CVUSBCameraModel::
 CVUSBCameraModel()
     : PBAsyncDataModel( _model_name, true ),
         mpEmbeddedWidget( new CVUSBCameraEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
-        mMinPixmap(":USBCamera.png")
+        mMinPixmap(":/CVUSBCameraModel.png")
 {
     qRegisterMetaType<cv::Mat>( "cv::Mat" );
+    qRegisterMetaType<CVUSBCameraParameters>( "CVUSBCameraParameters" );
+
     connect( mpEmbeddedWidget, &CVUSBCameraEmbeddedWidget::button_clicked_signal, this, &CVUSBCameraModel::em_button_clicked );
     //There are two interactive methods for an embeeded widget.
     //The first method is calling the following line and mpEmbeddedWidget->set_active must not be called again.
     //setEnable and enable_changed functions must be called explicitly in em_button_clicked slot.
     //The embedded widget will always accept a mouse interaction.
     mpEmbeddedWidget->set_active( true );
-
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-    mpInformationData = std::make_shared< InformationData >( );
 
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList();
@@ -272,6 +333,13 @@ CVUSBCameraModel()
 CVUSBCameraModel::
 ~CVUSBCameraModel()
 {
+    if( mpCameraWorker && mWorkerThread.isRunning() )
+    {
+        QMetaObject::invokeMethod( mpCameraWorker,
+                                   "setCameraId",
+                                   Qt::BlockingQueuedConnection,
+                                   Q_ARG(int, -1) );
+    }
     // Worker lifecycle handled by PBAsyncDataModel
 }
 
@@ -328,6 +396,7 @@ CVUSBCameraModel::
 camera_status_changed( bool status )
 {
     mCVUSBCameraProperty.mbCameraStatus = status;
+    mpEmbeddedWidget->camera_status_changed( status );
 }
 
 QObject*
@@ -399,6 +468,9 @@ std::shared_ptr<NodeData>
 CVUSBCameraModel::
 outData(PortIndex portIndex)
 {
+    if( !mpCVImageData )
+        return nullptr;
+
     std::shared_ptr<NodeData> result;
     if( isEnable() && mpCVImageData->data().data != nullptr )
     {
@@ -431,7 +503,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
     if(nodeData)
     {
         auto d = std::dynamic_pointer_cast<SyncData>(nodeData);
-        if( d )
+        if( d->data() )
         {
             if( mpCameraWorker )
                 QMetaObject::invokeMethod(mpCameraWorker, "fireSingleShot", Qt::QueuedConnection);
@@ -484,10 +556,13 @@ CVUSBCameraModel::
 load(const QJsonObject &p)
 {
     PBAsyncDataModel::load(p);
+
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     const bool restoringSavedState = !paramsObj.isEmpty();
     mAutoRefreshAllowed = !restoringSavedState;
-    late_constructor();
+    // NOTE: Do NOT call late_constructor() here. PBDataFlowGraphModel::loadNode()
+    // calls setRuntimeTransportContext() first, then late_constructor(), ensuring
+    // getNodeId() returns the correct graph-assigned ID (not the object address).
 
     if( !restoringSavedState )
         return;
@@ -617,8 +692,6 @@ load(const QJsonObject &p)
 
     }
     mUSBCameraParams = params;
-    if( mpCameraWorker )
-        QMetaObject::invokeMethod(mpCameraWorker, "setParams", Qt::QueuedConnection, Q_ARG(CVUSBCameraParameters, mUSBCameraParams));
     Q_EMIT property_structure_changed_signal();
 }
 
@@ -626,10 +699,10 @@ void
 CVUSBCameraModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBAsyncDataModel::setModelProperty( id, value );
-
     if( !mMapIdToProperty.contains( id ) )
         return;
+
+    PBAsyncDataModel::setModelProperty( id, value );
 
     auto prop = mMapIdToProperty[ id ];
     if( id == "camera_id" )
@@ -783,6 +856,23 @@ CVUSBCameraModel::
 late_constructor()
 {
     PBAsyncDataModel::late_constructor();
+
+    if( mpInformationData == nullptr )
+    {
+        mpInformationData = std::make_shared<InformationData>();
+
+        if (mpCameraWorker)
+        {
+            QMetaObject::invokeMethod(mpCameraWorker, "setParams", Qt::QueuedConnection,
+                                      Q_ARG(CVUSBCameraParameters, mUSBCameraParams));
+
+            if (isEnable())
+            {
+                QMetaObject::invokeMethod(mpCameraWorker, "setCameraId", Qt::QueuedConnection,
+                                          Q_ARG(int, mCVUSBCameraProperty.miCameraID));
+            }
+        }
+    }
 }
 
 void

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -11,6 +11,25 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+
+/**
+ * @file MathConditionModel.cpp
+ * @brief Implementation of conditional sync trigger node.
+ *
+ * Implements MathConditionModel: reads a numeric value from SyncData, evaluates
+ * a configurable comparison (operator + threshold) and emits a sync signal only
+ * when the condition is TRUE.
+ *
+ * **Core Logic (setInData / em_changed):**
+ * - `em_changed`: updates operator index and threshold from the embedded widget
+ * - `setInData`: extracts input value, evaluates condition, calls emitOutputPort(0)
+ *   only on TRUE; no emission on FALSE prevents unnecessary downstream propagation
+ *
+ * **State held per node instance:**
+ * - `miConditionIndex` – selected operator (0-5)
+ * - `mdConditionNumber` – threshold (double)
+ * - `mpSyncData` – output sync instance (reused between evaluations)
+ */
 
 #include "MathConditionModel.hpp"
 #include "qtvariantproperty_p.h"
@@ -137,7 +156,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
                     mpSyncData->data() = false;
             }
         }
-        Q_EMIT dataUpdated( 0 );
+        emitOutputPort(0);
     }
 }
 
@@ -167,7 +186,6 @@ load(const QJsonObject &p)
      * If load() was overridden, PBNodeDelegateModel::load() must be called explicitely.
      */
     PBNodeDelegateModel::load(p);
-    late_constructor();
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )

@@ -1,4 +1,4 @@
-//Copyright © 2024, NECTEC, all rights reserved
+//Copyright © 2024 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -109,16 +109,16 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if( nodeData )
     {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( !d->data().empty() )
         {
             mpCVImageInData = d;
             processData(mpCVImageInData, mpContourPointsData, mParams);
-            Q_EMIT dataUpdated(0);
+            emitOutputPort(0);
         }
         mpSyncData->data() = true;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
     }
 }
 

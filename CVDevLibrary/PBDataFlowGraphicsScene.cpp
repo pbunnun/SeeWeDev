@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@
 #include "MoveGroupCommand.hpp"
 #include "GroupLockCommand.hpp"
 #include "ToggleGroupMinimizeCommand.hpp"
+#include "TransportModeManager.hpp"
+#include "ZenohBridge.hpp"
 
 #include <QtNodes/internal/DataFlowGraphModel.hpp>
 #include <QtNodes/internal/AbstractNodeGeometry.hpp>
@@ -34,6 +36,8 @@
 #include <QtNodes/internal/Definitions.hpp>
 
 #include <QGraphicsSceneMouseEvent>
+#include <QGraphicsSceneHelpEvent>
+#include <QToolTip>
 #include <QEvent>
 #include <QApplication>
 #include <QInputDialog>
@@ -264,6 +268,65 @@ void PBDataFlowGraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     DataFlowGraphicsScene::mouseReleaseEvent(event);
 }
 
+void PBDataFlowGraphicsScene::helpEvent(QGraphicsSceneHelpEvent *event)
+{
+    if (!event)
+        return;
+
+    auto *dataFlowModel = dynamic_cast<DataFlowGraphModel *>(&graphModel());
+    if (!dataFlowModel)
+    {
+        DataFlowGraphicsScene::helpEvent(event);
+        return;
+    }
+
+    QPointF scenePos = event->scenePos();
+    QPoint screenPos = event->screenPos();
+
+    auto allNodeIds = graphModel().allNodeIds();
+    for (NodeId nodeId : allNodeIds)
+    {
+        QPointF nodePos = graphModel().nodeData<QPointF>(nodeId, NodeRole::Position);
+        QPointF localPos = scenePos - nodePos;
+
+        // Check In ports
+        PortIndex inPort = nodeGeometry().checkPortHit(nodeId, PortType::In, localPos);
+        if (inPort != InvalidPortIndex)
+        {
+            auto* delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
+            if (delegateModel)
+            {
+                QString tooltipText = delegateModel->portToolTip(PortType::In, inPort);
+                if (!tooltipText.isEmpty())
+                {
+                    QToolTip::showText(screenPos, tooltipText);
+                    event->accept();
+                    return;
+                }
+            }
+        }
+
+        // Check Out ports
+        PortIndex outPort = nodeGeometry().checkPortHit(nodeId, PortType::Out, localPos);
+        if (outPort != InvalidPortIndex)
+        {
+            auto* delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
+            if (delegateModel)
+            {
+                QString tooltipText = delegateModel->portToolTip(PortType::Out, outPort);
+                if (!tooltipText.isEmpty())
+                {
+                    QToolTip::showText(screenPos, tooltipText);
+                    event->accept();
+                    return;
+                }
+            }
+        }
+    }
+
+    DataFlowGraphicsScene::helpEvent(event);
+}
+
 void PBDataFlowGraphicsScene::contextMenuEvent(QGraphicsSceneContextMenuEvent *event)
 {
     auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
@@ -334,7 +397,7 @@ void PBDataFlowGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
         
         // Convert scene position to node-local coordinates
         QPointF nodePos = ngo->mapFromScene(event->scenePos());
-        
+
         // Check if node or its group is locked - prevent resize handle interaction
         auto *dataFlowModel = dynamic_cast<DataFlowGraphModel*>(&graphModel());
         if (dataFlowModel) {
@@ -362,36 +425,40 @@ void PBDataFlowGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
             }
         }
         
-        // Check if clicking on resize handle
-        AbstractNodeGeometry &geometry = nodeGeometry();
-        QRect resizeRect = geometry.resizeHandleRect(nodeId);
-        if (resizeRect.contains(nodePos.toPoint())) {
-            // Start resize operation
-            mbResizingNodes = true;
-            mResizeStartScenePos = event->scenePos();
-            mResizeOrigSizes.clear();
+        // Check if clicking on resize handle. Strict behavior: only nodes
+        // explicitly marked resizable can start a resize interaction.
+        if ((graphModel().nodeFlags(nodeId) & QtNodes::NodeFlag::Resizable) != QtNodes::NodeFlag::NoFlags) {
+            AbstractNodeGeometry &geometry = nodeGeometry();
+            QRect resizeRect = geometry.resizeHandleRect(nodeId);
+            if (resizeRect.contains(nodePos.toPoint())) 
+            {
+                // Start resize operation
+                mbResizingNodes = true;
+                mResizeStartScenePos = event->scenePos();
+                mResizeOrigSizes.clear();
             
-            // If node is not selected, select it (and deselect others unless Ctrl is pressed)
-            if (!ngo->isSelected()) {
-                if (!(event->modifiers() & Qt::ControlModifier)) {
-                    clearSelection();
+                // If node is not selected, select it (and deselect others unless Ctrl is pressed)
+                if (!ngo->isSelected()) {
+                    if (!(event->modifiers() & Qt::ControlModifier)) {
+                        clearSelection();
+                    }
+                    ngo->setSelected(true);
                 }
-                ngo->setSelected(true);
-            }
             
-            // Capture original widget sizes for all selected nodes
-            auto selected = selectedItems();
-            for (auto *it : selected) {
-                if (auto *sngo = qgraphicsitem_cast<NodeGraphicsObject*>(it)) {
-                    NodeId id = sngo->nodeId();
-                    if (auto w = graphModel().nodeData<QWidget *>(id, QtNodes::NodeRole::Widget)) {
-                        mResizeOrigSizes[id] = w->size();
+                // Capture original widget sizes for all selected nodes
+                auto selected = selectedItems();
+                for (auto *it : selected) {
+                    if (auto *sngo = qgraphicsitem_cast<NodeGraphicsObject*>(it)) {
+                        NodeId id = sngo->nodeId();
+                        if (auto w = graphModel().nodeData<QWidget *>(id, QtNodes::NodeRole::Widget)) {
+                            mResizeOrigSizes[id] = w->size();
+                        }
                     }
                 }
-            }
             
-            event->accept();
-            return;
+                event->accept();
+                return;
+            }
         }
         
         // Check minimize checkbox (top-left)
@@ -401,44 +468,29 @@ void PBDataFlowGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
             auto *dataFlowModel = dynamic_cast<DataFlowGraphModel*>(&graphModel());
             if (dataFlowModel) {
                 auto *delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
-                
+
                 if (delegateModel && !delegateModel->canMinimize()) {
                     // Node cannot be minimized, ignore the click
                     DataFlowGraphicsScene::mousePressEvent(event);
                     return;
                 }
             }
-            
+
             // Only allow toggling if the node is selected
             if (!ngo->isSelected()) {
                 // Node is not selected, just pass the event to select it
                 DataFlowGraphicsScene::mousePressEvent(event);
                 return;
             }
-            
-            // Node is selected, toggle the minimize state via undo command
+
+            // Route through requestPropertyChange so undo/redo and remote publish
+            // follow the same path as Property Browser edits.
             if (dataFlowModel) {
                 auto *delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
-                
                 if (delegateModel) {
-                    bool currentState = delegateModel->isMinimize();
-                    bool newState = !currentState;
-                    
-                    // Get the old value for undo
-                    QString propId = "minimize";
-                    QVariant oldValue = delegateModel->getModelPropertyValue(propId);
-                    QVariant newValue = newState;
-                    
-                    // Create and push undo command
-                    auto *cmd = new PropertyChangeCommand(this,
-                                                          nodeId,
-                                                          delegateModel,
-                                                          propId,
-                                                          oldValue,
-                                                          newValue);
-                    undoStack().push(cmd);
-                    
-                    // Don't propagate this event further
+                    const bool newState = !delegateModel->isMinimize();
+                    delegateModel->requestPropertyChange("minimize", QVariant(newState), true);
+
                     event->accept();
                     return;
                 }
@@ -454,31 +506,17 @@ void PBDataFlowGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
                 DataFlowGraphicsScene::mousePressEvent(event);
                 return;
             }
-            
-            // Node is selected, toggle the lock state via undo command
+
+            // Route through requestPropertyChange so undo/redo and remote publish
+            // follow the same path as Property Browser edits.
             auto *dataFlowModel = dynamic_cast<DataFlowGraphModel*>(&graphModel());
             if (dataFlowModel) {
                 auto *delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
-                
+
                 if (delegateModel) {
-                    bool currentState = delegateModel->isLockPosition();
-                    bool newState = !currentState;
-                    
-                    // Get the old value for undo
-                    QString propId = "lock_position";
-                    QVariant oldValue = delegateModel->getModelPropertyValue(propId);
-                    QVariant newValue = newState;
-                    
-                    // Create and push undo command
-                    auto *cmd = new PropertyChangeCommand(this,
-                                                          nodeId,
-                                                          delegateModel,
-                                                          propId,
-                                                          oldValue,
-                                                          newValue);
-                    undoStack().push(cmd);
-                    
-                    // Don't propagate this event further
+                    const bool newState = !delegateModel->isLockPosition();
+                    delegateModel->requestPropertyChange("lock_position", QVariant(newState), true);
+
                     event->accept();
                     return;
                 }
@@ -494,31 +532,17 @@ void PBDataFlowGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
                 DataFlowGraphicsScene::mousePressEvent(event);
                 return;
             }
-            
-            // Node is selected, toggle the enable state via undo command
+
+            // Route through requestPropertyChange so undo/redo and remote publish
+            // follow the same path as Property Browser edits.
             auto *dataFlowModel = dynamic_cast<DataFlowGraphModel*>(&graphModel());
             if (dataFlowModel) {
                 auto *delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
-                
+
                 if (delegateModel) {
-                    bool currentState = delegateModel->isEnable();
-                    bool newState = !currentState;
-                    
-                    // Get the old value for undo
-                    QString propId = "enable";
-                    QVariant oldValue = delegateModel->getModelPropertyValue(propId);
-                    QVariant newValue = newState;
-                    
-                    // Create and push undo command
-                    auto *cmd = new PropertyChangeCommand(this,
-                                                          nodeId,
-                                                          delegateModel,
-                                                          propId,
-                                                          oldValue,
-                                                          newValue);
-                    undoStack().push(cmd);
-                    
-                    // Don't propagate this event further
+                    const bool newState = !delegateModel->isEnable();
+                    delegateModel->requestPropertyChange("enable", QVariant(newState), true);
+
                     event->accept();
                     return;
                 }

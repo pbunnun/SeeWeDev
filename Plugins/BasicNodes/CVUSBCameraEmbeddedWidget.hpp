@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -108,6 +108,9 @@ public:
      */
     void
     set_ready_state( bool );
+
+    void
+    set_button_states( bool startEnabled, bool stopEnabled );
 
     /**
      * @brief Shows/hides widget or enables/disables controls.

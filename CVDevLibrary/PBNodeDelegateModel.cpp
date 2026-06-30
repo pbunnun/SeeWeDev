@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -12,10 +12,34 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+/**
+ * @file PBNodeDelegateModel.cpp
+ * @brief Implementation of base node model with properties, state, and remote sync.
+ *
+ * Implements:
+ * - Property system (save/load, getters/setters, change notifications)
+ * - State management (enable/disable, minimize, lock, selection)
+ * - Remote widget synchronization (pub/sub routing, heartbeat tracking)
+ * - Headless mode (paint suppression for CVDevDaemon)
+ * - Transport context and topic key construction
+ * - Undo/redo integration via property_change_request_signal
+ */
+
 #include "PBNodeDelegateModel.hpp"
+#include "CycloneDDSBridge.hpp"
+#include "TransportModeManager.hpp"
+#include "ZenohBridge.hpp"
+#include "NodeDataSerializer.hpp"
 #include "qtvariantproperty_p.h"
 #include <QFontMetrics>
 #include <QFont>
+#include <QApplication>
+#include <QDateTime>
+#include <QPointer>
+#include <QSettings>
+#include <QSysInfo>
+#include <QWidget>
+#include <QGraphicsProxyWidget>
 #include <algorithm>
 
 using QtNodes::PortType;
@@ -27,10 +51,7 @@ PBNodeDelegateModel::PBNodeDelegateModel(QString modelName, bool bSource, bool b
       mOrgNodeStyle(nodeStyle()),
       mbSource(bSource),
       mbEnable(bEnable),
-      mbMinimize(false),
-      mbLockPosition(false),
-      mbDrawEntries(true),
-      mbDrawConnectionPoint(true)
+      mSavedWidgetSize()
 {
     setCaption(msModelName);
     // Set default green boundaries for enabled nodes
@@ -72,12 +93,6 @@ PBNodeDelegateModel::PBNodeDelegateModel(QString modelName, bool bSource, bool b
     mvProperty.push_back( propCaptionVisible );
     mMapIdToProperty[ propId ] = propCaptionVisible;
 
-    // Add "Enable Zenoh" property for hybrid Qt/Zenoh mode (default: false = Qt mode)
-    propId = "enable_zenoh";
-    auto propEnableZenoh = std::make_shared< TypedProperty< bool > >( "Enable Zenoh", propId, QMetaType::Bool, false, "Common" );
-    mvProperty.push_back( propEnableZenoh );
-    mMapIdToProperty[ propId ] = propEnableZenoh;
-
     connect( this, SIGNAL( enable_changed_signal(bool) ), this, SLOT( enable_changed(bool) ) );
     connect( this, SIGNAL( minimize_changed_signal(bool) ), this, SLOT( minimize_changed(bool) ) );
     connect( this, SIGNAL( draw_entries_changed_signal(bool) ), this, SLOT( draw_entries_changed(bool) ) );
@@ -99,8 +114,6 @@ save() const
     params["draw_entries"] = isDrawEntries();
     params["lock_position"] = isLockPosition();
     params["caption_visible"] = mbCaptionVisible;
-    params["enable_zenoh"] = getModelPropertyValue("enable_zenoh").toBool();
-
     if( mbSource )
         params["enable"] = false;
 
@@ -191,16 +204,7 @@ load(QJsonObject const &p)
 
             mbCaptionVisible = v.toBool();
         }
-
-        v = paramsObj[ "enable_zenoh" ];
-        if( !v.isNull() )
-        {
-            auto prop = mMapIdToProperty[ "enable_zenoh" ];
-            auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
-            typedProp->getData() = v.toBool();
-        }
     }
-
 }
 
 QVariant
@@ -382,6 +386,56 @@ minimized( bool minimize )
     // In v3, we just track the state internally
     mbMinimize = minimize;
     
+    if (minimize) {
+        if (auto w = embeddedWidget()) {
+            // Only capture if it's visible, to avoid capturing shrunk/hidden sizes
+            if (w->isVisible()) {
+                mSavedWidgetSize = w->size();
+            }
+        }
+    } else {
+        if (auto w = embeddedWidget()) {
+            if (mSavedWidgetSize.isValid() && mSavedWidgetSize.width() > 0 && mSavedWidgetSize.height() > 0) {
+                // Clear any potential layout/size constraints on the widget first
+                w->setMinimumHeight(0);
+                w->setMaximumHeight(16777215); // QWIDGETSIZE_MAX
+                w->setMinimumWidth(0);
+                w->setMaximumWidth(16777215);
+                w->resize(mSavedWidgetSize);
+                
+                if (auto *proxy = w->graphicsProxyWidget()) {
+                    proxy->setMinimumHeight(0);
+                    proxy->setMaximumHeight(16777215);
+                    proxy->setMinimumWidth(0);
+                    proxy->setMaximumWidth(16777215);
+                    proxy->resize(mSavedWidgetSize);
+                }
+                
+                // Use a single-shot timer to re-apply and update geometry,
+                // matching the pattern used in PBDataFlowGraphModel::load.
+                QPointer<QWidget> wp(w);
+                QTimer::singleShot(0, this, [this, wp]() {
+                    if (wp) {
+                        wp->setMinimumHeight(0);
+                        wp->setMaximumHeight(16777215);
+                        wp->setMinimumWidth(0);
+                        wp->setMaximumWidth(16777215);
+                        wp->resize(mSavedWidgetSize);
+                        
+                        if (auto *proxy = wp->graphicsProxyWidget()) {
+                            proxy->setMinimumHeight(0);
+                            proxy->setMaximumHeight(16777215);
+                            proxy->setMinimumWidth(0);
+                            proxy->setMaximumWidth(16777215);
+                            proxy->resize(mSavedWidgetSize);
+                        }
+                        Q_EMIT embeddedWidgetSizeUpdated();
+                    }
+                });
+            }
+        }
+    }
+    
     // Trigger node geometry recalculation and repaint
     Q_EMIT embeddedWidgetSizeUpdated();
 }
@@ -407,14 +461,75 @@ draw_entries( bool draw )
 
 void
 PBNodeDelegateModel::
+emitOutputPort(PortIndex portIndex)
+{
+    const auto transportMode = TransportModeManager::instance().getTransportMode();
+
+    if (transportMode == TransportMode::ZenohOnly) {
+        if (!ZenohBridge::instance().isInitialized()) {
+            DEBUG_LOG_WARNING() << "[PBNodeDelegateModel] ZenohOnly mode requested but bridge is not initialized. Falling back to Qt propagation.";
+            Q_EMIT dataUpdated(portIndex);
+            return;
+        }
+
+        const auto data = outData(portIndex);
+        if (data) {
+            ZenohBridge::instance().publish(getNodeId(), static_cast<int>(portIndex), data, getFlowFilename());
+        }
+        return;
+    }
+
+    if (transportMode == TransportMode::CycloneDDSOnly) {
+        if (!CycloneDDSBridge::instance().isInitialized()) {
+            DEBUG_LOG_WARNING() << "[PBNodeDelegateModel] CycloneDDSOnly mode requested but bridge is not initialized. Falling back to Qt propagation.";
+            Q_EMIT dataUpdated(portIndex);
+            return;
+        }
+
+        const auto data = outData(portIndex);
+        if (data) {
+            const std::vector<uint8_t> payloadVec = NodeDataSerializer::serialize(data);
+            if (!payloadVec.empty()) {
+                const QString computerId = CycloneDDSBridge::instance().getComputerId().trimmed();
+                const QString flowFilename = getFlowFilename().trimmed().isEmpty()
+                    ? QStringLiteral("Untitle")
+                    : getFlowFilename().trimmed();
+                const QString topicName = QStringLiteral("cvdev/%1/%2/%3/output/%4/data")
+                    .arg(computerId, flowFilename, getNodeId(), QString::number(static_cast<int>(portIndex)));
+
+                const QByteArray payload(
+                    reinterpret_cast<const char*>(payloadVec.data()),
+                    static_cast<int>(payloadVec.size()));
+                CycloneDDSBridge::instance().publishRaw(topicName, payload);
+            }
+        }
+        return;
+    }
+
+    Q_EMIT dataUpdated(portIndex);
+}
+
+void
+PBNodeDelegateModel::
 updateAllOutputPorts()
 {
     auto no_output_ports = nPorts( PortType::Out );
-    
-    // Qt mode (default): Use Qt signals only
-    for( unsigned int i = 0; i < no_output_ports; i++ )
-        Q_EMIT dataUpdated( i );
+
+    for (unsigned int i = 0; i < no_output_ports; i++)
+        emitOutputPort(i);
 }
+
+void
+PBNodeDelegateModel::
+setRuntimeTransportContext(NodeId nodeId, const QString& flowFilename)
+{
+    miRuntimeNodeId = nodeId;
+    mbHasRuntimeNodeId = true;
+
+    const QString trimmed = flowFilename.trimmed();
+    msFlowFilename = trimmed.isEmpty() ? QStringLiteral("Untitle") : trimmed;
+}
+
 
 void
 PBNodeDelegateModel::
@@ -516,3 +631,15 @@ editable_embedded_widget_selected_changed( bool isSelected )
     mbEditableEmbeddedWidgetSelected = isSelected;
     Q_EMIT selection_request_signal();
 }
+
+QString
+PBNodeDelegateModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    QString caption = portCaption(portType, portIndex);
+    QtNodes::NodeDataType type = dataType(portType, portIndex);
+    if (caption.isEmpty())
+        return type.name;
+    return QString("%1 (%2)").arg(caption, type.name);
+}
+

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -224,7 +224,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if( nodeData && mpSyncData->data() == true )
     {
         mpSyncData->data() = false;
-        //Q_EMIT dataUpdated(2);
+        //emitOutputPort(2);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
             processData( d );
@@ -250,7 +250,6 @@ TextRecognitionDNNModel::
 load( QJsonObject const &p )
 {
     PBNodeDelegateModel::load( p );
-    late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -309,7 +308,7 @@ void
 TextRecognitionDNNModel::
 late_constructor()
 {
-    if( !mpTextRecognitionDNNThread )
+    if( start_late_constructor() )
     {
         mpTextRecognitionDNNThread = new TextRecognitionThread(this);
         connect( mpTextRecognitionDNNThread, &TextRecognitionThread::result_ready, this, &TextRecognitionDNNModel::received_result );

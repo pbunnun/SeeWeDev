@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -103,6 +103,8 @@
 namespace QtNodes {
     class NodeDelegateModelRegistry;
 }
+
+class PBNodeDelegateModel;
 
 /**
  * @class PBDataFlowGraphModel
@@ -283,7 +285,7 @@ public:
      * @see NodeDelegateModelRegistry::create() for node instantiation
      */
     QtNodes::NodeId addNode(QString const nodeType = QString()) override;
-    
+
     /**
      * @brief Deletes a node and ensures group membership is updated.
      *
@@ -293,6 +295,7 @@ public:
      * node entries.
      */
     bool deleteNode(QtNodes::NodeId const nodeId) override;
+
     /**
      * @brief Saves the graph to a JSON file.
      *
@@ -624,6 +627,20 @@ public:
      */
     bool setGroupLocked(GroupId groupId, bool locked);
 
+    /**
+     * @brief Returns the current flow filename scope used in transport keys.
+     *
+     * This is the file base name without extension. Defaults to "Untitle".
+     */
+    QString transportFlowFilename() const { return msFlowFilename; }
+
+    /**
+     * @brief Updates the flow filename scope used in transport keys and propagates it to all nodes.
+     *
+     * The stored value is the file base name without extension. Empty input becomes "Untitle".
+     */
+    void setTransportFlowFilename(const QString& filename);
+
 Q_SIGNALS:
     /**
      * @brief Emitted when a group is created
@@ -644,8 +661,11 @@ Q_SIGNALS:
     void groupUpdated(GroupId groupId);
 
 private:
+    void updateAllNodeTransportContext();
+
     // Track error messages for nodes that couldn't be loaded
     QStringList mLoadErrors;
+    QString msFlowFilename{"Untitle"};
     
     // Node grouping
     std::map<GroupId, PBNodeGroup> mGroups;  ///< All groups in the model

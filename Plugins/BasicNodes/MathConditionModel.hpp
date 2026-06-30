@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -176,41 +176,111 @@ class MathConditionModel : public PBNodeDelegateModel
     Q_OBJECT
 
 public:
+    /// @name Construction & Destruction
+    /// @{
+
+    /**
+     * @brief Constructs the node, creates embedded widget, and initializes default condition.
+     *
+     * Connects the embedded widget's condition_changed_signal to the internal
+     * em_changed() slot and initializes mpSyncData to false.
+     */
     MathConditionModel();
 
+    /// @brief Destroys the node.
     virtual
     ~MathConditionModel() override {}
 
+    /// @}
+
+    /// @name Persistence
+    /// @{
+
+    /**
+     * @brief Saves node state (operator index + threshold) to JSON.
+     * @return JSON object with base state and condition parameters.
+     */
     QJsonObject
     save() const override;
 
+    /**
+     * @brief Loads node state from JSON and restores widget and internal state.
+     * @param p JSON object from .flow file.
+     */
     void
     load(QJsonObject const &p) override;
 
+    /// @}
+
+    /// @name Port Interface
+    /// @{
+
+    /**
+     * @brief Returns the port count.
+     * @param portType In or Out.
+     * @return 1 for both input and output.
+     */
     unsigned int
     nPorts(PortType portType) const override;
 
+    /**
+     * @brief Returns the data type for the given port.
+     *
+     * Both input (port 0) and output (port 0) carry SyncData.
+     *
+     * @param portType Port direction (In/Out).
+     * @param portIndex Port index (must be 0).
+     * @return SyncData type, or empty NodeDataType for invalid port.
+     */
     NodeDataType
     dataType(PortType portType, PortIndex portIndex) const override;
 
+    /**
+     * @brief Returns the output SyncData if condition is TRUE and node is enabled.
+     * @param port Output port index (0).
+     * @return Shared pointer to SyncData, or nullptr if condition is FALSE or disabled.
+     */
     std::shared_ptr<NodeData>
     outData(PortIndex port) override;
 
+    /**
+     * @brief Evaluates the condition against the incoming sync value.
+     *
+     * Extracts the numeric value from the SyncData, applies the configured
+     * comparison operator against the threshold, and emits port 0 only when TRUE.
+     *
+     * @param nodeData Incoming SyncData carrying the numeric value.
+     * @param portIndex Input port index (0).
+     */
     void
     setInData(std::shared_ptr<NodeData>, PortIndex) override;
 
+    /// @}
+
+    /// @name UI Integration
+    /// @{
+
+    /**
+     * @brief Returns the embedded condition configuration widget.
+     * @return Pointer to MathConditionEmbeddedWidget.
+     */
     QWidget *
     embeddedWidget() override { return mpEmbeddedWidget; }
 
-    /*
-     * Recieve signals back from QtPropertyBrowser and use this function to
-     * set parameters/variables accordingly.
+    /**
+     * @brief Handles property changes from the property browser.
+     * @param id Property identifier.
+     * @param value New property value.
      */
     void
-    setModelProperty( QString &, const QVariant & ) override;
+    setModelProperty( QString & id, const QVariant & value ) override;
 
+    /**
+     * @brief Returns the minimized node icon.
+     * @return Icon pixmap (Condition.png).
+     */
     QPixmap
-    minPixmap() const override{ return _minPixmap; }
+    minPixmap() const override { return _minPixmap; }
 
     /*
      * These two static members must be defined for every models. _category can be duplicate with existing categories.
@@ -220,8 +290,9 @@ public:
 
     static const QString _model_name;
 
+    /// @}
+
 private Q_SLOTS:
-    
     /**
      * @brief Handles condition configuration changes from embedded widget.
      * @param cond_idx Condition operator index (0=<, 1=≤, 2==, 3=≥, 4=>, 5=≠)
@@ -231,12 +302,22 @@ private Q_SLOTS:
     em_changed(int cond_idx, QString number);
 
 private:
-    MathConditionEmbeddedWidget * mpEmbeddedWidget; ///< Condition configuration widget
+    /// Embedded widget for operator and threshold configuration.
+    MathConditionEmbeddedWidget * mpEmbeddedWidget;
 
-    std::shared_ptr<SyncData> mpSyncData;   ///< Output sync signal (emitted on TRUE)
-    double mdConditionNumber;               ///< Numeric threshold value
-    QString msConditionNumber;              ///< Threshold as string (for widget)
-    int miConditionIndex;                   ///< Operator index (0-5)
+    /// Output sync signal instance (reused between evaluations).
+    std::shared_ptr<SyncData> mpSyncData;
+
+    /// Numeric comparison threshold.
+    double mdConditionNumber;
+
+    /// Threshold as string (cached for widget restore).
+    QString msConditionNumber;
+
+    /// Selected operator index (0=<, 1=≤, 2==, 3=≥, 4=>, 5=≠).
+    int miConditionIndex;
+
+    /// Minimized node icon.
     QPixmap _minPixmap;
 };
 

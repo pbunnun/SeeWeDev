@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -32,8 +32,13 @@
 #include <QtNodes/NodeDelegateModelRegistry>
 
 #include <QMainWindow>
+#include <QByteArray>
+#include <QSet>
 #include <QTreeWidgetItem>
 #include <QPluginLoader>
+#include <QActionGroup>
+#include <QVector>
+#include "ZenohBridge.hpp"
 #include "PBNodeDelegateModel.hpp"
 #include "PBDataFlowGraphModel.hpp"
 #include "PBFlowGraphicsView.hpp"
@@ -47,8 +52,17 @@ QT_END_NAMESPACE
 
 class QtVariantProperty;
 class QtProperty;
+class QLabel;
+class QTimer;
+class QDockWidget;
+class QTreeWidget;
+class QPushButton;
+class QCheckBox;
+class QSpinBox;
+class QSettings;
 
 using QtNodes::NodeId;
+using QtNodes::PortIndex;
 using QtNodes::NodeGraphicsObject;
 using QtNodes::NodeDelegateModelRegistry;
 using QtNodes::DataFlowGraphicsScene;
@@ -68,7 +82,9 @@ using QtNodes::DataFlowGraphicsScene;
  */
 struct SceneProperty
 {
-    QString sFilename;  ///< Path to the .flow file (empty for unsaved scenes)
+    QString sFilename;      ///< Path to the .flow file (empty for unsaved scenes)
+    QString sDisplayName;   ///< User-visible tab label base (without dirty marker)
+    bool bReadOnly{false};  ///< True to protect from users from making changes 
     PBDataFlowGraphModel * pDataFlowGraphModel{nullptr};  ///< Data model containing nodes and connections
     PBDataFlowGraphicsScene * pDataFlowGraphicsScene{nullptr};  ///< Graphics scene for visualization
     PBFlowGraphicsView  * pFlowGraphicsView{nullptr}; ///< View widget (added to tab widget)
@@ -213,6 +229,41 @@ private Q_SLOTS:
     void nodeDeleted( NodeId nodeId );
     
     /**
+     * @brief Called when a connection is created between nodes
+     * @param connectionId Connection identifier (source/target node and port)
+     * 
+     * Sets up Zenoh subscription if target node has Zenoh enabled:
+     * - Subscribes to source node's Zenoh topic
+     * - Routes received data to target node's input port
+     */
+    void onConnectionCreated( QtNodes::ConnectionId connectionId );
+    
+    /**
+     * @brief Called when a connection is deleted
+     * @param connectionId Connection identifier to remove
+     * 
+     * Cleans up Zenoh subscription if it exists.
+     */
+    void onConnectionDeleted( QtNodes::ConnectionId connectionId );
+
+    /**
+     * @brief Opens the Zenoh configuration settings dialog
+     * 
+     * Displays a dialog allowing users to configure:
+     * - Zenoh mode (peer/client/router)
+     * - Connect/listen endpoints
+     * - Multicast and shared memory options
+        *
+        * Behavior:
+        * - Transport mode (Qt/Zenoh) is applied immediately for the current session.
+        * - Runtime Zenoh settings (computer_id / connection parameters) prompt for
+        *   automatic restart when changed.
+     */
+    void openZenohSettings();
+    void openCycloneDDSSettings();
+    void onOperationModeTriggered(QAction *action);
+    
+    /**
      * @brief Handles selection changes in the scene
      * 
      * Updates the property browser to show properties of the selected node.
@@ -268,6 +319,7 @@ private Q_SLOTS:
     
     void actionNew_slot();      ///< Creates a new empty flow scene in a new tab
     void actionSave_slot();     ///< Saves the current scene to its file
+    void actionSaveAll_slot();  ///< Saves all open scenes across all tabs
     void actionLoad_slot();     ///< Opens a file dialog to load a .flow file
     void actionQuit_slot();     ///< Quits the application
     void actionSaveAs_slot();   ///< Opens a save dialog to save with a new filename
@@ -575,9 +627,26 @@ private:
      */
     PBDataFlowGraphModel* getCurrentModel() const;
 
+    void updateTransportModeStatusBadge();
+    void syncOperationModeMenu(TransportMode mode);
+
+    void refreshCurrentTabTitle(bool dirty);
+
+    QString makeTransportSourceKey(const QString& sourceNodeId, PortIndex outPortIndex) const;
+    void removeZenohRoutesForModel(PBDataFlowGraphModel* model);
+
+    struct TransportRouteTarget
+    {
+        PBDataFlowGraphModel* model{nullptr};
+        NodeId inNodeId{0};
+        PortIndex inPortIndex{0};
+    };
+
     // Member variables
     
     Ui::MainWindow *ui;  ///< Auto-generated UI components
+    QLabel *mpTransportModeStatusLabel{nullptr};  ///< Permanent status-bar badge showing active node data transport mode
+    QActionGroup *mpOperationModeActionGroup{nullptr};
     
     /// Shared registry of all available node types (from plugins and built-ins)
     std::shared_ptr<NodeDelegateModelRegistry> mpDelegateModelRegistry;
@@ -593,6 +662,11 @@ private:
     /// Flag to prevent modifications during application shutdown
     /// Used in closeScene() to skip creating a new empty scene when closing the last tab
     bool mbClossingApp{ false };
+
+    /// When true, the application relaunches itself after a successful close.
+    /// Set before calling close() so that closeEvent() starts the new process
+    /// only after all save/discard dialogs have been handled.
+    bool mbRestartAfterClose{ false };
     
     /// Flag to prevent infinite loops during undo/redo operations
     /// Property browser updates trigger editorPropertyChanged(), but during undo/redo
@@ -646,6 +720,9 @@ private:
     /// List of loaded plugin libraries
     /// Kept alive to prevent unloading plugin code while in use
     QList< QPluginLoader * > mPluginsList;
+
+    /// Source-keyed route fan-out used in ZenohOnly mode.
+    QMap< QString, QVector<TransportRouteTarget> > mTransportRoutesBySource;
 
     QString msSettingFilename;  ///< Path to the settings INI file
     const QString msProgramName{ "CVDev" };  ///< Application name

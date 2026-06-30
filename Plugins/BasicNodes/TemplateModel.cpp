@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ TemplateModel()
       mpEmbeddedWidget( new TemplateEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
     _minPixmap(":/TemplateModel.png")
 {
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &TemplateEmbeddedWidget::button_clicked_signal, this, &TemplateModel::em_button_clicked );
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
     mpCVImageData->data().create(320,240, CV_8UC3);
@@ -168,7 +168,7 @@ outData(PortIndex index)
 
 void
 TemplateModel::
-setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
+setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex )
 {
     if( !isEnable() )
         return;
@@ -176,20 +176,20 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if( nodeData )
     {
         /*
-         * Do something with an incoming data.
-         */
+        * Do something with an incoming data.
+        */
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
-        if( d )
+        if( d && !d->data().empty() )
         {
             mpCVImageData->set_image( d->data() );
         }
+        /*
+         * Use transport-aware output propagation for this port.
+         * In QtOnly mode this emits Qt signals; in ZenohOnly mode this publishes to Zenoh;
+         * in CyclondDDS mode this publishes to CyclondDDS.
+         */
+        emitOutputPort(0);
     }
-
-    /*
-     * Emit dataUpdated( _data_out_channel_no_ ) to tell other models who link with the model's output channel
-     * that there is data ready to read out.
-     */
-    Q_EMIT dataUpdated( 0 );
 }
 
 QJsonObject
@@ -224,7 +224,6 @@ load(const QJsonObject &p)
      * If load() was overridden, PBNodeDelegateModel::load() must be called explicitely.
      */
     PBNodeDelegateModel::load(p);
-    late_constructor();
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -370,7 +369,10 @@ void
 TemplateModel::
 late_constructor()
 {
-    qDebug() << "Automatically call this function only after creating this node by adding it into a working scene!";
+    if( start_late_constructor() )
+    {
+        qDebug() << "Automatically call this function only after creating this node by adding it into a working scene!";
+    }
 }
 
 void

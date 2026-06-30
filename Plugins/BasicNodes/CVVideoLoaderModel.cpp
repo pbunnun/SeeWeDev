@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -11,6 +11,29 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+
+/**
+ * @file CVVideoLoaderModel.cpp
+ * @brief Implementation of video file loader node (CVVideoLoaderThread + CVVideoLoaderModel).
+ *
+ * **CVVideoLoaderThread** implementation:
+ * - `run()`: main playback loop; uses QSemaphore for frame-advance requests and seek
+ * - `decode_next_frame()`: reads one frame from cv::VideoCapture and emits frame_decoded()
+ * - `request_abort()`: sets mbAbort flag and unblocks semaphores for clean shutdown
+ *
+ * **CVVideoLoaderModel** implementation:
+ * - `late_constructor()`: creates CVVideoLoaderThread, connects signals, restores filename
+ * - `process_decoded_frame()`: adopts frame into CVImagePool, emits output ports
+ * - `ensure_frame_pool()` / `reset_frame_pool()`: manages zero-copy CVImagePool lifecycle
+ * - `em_button_clicked()`: routes play/pause/seek/forward/backward widget button events
+ * - `video_file_opened()`: updates UI (slider max, size label) after file open
+ * - `on_video_ended()`: handles end-of-video (pause UI update, loop if enabled)
+ *
+ * **Thread Safety:**
+ * - Frame pool access protected by QMutex mFramePoolMutex
+ * - mShuttingDown atomic flag guards destructor/thread teardown race
+ * - Playback thread signals connected via Qt::QueuedConnection to main-thread slots
+ */
 
 #include "CVVideoLoaderModel.hpp"
 #include <opencv2/imgcodecs.hpp>
@@ -225,7 +248,7 @@ CVVideoLoaderModel()
     mpEmbeddedWidget( new CVVideoLoaderEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
     _minPixmap(":/VideoLoader.png")
 {
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     qRegisterMetaType<cv::Size>( "cv::Size" );
 
     FilePathPropertyType filePathPropertyType;
@@ -367,7 +390,7 @@ video_file_opened(int max_frames, cv::Size size, QString format)
     Q_EMIT property_changed_signal(prop);
 
     if (isEnable())
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
 }
 
 void
@@ -414,7 +437,6 @@ CVVideoLoaderModel::
 load(QJsonObject const &p)
 {
     PBNodeDelegateModel::load(p);
-    late_constructor();
 
     QJsonObject paramsObj = p[ "cParams" ].toObject();
     if( !paramsObj.isEmpty() )
@@ -427,8 +449,6 @@ load(QJsonObject const &p)
             typedProp->getData().miValue = v.toInt();
 
             miFlipPeriodInMillisecond = v.toInt();
-            if (mpVideoLoaderThread)
-                mpVideoLoaderThread->set_flip_period(miFlipPeriodInMillisecond);
         }
 
         v = paramsObj[ "use_sync_signal" ];
@@ -478,9 +498,6 @@ load(QJsonObject const &p)
             auto prop = mMapIdToProperty[ "filename" ];
             auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
             typedProp->getData().msFilename = v.toString();
-
-            QString filename = v.toString();
-            set_video_filename( filename );
         }
     }
 }
@@ -594,6 +611,7 @@ late_constructor()
         connect( mpEmbeddedWidget, &CVVideoLoaderEmbeddedWidget::widget_resized_signal, this, &CVVideoLoaderModel::embeddedWidgetSizeUpdated );
 
         mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
+
         mpVideoLoaderThread = new CVVideoLoaderThread(this, this);
         connect(mpVideoLoaderThread, &CVVideoLoaderThread::frame_decoded, this, &CVVideoLoaderModel::process_decoded_frame);
         connect(mpVideoLoaderThread, &CVVideoLoaderThread::video_opened, this, &CVVideoLoaderModel::video_file_opened);
@@ -601,6 +619,10 @@ late_constructor()
 
         mpVideoLoaderThread->set_flip_period(miFlipPeriodInMillisecond);
         mpVideoLoaderThread->set_loop(mbLoop);
+
+        auto prop = mMapIdToProperty["filename"];
+        auto typedProp = std::static_pointer_cast<TypedProperty<FilePathPropertyType>>(prop);
+        set_video_filename( typedProp->getData().msFilename );
     }
 }
 
@@ -777,7 +799,7 @@ process_decoded_frame(cv::Mat frame)
 
     // Emit data update to downstream consumers
     if( isEnable() )
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
 
     // Synchronous mode: pacing is handled by the merged sync signal arriving
     // on input port 0; the thread waits for `advance_frame()` so no explicit

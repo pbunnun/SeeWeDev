@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -23,15 +23,9 @@ TimerModel()
     : PBNodeDelegateModel( _model_name, true ),
     _minPixmap(":/Timer.png")
 {
-    mpSyncData = std::make_shared< SyncData >();
-
-    mpTimer = new QTimer( this );
-    connect( mpTimer, &QTimer::timeout, this, &TimerModel::timeout_function );
-
     IntPropertyType intPropertyType;
     QString propId = "interval";
     intPropertyType.miValue = miMillisecondInterval;
-    mpTimer->setInterval( miMillisecondInterval );
     intPropertyType.miMin = 10;
     intPropertyType.miMax = 1000000000;
     auto propInterval = std::make_shared< TypedProperty< IntPropertyType > > ( "Interval (m)", propId, QMetaType::Int, intPropertyType );
@@ -41,9 +35,26 @@ TimerModel()
 
 void
 TimerModel::
+late_constructor()
+{
+    if( start_late_constructor() )
+    {
+        mpSyncData = std::make_shared<SyncData>( true );
+
+        mpTimer = new QTimer(this);
+        mpTimer->setInterval(miMillisecondInterval);
+        connect(mpTimer, &QTimer::timeout, this, &TimerModel::timeout_function);
+
+        if (isEnable())
+            mpTimer->start();
+    }
+}
+
+void
+TimerModel::
 timeout_function()
 {
-    Q_EMIT dataUpdated( 0 );
+    emitOutputPort(0);
 }
 
 unsigned int
@@ -105,7 +116,6 @@ load( QJsonObject const & p )
             typedProp->getData().miValue = v.toInt();
 
             miMillisecondInterval = v.toInt();
-            mpTimer->setInterval( miMillisecondInterval );
         }
     }
 }
@@ -126,7 +136,8 @@ setModelProperty( QString & id, const QVariant & value )
         typedProp->getData().miValue = value.toInt();
 
         miMillisecondInterval = value.toInt();
-        mpTimer->setInterval( miMillisecondInterval );
+        if( mpTimer )
+            mpTimer->setInterval( miMillisecondInterval );
     }
 }
 
@@ -134,6 +145,11 @@ void
 TimerModel::
 enable_changed( bool enable )
 {
+    PBNodeDelegateModel::enable_changed( enable );
+
+    if( !mpTimer )
+        return;
+
     if( enable )
         mpTimer->start();
     else

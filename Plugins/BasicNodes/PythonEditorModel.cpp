@@ -1,5 +1,17 @@
 //Copyright © 2025 - 2026, NECTEC, all rights reserved
 
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+
+//    http://www.apache.org/licenses/LICENSE-2.0
+
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+
 #include "PythonEditorModel.hpp"
 #include "PythonEditorEmbeddedWidget.hpp"
 #include "CVImageData.hpp"
@@ -13,7 +25,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QDebug>
-#include <QDir>
+#include <QMetaObject>
 #include <algorithm>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/core.hpp>
@@ -59,18 +71,84 @@ PythonEditorModel::PythonEditorModel()
     mvProperty.push_back(propCode);
     mMapIdToProperty[propId] = propCode;
 
-    // Connect widget signals
-        QObject::connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::executeClicked,
-                 this, &PythonEditorModel::onExecutePython);
-        QObject::connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::numInputsChanged,
-                 this, &PythonEditorModel::onNumInputsChanged);
-        QObject::connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::numOutputsChanged,
-                 this, &PythonEditorModel::onNumOutputsChanged);
-        QObject::connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::widgetClicked,
-                 this, &PythonEditorModel::selection_request_signal);
+    FilePathPropertyType filePathPropertyType;
+    filePathPropertyType.msFilename = msPythonExecutable;
+    filePathPropertyType.msFilter = "*";
+    filePathPropertyType.msMode = "open";
 
-        QObject::connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::editableWidgetSelectedChanged,
-                 this, &PBNodeDelegateModel::editable_embedded_widget_selected_changed);
+    propId = "python_executable";
+    auto propExe = std::make_shared<TypedProperty<FilePathPropertyType>>("Python Executable", propId, QtVariantPropertyManager::filePathTypeId(), filePathPropertyType, "Code");
+    mvProperty.push_back(propExe);
+    mMapIdToProperty[propId] = propExe;
+
+    // Connect widget signals
+    connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::executeClicked,
+            this, &PythonEditorModel::onExecutePython);
+    connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::numInputsChanged,
+            this, &PythonEditorModel::onNumInputsChanged);
+    connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::numOutputsChanged,
+            this, &PythonEditorModel::onNumOutputsChanged);
+    connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::widgetClicked,
+            this, &PythonEditorModel::selection_request_signal);
+
+    connect(mpEmbeddedWidget, &PythonEditorEmbeddedWidget::editableWidgetSelectedChanged,
+            this, &PBNodeDelegateModel::editable_embedded_widget_selected_changed);
+}
+
+PythonEditorModel::~PythonEditorModel()
+{
+    if( mpSessionWorker && mpWorkerThread && mpWorkerThread->isRunning() )
+    {
+        QMetaObject::invokeMethod( mpSessionWorker, "stopSession", Qt::BlockingQueuedConnection );
+    }
+
+    if( mpWorkerThread )
+    {
+        mpWorkerThread->quit();
+        mpWorkerThread->wait( 3000 );
+    }
+}
+
+void PythonEditorModel::late_constructor()
+{
+    if( !start_late_constructor() )
+        return;
+
+    mpWorkerThread = new QThread( this );
+    mpSessionWorker = new PythonSessionWorker();
+    mpSessionWorker->moveToThread( mpWorkerThread );
+
+    QObject::connect( mpWorkerThread,
+                      &QThread::finished,
+                      mpSessionWorker,
+                      &QObject::deleteLater );
+
+    QObject::connect( mpSessionWorker,
+                      &PythonSessionWorker::sessionStarted,
+                      this,
+                      &PythonEditorModel::onSessionStarted );
+
+    QObject::connect( mpSessionWorker,
+                      &PythonSessionWorker::sessionFailed,
+                      this,
+                      &PythonEditorModel::onSessionFailed );
+
+    QObject::connect( mpSessionWorker,
+                      &PythonSessionWorker::resultReady,
+                      this,
+                      &PythonEditorModel::onResultReady );
+
+    QObject::connect( mpSessionWorker,
+                      &PythonSessionWorker::executionError,
+                      this,
+                      &PythonEditorModel::onExecutionError );
+
+    mpWorkerThread->start();
+    QMetaObject::invokeMethod( mpSessionWorker,
+                               "setExecutablePath",
+                               Qt::QueuedConnection,
+                               Q_ARG( QString, msPythonExecutable ) );
+    QMetaObject::invokeMethod( mpSessionWorker, "startSession", Qt::QueuedConnection );
 }
 
 unsigned int PythonEditorModel::nPorts(PortType portType) const
@@ -88,7 +166,7 @@ unsigned int PythonEditorModel::nPorts(PortType portType) const
 
 QStringList PythonEditorModel::availablePortTypeNames() const
 {
-    return QStringList({"Image", "Integer", "Double", "String", "Point", "Rect", "Size", "Sync"});
+    return QStringList({"Image", "Integer", "Double", "String", "Point", "Rect", "Size", "Sync", "Info"});
 }
 
 NodeDataType PythonEditorModel::nodeDataTypeFromIndex(int typeIndex) const
@@ -109,6 +187,8 @@ NodeDataType PythonEditorModel::nodeDataTypeFromIndex(int typeIndex) const
         return CVSizeData().type();
     case PortTypeSync:
         return SyncData().type();
+    case PortTypeInfo:
+        return InformationData().type();
     case PortTypeImage:
     default:
         return CVImageData().type();
@@ -118,7 +198,7 @@ NodeDataType PythonEditorModel::nodeDataTypeFromIndex(int typeIndex) const
 int PythonEditorModel::normalizePortTypeIndex(int typeIndex) const
 {
     constexpr int minIndex = static_cast<int>(PortTypeImage);
-    constexpr int maxIndex = static_cast<int>(PortTypeSync);
+    constexpr int maxIndex = static_cast<int>(PortTypeInfo);
     if (typeIndex < minIndex || typeIndex > maxIndex)
         return PortTypeImage;
     return typeIndex;
@@ -274,13 +354,20 @@ void PythonEditorModel::setModelProperty(QString& id, const QVariant& value)
             Q_EMIT embeddedWidgetSizeUpdated();
 
             // Propagate only the changed output port so downstream links refresh immediately.
-            Q_EMIT dataUpdated(static_cast<PortIndex>(index));
+            emitOutputPort(static_cast<PortIndex>(index));
         }
     }
     else if (id == "python_code")
     {
         msPythonCode = value.toString();
         mpEmbeddedWidget->setPythonCode(msPythonCode);
+    }
+    else if (id == "python_executable")
+    {
+        msPythonExecutable = value.toString().trimmed().isEmpty() ? QStringLiteral("python3") : value.toString().trimmed();
+        auto prop = mMapIdToProperty["python_executable"];
+        auto typedProp = std::static_pointer_cast<TypedProperty<FilePathPropertyType>>(prop);
+        typedProp->getData().msFilename = msPythonExecutable;
     }
 }
 
@@ -292,6 +379,7 @@ QJsonObject PythonEditorModel::save() const
     cParams["num_inputs"] = miNumInputs;
     cParams["num_outputs"] = miNumOutputs;
     cParams["python_code"] = mpEmbeddedWidget->getPythonCode();
+    cParams["python_executable"] = msPythonExecutable;
 
     QJsonArray inputTypes;
     for (int typeIndex : mvInputTypeIndices)
@@ -390,6 +478,15 @@ void PythonEditorModel::load(QJsonObject const &p)
             auto typedProp = std::static_pointer_cast<TypedProperty<QString>>(prop);
             typedProp->getData() = msPythonCode;
         }
+
+        v = paramsObj["python_executable"];
+        if (!v.isNull() && !v.toString().trimmed().isEmpty())
+        {
+            msPythonExecutable = v.toString().trimmed();
+            auto prop = mMapIdToProperty["python_executable"];
+            auto typedProp = std::static_pointer_cast<TypedProperty<FilePathPropertyType>>(prop);
+            typedProp->getData().msFilename = msPythonExecutable;
+        }
     }
 }
 
@@ -448,15 +545,100 @@ void PythonEditorModel::onExecutePython()
     auto prop = mMapIdToProperty["python_code"];
     auto typedProp = std::static_pointer_cast<TypedProperty<QString>>(prop);
     typedProp->getData() = msPythonCode;
-    
-    // Execute
+
+    // Force execution for explicit button clicks even when no new input arrived.
+    mbPendingExecution = true;
     executePythonCode();
-    
-    // Emit data updates
-    for (int i = 0; i <= miNumOutputs; ++i)
+}
+
+void PythonEditorModel::onSessionStarted()
+{
+    mbSessionRunning = true;
+
+    if( mbPendingExecution && !mbBusy )
+        executePythonCode();
+}
+
+void PythonEditorModel::onSessionFailed( const QString& errorMessage )
+{
+    mbSessionRunning = false;
+    mbBusy = false;
+
+    mpExecutionInfo->set_information( QStringLiteral( "Session failed: %1" ).arg( errorMessage.left( 420 ) ) );
+    mbExecutionSuccess = false;
+    emitOutputPort( static_cast<PortIndex>( miNumOutputs ) );
+}
+
+void PythonEditorModel::onResultReady( const QString& outputsJson )
+{
+    mbBusy = false;
+
+    QJsonDocument outputsDoc = QJsonDocument::fromJson( outputsJson.toUtf8() );
+    if( !outputsDoc.isObject() )
     {
-        Q_EMIT dataUpdated( i );
+        mpExecutionInfo->set_information( "Error: Invalid output format" );
+        mbExecutionSuccess = false;
+        emitOutputPort( static_cast<PortIndex>( miNumOutputs ) );
+        return;
     }
+
+    const QJsonObject outputsObj = outputsDoc.object();
+    for( int i = 0; i < miNumOutputs; ++i )
+    {
+        const QString key = QStringLiteral( "output" ) + QString::number( i );
+        if( !outputsObj.contains( key ) )
+            continue;
+
+        if( !outputsObj[key].isString() )
+        {
+            mpExecutionInfo->set_information( QStringLiteral( "Error: output%1 payload must be a JSON string" ).arg( i ) );
+            mbExecutionSuccess = false;
+            emitOutputPort( static_cast<PortIndex>( miNumOutputs ) );
+            return;
+        }
+
+        QString errorMessage;
+        if( !deserializeOutputData( i, outputsObj[key].toString(), errorMessage ) )
+        {
+            mpExecutionInfo->set_information( QStringLiteral( "Error: %1" ).arg( errorMessage.left( 450 ) ) );
+            mbExecutionSuccess = false;
+            emitOutputPort( static_cast<PortIndex>( miNumOutputs ) );
+            return;
+        }
+    }
+
+    mpExecutionInfo->set_information( "Execution successful ✓" );
+    mbExecutionSuccess = true;
+
+    for( int i = 0; i <= miNumOutputs; ++i )
+        emitOutputPort( static_cast<PortIndex>( i ) );
+
+    if( mbPendingExecution )
+        executePythonCode();
+}
+
+void PythonEditorModel::onExecutionError( const QString& errorMessage )
+{
+    mbBusy = false;
+
+    mpExecutionInfo->set_information( QStringLiteral( "Execution failed:\n%1" ).arg( errorMessage.left( 460 ) ) );
+    mbExecutionSuccess = false;
+    emitOutputPort( static_cast<PortIndex>( miNumOutputs ) );
+
+    if( mbPendingExecution )
+        executePythonCode();
+}
+
+QString PythonEditorModel::buildInputsJson()
+{
+    QJsonObject inputsJson;
+    for( int i = 0; i < miNumInputs; ++i )
+    {
+        const QString key = QStringLiteral( "input" ) + QString::number( i );
+        inputsJson[key] = serializeInputData( i );
+    }
+
+    return QString::fromUtf8( QJsonDocument( inputsJson ).toJson( QJsonDocument::Compact ) );
 }
 
 QString PythonEditorModel::serializeInputData(int index)
@@ -498,8 +680,17 @@ QString PythonEditorModel::serializeInputData(int index)
     }
     else if (auto strData = std::dynamic_pointer_cast<StdStringData>(data))
     {
+        if (auto infoData = std::dynamic_pointer_cast<InformationData>(data))
+        {
+        json["type"] = "info";
+        json["data"] = infoData->info();
+        json["timestamp"] = static_cast<qint64>(infoData->timestamp());
+        }
+        else
+        {
         json["type"] = "string";
         json["data"] = QString::fromStdString(strData->data());
+        }
     }
     else if (auto pointData = std::dynamic_pointer_cast<CVPointData>(data))
     {
@@ -560,7 +751,7 @@ bool PythonEditorModel::deserializeOutputData(int index, const QString& jsonStr,
         errorMessage = QStringLiteral("Output%1 has no type field").arg(index);
         return false;
     }
-    
+
     if (type == "image")
     {
         // Decode base64 PNG
@@ -595,10 +786,26 @@ bool PythonEditorModel::deserializeOutputData(int index, const QString& jsonStr,
     }
     else if (type == "string")
     {
-        auto strData = std::make_shared<StdStringData>();
-        strData->data() = json["data"].toString().toStdString();
-        mvOutputData[index] = strData;
-        return true;
+        const int expectedTypeIndex = (index >= 0 && index < static_cast<int>(mvOutputTypeIndices.size()))
+                                      ? normalizePortTypeIndex(mvOutputTypeIndices[index])
+                                      : PortTypeImage;
+        if( expectedTypeIndex == PortTypeInfo )
+        {
+            auto infoData = std::make_shared<InformationData>();
+            infoData->set_information(json["data"].toString());
+            mvOutputData[index] = infoData;
+            if (json.contains("timestamp"))
+                infoData->set_timestamp(static_cast<long int>(json["timestamp"].toVariant().toLongLong()));
+            mvOutputData[index] = infoData;
+            return true;
+        }
+        else if( expectedTypeIndex == PortTypeString )
+        {
+            auto strData = std::make_shared<StdStringData>();
+            strData->data() = json["data"].toString().toStdString();
+            mvOutputData[index] = strData;
+            return true;
+        }
     }
     else if (type == "point")
     {
@@ -643,210 +850,52 @@ void PythonEditorModel::executePythonCode()
         return;
     }
 
-    // Create Python script that handles data exchange
-    QString pythonScript = R"(
-import sys
-import json
-import base64
-import numpy as np
-try:
-    import cv2
-    HAS_CV2 = True
-except ImportError:
-    HAS_CV2 = False
-
-# Parse input data
-inputs_json = sys.argv[1] if len(sys.argv) > 1 else '{}'
-num_outputs = int(sys.argv[2]) if len(sys.argv) > 2 else 0
-
-inputs = json.loads(inputs_json)
-
-# Deserialize inputs
-for key, value in inputs.items():
-    if value is None or value == 'null':
-        continue
-    
-    data = json.loads(value)
-    data_type = data.get('type')
-    
-    if data_type == 'image' and HAS_CV2:
-        # Decode image
-        img_data = base64.b64decode(data['data'])
-        nparr = np.frombuffer(img_data, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
-        globals()[key] = img
-    elif data_type == 'double':
-        globals()[key] = float(data['data'])
-    elif data_type == 'int':
-        globals()[key] = int(data['data'])
-    elif data_type == 'string':
-        globals()[key] = str(data['data'])
-    elif data_type == 'point':
-        globals()[key] = {'x': data['x'], 'y': data['y']}
-    elif data_type == 'rect':
-        globals()[key] = {'x': data['x'], 'y': data['y'], 'width': data['width'], 'height': data['height']}
-    elif data_type == 'size':
-        globals()[key] = {'width': data['width'], 'height': data['height']}
-    elif data_type == 'sync':
-        globals()[key] = bool(data['data'])
-
-# User code execution
-try:
-)";
-
-    // Add user code (indented)
-    QStringList lines = msPythonCode.split('\n');
-    for (const QString& line : lines)
+    if( !mpSessionWorker )
     {
-        pythonScript += "    " + line + "\n";
-    }
-
-    pythonScript += R"(
-except Exception as e:
-    print(f"ERROR: {type(e).__name__}: {e}", file=sys.stderr)
-    sys.exit(1)
-
-# Serialize outputs
-outputs = {}
-try:
-    for i in range(num_outputs):
-        output_name = f'output{i}'
-        if output_name in globals():
-            value = globals()[output_name]
-            
-            if HAS_CV2 and isinstance(value, np.ndarray):
-                # Encode image
-                _, buffer = cv2.imencode('.png', value)
-                img_base64 = base64.b64encode(buffer).decode('utf-8')
-                outputs[output_name] = json.dumps({
-                    'type': 'image',
-                    'data': img_base64,
-                    'rows': value.shape[0],
-                    'cols': value.shape[1],
-                    'channels': value.shape[2] if len(value.shape) > 2 else 1,
-                    'dtype': int(value.dtype.num)
-                })
-            elif isinstance(value, (bool, np.bool_)):
-                outputs[output_name] = json.dumps({'type': 'sync', 'data': bool(value)})
-            elif isinstance(value, (int, np.integer)):
-                outputs[output_name] = json.dumps({'type': 'int', 'data': int(value)})
-            elif isinstance(value, (float, np.floating)):
-                outputs[output_name] = json.dumps({'type': 'double', 'data': float(value)})
-            elif isinstance(value, str):
-                outputs[output_name] = json.dumps({'type': 'string', 'data': value})
-            elif isinstance(value, dict):
-                if 'x' in value and 'y' in value and 'width' not in value:
-                    outputs[output_name] = json.dumps({'type': 'point', 'x': value['x'], 'y': value['y']})
-                elif 'x' in value and 'y' in value and 'width' in value and 'height' in value:
-                    outputs[output_name] = json.dumps({'type': 'rect', 'x': value['x'], 'y': value['y'], 'width': value['width'], 'height': value['height']})
-                elif 'width' in value and 'height' in value:
-                    outputs[output_name] = json.dumps({'type': 'size', 'width': value['width'], 'height': value['height']})
-                else:
-                    raise ValueError(f"{output_name} dict format is not supported")
-            else:
-                raise TypeError(f"{output_name} has unsupported type: {type(value).__name__}")
-except Exception as e:
-    print(f"ERROR: {type(e).__name__}: {e}", file=sys.stderr)
-    sys.exit(1)
-
-print(json.dumps(outputs))
-)";
-
-    // Write script to temporary file
-    QTemporaryFile scriptFile;
-    scriptFile.setAutoRemove(true);
-    scriptFile.setFileTemplate(QDir::tempPath() + "/cvdev_python_XXXXXX.py");
-    
-    if (!scriptFile.open())
-    {
-        mpExecutionInfo->set_information("Error: Cannot create temporary script file");
-        mbExecutionSuccess = false;
-        return;
-    }
-    
-    scriptFile.write(pythonScript.toUtf8());
-    scriptFile.flush();
-    QString scriptPath = scriptFile.fileName();
-
-    // Prepare input data JSON
-    QJsonObject inputsJson;
-    for (int i = 0; i < miNumInputs; ++i)
-    {
-        QString key = QStringLiteral("input") + QString::number(i);
-        inputsJson[key] = serializeInputData(i);
-    }
-    QJsonDocument inputsDoc(inputsJson);
-    QString inputsStr = inputsDoc.toJson(QJsonDocument::Compact);
-
-    // Execute Python script
-    QProcess process;
-    QStringList args;
-    args << scriptPath << inputsStr << QString::number(miNumOutputs);
-    
-    process.start("python3", args);
-    
-    if (!process.waitForStarted(3000))
-    {
-        mpExecutionInfo->set_information("Error: Cannot start Python interpreter");
-        mbExecutionSuccess = false;
-        return;
-    }
-    
-    if (!process.waitForFinished(30000)) // 30 second timeout
-    {
-        process.kill();
-        mpExecutionInfo->set_information("Error: Execution timeout (30s)");
+        mpExecutionInfo->set_information( "Error: Python session is not initialized" );
         mbExecutionSuccess = false;
         return;
     }
 
-    // Check for errors
-    QString stderr_output = process.readAllStandardError();
-    if (process.exitCode() != 0 || !stderr_output.isEmpty())
+    const bool codeChanged = ( msPythonCode != msLastExecutedCode );
+    const bool executableChanged = ( msPythonExecutable != msLastSessionExecutable );
+    if( codeChanged || executableChanged )
     {
-        QString errorMsg = "Execution failed:\n" + stderr_output;
-        mpExecutionInfo->set_information(errorMsg.left(500));
-        mbExecutionSuccess = false;
-        qWarning() << "Python execution error:" << stderr_output;
+        msLastExecutedCode = msPythonCode;
+        msLastSessionExecutable = msPythonExecutable;
+        mbSessionRunning = false;
+        mbBusy = false;
+        mbPendingExecution = true;
+
+        QMetaObject::invokeMethod( mpSessionWorker,
+                                   "setExecutablePath",
+                                   Qt::QueuedConnection,
+                                   Q_ARG( QString, msPythonExecutable ) );
+        QMetaObject::invokeMethod( mpSessionWorker, "stopSession", Qt::QueuedConnection );
+        QMetaObject::invokeMethod( mpSessionWorker, "startSession", Qt::QueuedConnection );
         return;
     }
 
-    // Parse outputs
-    QString stdout_output = process.readAllStandardOutput();
-    QJsonDocument outputsDoc = QJsonDocument::fromJson(stdout_output.toUtf8());
-    
-    if (!outputsDoc.isObject())
+    if( !mbSessionRunning )
     {
-        mpExecutionInfo->set_information("Error: Invalid output format");
-        mbExecutionSuccess = false;
+        mbPendingExecution = true;
         return;
     }
 
-    QJsonObject outputsJson = outputsDoc.object();
-    for (int i = 0; i < miNumOutputs; ++i)
+    if( mbBusy )
     {
-        QString key = QStringLiteral("output") + QString::number(i);
-        if (outputsJson.contains(key))
-        {
-            if (!outputsJson[key].isString())
-            {
-                mpExecutionInfo->set_information(QStringLiteral("Error: output%1 payload must be a JSON string").arg(i));
-                mbExecutionSuccess = false;
-                return;
-            }
-
-            QString errorMessage;
-            if (!deserializeOutputData(i, outputsJson[key].toString(), errorMessage))
-            {
-                mpExecutionInfo->set_information(QStringLiteral("Error: %1").arg(errorMessage.left(450)));
-                mbExecutionSuccess = false;
-                return;
-            }
-        }
+        mbPendingExecution = true;
+        return;
     }
 
-    mpExecutionInfo->set_information("Execution successful ✓");
-    mbExecutionSuccess = true;
-    
-    scriptFile.close(); // Auto-removed
+    const QString inputsJson = buildInputsJson();
+    mbBusy = true;
+    mbPendingExecution = false;
+
+    QMetaObject::invokeMethod( mpSessionWorker,
+                               "executeFrame",
+                               Qt::QueuedConnection,
+                               Q_ARG( QString, msPythonCode ),
+                               Q_ARG( QString, inputsJson ),
+                               Q_ARG( int, miNumOutputs ) );
 }

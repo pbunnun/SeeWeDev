@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
 #include <QClipboard>
 #include <QApplication>
 #include <QUuid>
+#include <QSysInfo>
 #include <QInputDialog>
 #include <QColorDialog>
 #include <QtNodes/DataFlowGraphicsScene>
@@ -42,7 +43,14 @@
 #include <QSettings>
 #include <QDate>
 #include <QStandardPaths>
+#include <QPointer>
+#include <QProcess>
 #include <QUndoStack>
+#include <QLabel>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include "MainWindow.hpp"
 
 #include "PluginInterface.hpp"
@@ -50,6 +58,12 @@
 #include "PBFlowGraphicsView.hpp"
 #include "PropertyChangeCommand.hpp"
 #include "GroupCommands.hpp"
+#include "CycloneDDSBridge.hpp"
+#include "CycloneDDSSettingsDialog.hpp"
+#include "TransportModeManager.hpp"
+#include "ZenohBridge.hpp"
+#include "NodeDataSerializer.hpp"
+#include "ZenohSettingsDialog.hpp"
 #include "PBNodeGroup.hpp"
 #include "PBNodeGroupGraphicsItem.hpp"
 #include "PBDataFlowGraphicsScene.hpp"
@@ -77,6 +91,10 @@ MainWindow::MainWindow( QWidget *parent )
     , ui( new Ui::MainWindow )
 {
     ui->setupUi( this );
+
+    mpTransportModeStatusLabel = new QLabel(this);
+    mpTransportModeStatusLabel->setObjectName("transportModeStatusBadge");
+    statusBar()->addPermanentWidget(mpTransportModeStatusLabel);
 
     // Show a visual shortcut hint in the Edit menu for Copy/Cut/Paste/Delete
     // without assigning the actual shortcut to the menu action (to avoid duplicate triggers).
@@ -142,6 +160,7 @@ MainWindow::MainWindow( QWidget *parent )
     // Manual signal-slot connections for actions (instead of auto-connect)
     connect( ui->mpActionNew, &QAction::triggered, this, &MainWindow::actionNew_slot );
     connect( ui->mpActionSave, &QAction::triggered, this, &MainWindow::actionSave_slot );
+    connect( ui->mpActionSaveAll, &QAction::triggered, this, &MainWindow::actionSaveAll_slot );
     connect( ui->mpActionLoad, &QAction::triggered, this, &MainWindow::actionLoad_slot );
     connect( ui->mpActionQuit, &QAction::triggered, this, &MainWindow::actionQuit_slot );
     connect( ui->mpActionSaveAs, &QAction::triggered, this, &MainWindow::actionSaveAs_slot );
@@ -192,6 +211,30 @@ MainWindow::MainWindow( QWidget *parent )
 
     connect( ui->mpActionAbout, &QAction::triggered, this, &MainWindow::actionAbout_slot );
     
+    connect( ui->mpActionZenohSettings, &QAction::triggered, this, &MainWindow::openZenohSettings );
+    connect( ui->mpActionCycloneDDSSettings, &QAction::triggered, this, &MainWindow::openCycloneDDSSettings );
+
+    mpOperationModeActionGroup = new QActionGroup(this);
+    mpOperationModeActionGroup->setExclusive(true);
+    mpOperationModeActionGroup->addAction(ui->mpActionModeQt);
+    mpOperationModeActionGroup->addAction(ui->mpActionModeZenoh);
+    mpOperationModeActionGroup->addAction(ui->mpActionModeCycloneDDS);
+
+#ifndef ZENOH_ENABLED
+    ui->mpActionModeZenoh->setEnabled(false);
+    ui->mpActionModeZenoh->setToolTip(tr("Zenoh support was disabled at compile time because its library was missing."));
+#endif
+
+#ifndef CYCLONEDDS_ENABLED
+    ui->mpActionModeCycloneDDS->setEnabled(false);
+    ui->mpActionModeCycloneDDS->setToolTip(tr("CycloneDDS support was disabled at compile time because its library was missing."));
+#endif
+
+
+    connect(mpOperationModeActionGroup,
+        &QActionGroup::triggered,
+        this,
+        &MainWindow::onOperationModeTriggered);
 
     // Group actions
     connect( ui->mpActionGroupNodes, &QAction::triggered, this, &MainWindow::actionGroupSelectedNodes_slot );
@@ -203,6 +246,128 @@ MainWindow::MainWindow( QWidget *parent )
 
     showMaximized();
 
+    // msSettingFilename is set later in loadSettings(), so compute the path directly here.
+    msSettingFilename = CVDev::cvdevIniPath();
+    QSettings settings(msSettingFilename, QSettings::IniFormat);
+
+    // Set start up transport mode
+    QString transportMode = settings.value("transport_mode", QString::fromLatin1(kTransportModeQtOnly)).toString();
+
+    const auto startupMode = TransportModeManager::transportModeFromSetting(transportMode);
+    TransportModeManager::instance().setTransportMode(startupMode);
+    syncOperationModeMenu(startupMode);
+    updateTransportModeStatusBadge();
+    nodeChanged();
+
+    QString computerId = settings.value("computer_id", "").toString().trimmed();
+    if (computerId.isEmpty()) {
+        computerId = QSysInfo::machineHostName();
+    }
+    
+    settings.beginGroup("Zenoh");
+    QString mode = settings.value("mode", "").toString();
+    QString connect = settings.value("connect", "").toString();
+    QString listen = settings.value("listen", "").toString();
+    bool multicast = settings.value("multicast", true).toBool();
+    bool sharedMemory = settings.value("sharedMemory", true).toBool();
+    settings.endGroup();
+    
+    // Build configuration string if custom settings exist
+    QString zenohConfig;
+    if (!mode.isEmpty() && mode != "peer") {
+        // Only build config if non-default settings exist
+        QStringList configLines;
+        configLines << "{";
+        configLines << QString("  mode: \"%1\",").arg(mode);
+        
+        if (!connect.isEmpty()) {
+            QStringList endpoints = connect.split(',', Qt::SkipEmptyParts);
+            configLines << "  connect: {";
+            configLines << "    endpoints: [";
+            for (int i = 0; i < endpoints.size(); ++i) {
+                QString ep = endpoints[i].trimmed();
+                configLines << QString("      \"%1\"%2").arg(ep).arg(i < endpoints.size() - 1 ? "," : "");
+            }
+            configLines << "    ]";
+            configLines << "  },";
+        }
+        
+        if (!listen.isEmpty()) {
+            QStringList endpoints = listen.split(',', Qt::SkipEmptyParts);
+            configLines << "  listen: {";
+            configLines << "    endpoints: [";
+            for (int i = 0; i < endpoints.size(); ++i) {
+                QString ep = endpoints[i].trimmed();
+                configLines << QString("      \"%1\"%2").arg(ep).arg(i < endpoints.size() - 1 ? "," : "");
+            }
+            configLines << "    ]";
+            configLines << "  },";
+        }
+        
+        configLines << "  scouting: {";
+        configLines << "    multicast: {";
+        configLines << QString("      enabled: %1").arg(multicast ? "true" : "false");
+        configLines << "    }";
+        configLines << "  },";
+        
+        configLines << "  transport: {";
+        configLines << "    shared_memory: {";
+        configLines << QString("      enabled: %1").arg(sharedMemory ? "true" : "false");
+        configLines << "    }";
+        configLines << "  }";
+        
+        configLines << "}";
+        zenohConfig = configLines.join("\n");
+    }
+    
+    if (ZenohBridge::instance().initialize(computerId, zenohConfig)) {
+        qInfo() << "[MainWindow] Zenoh initialized successfully with computer ID:" << computerId;
+        if (!zenohConfig.isEmpty()) {
+            qInfo() << "[MainWindow] Using custom Zenoh configuration";
+        }
+    } else {
+        if (requiresZenoh(TransportModeManager::instance().getTransportMode())) {
+            qInfo() << "[MainWindow] Zenoh not available - running in Qt-only mode";
+            TransportModeManager::instance().setTransportMode(TransportMode::QtOnly);
+            syncOperationModeMenu(TransportMode::QtOnly);
+            updateTransportModeStatusBadge();
+
+            QSettings saveSettings(msSettingFilename, QSettings::IniFormat);
+            saveSettings.setValue("transport_mode", TransportModeManager::settingFromTransportMode(TransportMode::QtOnly));
+
+            QMessageBox::warning(this,
+                                 "Zenoh Transport Unavailable",
+                                 "Transport mode was set to Zenoh, but Zenoh failed to initialize.\n"
+                                 "The application has fallen back to Qt for this session.");
+        }
+    }
+
+    QSettings cycloneddsSettings(msSettingFilename, QSettings::IniFormat);
+    cycloneddsSettings.beginGroup("CycloneDDS");
+    const int domainId = cycloneddsSettings.value("domain_id", 0).toInt();
+    const QString partition = cycloneddsSettings.value("partition", "").toString();
+    cycloneddsSettings.endGroup();
+
+    if (CycloneDDSBridge::instance().initialize(computerId, domainId, partition)) {
+        qInfo() << "[MainWindow] CycloneDDS initialized successfully";
+    } else {
+        if (requiresDDS(TransportModeManager::instance().getTransportMode())) {
+            qInfo() << "[MainWindow] CycloneDDS not available - running in Qt-only mode";
+            TransportModeManager::instance().setTransportMode(TransportMode::QtOnly);
+            syncOperationModeMenu(TransportMode::QtOnly);
+            updateTransportModeStatusBadge();
+
+            QSettings saveSettings(msSettingFilename, QSettings::IniFormat);
+            saveSettings.setValue("transport_mode", TransportModeManager::settingFromTransportMode(TransportMode::QtOnly));
+
+            QMessageBox::warning(this,
+                                 "CycloneDDS Transport Unavailable",
+                                 "Transport mode was set to CycloneDDS, but CycloneDDS failed to initialize.\n"
+                                 "The application has fallen back to Qt for this session.");
+        }
+    }
+    updateTransportModeStatusBadge();
+    nodeChanged();
     // Defer plugin loading + settings restore slightly so the window shows fast.
     // We must load plugins BEFORE restoring previous scenes (loadSettings),
     // otherwise scene nodes from plugins won't be recognized. Use a short delay
@@ -211,7 +376,7 @@ MainWindow::MainWindow( QWidget *parent )
     QApplication::processEvents();
     QTimer::singleShot(1, this, [this]() {
         DEBUG_LOG_INFO() << "[MainWindow] Deferred plugin loading starting...";
-        load_plugins(mpDelegateModelRegistry, mPluginsList);
+        PluginInterfaceUtils::load_plugins(mpDelegateModelRegistry, mPluginsList);
         updateNodeCategoriesDockingWidget();
         DEBUG_LOG_INFO() << "[MainWindow] Deferred plugin loading completed. Restoring settings...";
         statusBar()->showMessage("Loading scene...");
@@ -225,9 +390,18 @@ MainWindow::MainWindow( QWidget *parent )
 MainWindow::
 ~MainWindow()
 {
+    // Shutdown Zenoh session before cleaning up scenes
+    qInfo() << "[MainWindow] Shutting down Zenoh...";
+    ZenohBridge::instance().shutdown();
+    CycloneDDSBridge::instance().shutdown();
+
+    // Proper cleanup order is critical
+    // Delete in reverse order of creation: view -> scene -> model
     while( !mlSceneProperty.empty() )
     {
         struct SceneProperty sceneProperty = mlSceneProperty.back();
+
+        removeZenohRoutesForModel(sceneProperty.pDataFlowGraphModel);
 
         // Delete view first (it references the scene)
         delete sceneProperty.pFlowGraphicsView;
@@ -345,6 +519,10 @@ nodeInSceneSelectionChanged()
                 this, SLOT( nodeInSceneSelectionChanged() ) );
 
         auto propertyVector = selectedNodeDelegateModel->getProperty();
+        const bool isReadOnlyScene = (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->bReadOnly);
+        auto setReadOnlyAttr = [isReadOnlyScene](QtVariantProperty *prop, bool propertyReadOnly) {
+            prop->setAttribute("readOnly", propertyReadOnly || isReadOnlyScene);
+        };
 
         // Block signals while populating property browser to prevent spurious editorPropertyChanged() calls
         mpVariantManager->blockSignals(true);
@@ -374,7 +552,7 @@ nodeInSceneSelectionChanged()
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( typedProp->getData() );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -385,7 +563,7 @@ nodeInSceneSelectionChanged()
                 IntPropertyType intPropType = typedProp->getData();
                 property->setAttribute( QLatin1String( "minimum" ), intPropType.miMin );
                 property->setAttribute( QLatin1String( "maximum" ), intPropType.miMax );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( intPropType.miValue );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -396,7 +574,7 @@ nodeInSceneSelectionChanged()
                 DoublePropertyType doublePropType = typedProp->getData();
                 property->setAttribute( QLatin1String( "minimum" ), doublePropType.mdMin );
                 property->setAttribute( QLatin1String( "maximum" ), doublePropType.mdMax );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( doublePropType.mdValue );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -405,7 +583,7 @@ nodeInSceneSelectionChanged()
                 auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
                 property->setAttribute( QLatin1String( "enumNames" ), typedProp->getData().mslEnumNames );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( typedProp->getData().miCurrentIndex );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -414,7 +592,7 @@ nodeInSceneSelectionChanged()
                 auto typedProp = std::static_pointer_cast< TypedProperty< bool >>( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
                 property->setAttribute( QLatin1String( "textVisible" ), false );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( typedProp->getData() );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -424,15 +602,22 @@ nodeInSceneSelectionChanged()
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
                 property->setAttribute( QLatin1String( "filter" ), typedProp->getData().msFilter );
                 property->setAttribute( QLatin1String( "mode" ), typedProp->getData().msMode );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( typedProp->getData().msFilename );
+
+                if( !typedProp->getData().msDescriptionToolTip.isEmpty() )
+                    property->setDescriptionToolTip( typedProp->getData().msDescriptionToolTip );
+
+                if( !typedProp->getData().msValueToolTip.isEmpty() )
+                    property->setValueToolTip( typedProp->getData().msValueToolTip );
+
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
             else if( type == QtVariantPropertyManager::pathTypeId() )
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( typedProp->getData().msPath );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -440,7 +625,7 @@ nodeInSceneSelectionChanged()
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( QSize( typedProp->getData().miWidth, typedProp->getData().miHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -448,7 +633,7 @@ nodeInSceneSelectionChanged()
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< SizeFPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( QSizeF( typedProp->getData().mfWidth, typedProp->getData().mfHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -457,7 +642,7 @@ nodeInSceneSelectionChanged()
                 auto typedProp = std::static_pointer_cast< TypedProperty< RectPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
                 property->setAttribute( QLatin1String( "constraint" ), QRect(0, 0, INT_MAX, INT_MAX) );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( QRect( typedProp->getData().miXPosition, typedProp->getData().miYPosition, typedProp->getData().miWidth, typedProp->getData().miHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -469,7 +654,7 @@ nodeInSceneSelectionChanged()
                 const auto& pointData = typedProp->getData();
                 property->setAttribute( QLatin1String( "minimum" ), QPoint(pointData.miXMin, pointData.miYMin) );
                 property->setAttribute( QLatin1String( "maximum" ), QPoint(pointData.miXMax, pointData.miYMax) );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( QPoint( pointData.miXPosition, pointData.miYPosition ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -481,7 +666,7 @@ nodeInSceneSelectionChanged()
                 const auto& pointData = typedProp->getData();
                 property->setAttribute( QLatin1String( "minimum" ), QPointF(pointData.mfXMin, pointData.mfYMin) );
                 property->setAttribute( QLatin1String( "maximum" ), QPointF(pointData.mfXMax, pointData.mfYMax) );
-                property->setAttribute( "readOnly", typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->isReadOnly());
                 property->setValue( QPointF( pointData.mfXPosition, pointData.mfYPosition ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -799,6 +984,12 @@ editorPropertyChanged(QtProperty * property, const QVariant & value)
         return;
     }
 
+    if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->bReadOnly)
+    {
+        DEBUG_LOG_INFO() << "[editorPropertyChanged] Scene is read-only, skipping";
+        return;
+    }
+
     // Get the currently selected node at runtime instead of relying on stored selection
     // This prevents issues when undo/redo affects different nodes
     PBFlowGraphicsView* view = getCurrentView();
@@ -863,6 +1054,11 @@ nodePropertyChanged( std::shared_ptr< Property > prop)
 {
     DEBUG_LOG_INFO() << "[nodePropertyChanged] propertyId:" << prop->getID() 
             << "propertyName:" << prop->getName();
+
+    const bool isReadOnlyScene = (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->bReadOnly);
+    auto setReadOnlyAttr = [isReadOnlyScene](QtVariantProperty *property, bool propertyReadOnly) {
+        property->setAttribute("readOnly", propertyReadOnly || isReadOnlyScene);
+    };
     
     // Block undo command creation while updating Property Browser from model changes
     mbApplyingUndoRedo = true;
@@ -877,75 +1073,82 @@ nodePropertyChanged( std::shared_ptr< Property > prop)
         mbApplyingUndoRedo = false;
         return;
     }
-    
-    DEBUG_LOG_INFO() << "[nodePropertyChanged] Updating Property Browser UI";
-    
+     
     auto property = static_cast< QtVariantProperty * >( mMapPropertyIdToQtProperty[ id ] );
     auto type = prop->getType();
+
+    DEBUG_LOG_INFO() << "[nodePropertyChanged] Updating Property Browser UI" << id << type;
 
     if( type == QMetaType::QString )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         property->setValue( typedProp->getData() );
     }
     else if( type == QMetaType::Int )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         property->setValue( typedProp->getData().miValue );
     }
     else if( type == QtVariantPropertyManager::enumTypeId() )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         property->setValue( typedProp->getData().miCurrentIndex );
     }
     else if( type == QMetaType::Bool )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         property->setValue( typedProp->getData() );
     }
     else if( type == QtVariantPropertyManager::filePathTypeId() )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< FilePathPropertyType > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         property->setValue( typedProp->getData().msFilename );
     }
     else if( type == QtVariantPropertyManager::pathTypeId() )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         property->setValue( typedProp->getData().msPath );
     }
     else if( type == QMetaType::QSize )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         auto size = QSize( typedProp->getData().miWidth, typedProp->getData().miHeight );
         property->setValue( size );
     }
     else if( type == QMetaType::QSizeF )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< SizeFPropertyType > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         auto sizef = QSizeF( typedProp->getData().mfWidth, typedProp->getData().mfHeight );
         property->setValue( sizef );
     }
     else if( type == QMetaType::QPoint )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         auto point = QPoint( typedProp->getData().miXPosition, typedProp->getData().miYPosition );
         property->setValue( point );
     }
     else if( type == QMetaType::QPointF )
     {
         auto typedProp = std::static_pointer_cast< TypedProperty< PointFPropertyType > >( prop );
-        property->setAttribute( "readOnly", typedProp->isReadOnly() );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
         auto pointf = QPointF( typedProp->getData().mfXPosition, typedProp->getData().mfYPosition );
         property->setValue( pointf );
+    }
+    else if( type == QMetaType::QRect)
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< RectPropertyType > >( prop );
+        setReadOnlyAttr(property, typedProp->isReadOnly());
+        auto rect = QRect( typedProp->getData().miXPosition, typedProp->getData().miYPosition, typedProp->getData().miWidth, typedProp->getData().miHeight );
+        property->setValue( rect );
     }
     
     DEBUG_LOG_INFO() << "[nodePropertyChanged] Property Browser UI updated, re-enabling undo command creation";
@@ -1192,6 +1395,520 @@ groupDissolved( GroupId groupId )
     removeFromGroupTree(groupId);
 }
 
+QString
+MainWindow::
+makeTransportSourceKey(const QString& sourceNodeId, PortIndex outPortIndex) const
+{
+    return QString("%1:%2").arg(sourceNodeId).arg(outPortIndex);
+}
+
+void
+MainWindow::
+removeZenohRoutesForModel(PBDataFlowGraphModel* model)
+{
+    if (!model) {
+        return;
+    }
+
+    QMap<QString, QVector<TransportRouteTarget>> cleaned;
+
+    for (auto it = mTransportRoutesBySource.begin(); it != mTransportRoutesBySource.end(); ++it) {
+        QVector<TransportRouteTarget> keptTargets;
+        for (const auto& target : it.value()) {
+            if (target.model != model) {
+                keptTargets.push_back(target);
+            }
+        }
+
+        if (!keptTargets.isEmpty()) {
+            cleaned[it.key()] = keptTargets;
+            continue;
+        }
+
+        const QStringList parts = it.key().split(':');
+        if (parts.size() == 2) {
+            bool ok = false;
+            int outPort = parts[1].toInt(&ok);
+            if (ok) {
+                ZenohBridge::instance().unsubscribe(parts[0], outPort, model->transportFlowFilename());
+            }
+        }
+    }
+
+    mTransportRoutesBySource.swap(cleaned);
+}
+
+void
+MainWindow::
+onConnectionCreated( QtNodes::ConnectionId connectionId )
+{
+    const auto mode = TransportModeManager::instance().getTransportMode();
+    const bool useZenohTransport = (mode == TransportMode::ZenohOnly);
+    const bool useCycloneDDSTransport = (mode == TransportMode::CycloneDDSOnly);
+
+    if (!useZenohTransport && !useCycloneDDSTransport) {
+        return;
+    }
+
+    // Get current model
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model) {
+        return;
+    }
+
+    // Get source and target nodes
+    NodeId outNodeId = connectionId.outNodeId;
+    NodeId inNodeId = connectionId.inNodeId;
+    PortIndex outPortIndex = connectionId.outPortIndex;
+    PortIndex inPortIndex = connectionId.inPortIndex;
+
+    // Get node delegate models
+    auto outNode = dynamic_cast<PBNodeDelegateModel*>(model->delegateModel<PBNodeDelegateModel>(outNodeId));
+    auto inNode = dynamic_cast<PBNodeDelegateModel*>(model->delegateModel<PBNodeDelegateModel>(inNodeId));
+
+    if (!outNode || !inNode) {
+        return;
+    }
+
+    const QString sourceNodeId = outNode->getNodeId();
+    const QString sourceKey = makeTransportSourceKey(sourceNodeId, outPortIndex);
+
+    auto& routeTargets = mTransportRoutesBySource[sourceKey];
+    bool alreadyRouted = false;
+    for (const auto& target : routeTargets) {
+        if (target.model == model &&
+            target.inNodeId == inNodeId &&
+            target.inPortIndex == inPortIndex) {
+            alreadyRouted = true;
+            break;
+        }
+    }
+
+    if (!alreadyRouted) {
+        TransportRouteTarget target;
+        target.model = model;
+        target.inNodeId = inNodeId;
+        target.inPortIndex = inPortIndex;
+        routeTargets.push_back(target);
+    }
+
+    // Subscribe once per source key and fan out in-process to all targets.
+    if (routeTargets.size() == 1) {
+        QPointer<MainWindow> weakThis(this);
+        auto callback = [weakThis, sourceKey](std::shared_ptr<QtNodes::NodeData> data) {
+            QObject* target = qApp ? static_cast<QObject*>(qApp) : static_cast<QObject*>(weakThis.data());
+            if (!target) {
+                return;
+            }
+
+            QMetaObject::invokeMethod(target, [weakThis, sourceKey, data]() {
+                if (!weakThis) {
+                    return;
+                }
+
+                auto it = weakThis->mTransportRoutesBySource.find(sourceKey);
+                if (it == weakThis->mTransportRoutesBySource.end() || !data) {
+                    return;
+                }
+
+                const auto targets = it.value();
+                for (const auto& target : targets) {
+                    if (!target.model) {
+                        continue;
+                    }
+
+                    auto targetNode = dynamic_cast<PBNodeDelegateModel*>(
+                        target.model->delegateModel<PBNodeDelegateModel>(target.inNodeId));
+                    if (targetNode) {
+                        targetNode->setInData(data, target.inPortIndex);
+                    }
+                }
+            }, Qt::QueuedConnection);
+        };
+
+        if (useZenohTransport) {
+            if (ZenohBridge::instance().subscribe(sourceNodeId,
+                                 static_cast<int>(outPortIndex),
+                                 callback,
+                                 model->transportFlowFilename())) {
+                qInfo() << "[MainWindow] Zenoh subscription created:"
+                        << sourceNodeId << "port" << outPortIndex;
+            } else {
+                mTransportRoutesBySource.remove(sourceKey);
+            }
+            return;
+        }
+
+        const QString topicName = TransportModeManager::makeTransportOutputTopicKey(
+            CycloneDDSBridge::instance().getComputerId(),
+            model->transportFlowFilename(),
+            sourceNodeId,
+            outPortIndex);
+
+        QPointer<MainWindow> weakThisRaw(this);
+        auto rawCallback = [weakThisRaw, sourceKey](const QByteArray& payload) {
+            QObject* target = qApp ? static_cast<QObject*>(qApp) : static_cast<QObject*>(weakThisRaw.data());
+            if (!target) {
+                return;
+            }
+
+            QMetaObject::invokeMethod(target, [weakThisRaw, sourceKey, payload]() {
+                if (!weakThisRaw) {
+                    return;
+                }
+
+                auto it = weakThisRaw->mTransportRoutesBySource.find(sourceKey);
+                if (it == weakThisRaw->mTransportRoutesBySource.end() || payload.isEmpty()) {
+                    return;
+                }
+
+                const auto data = NodeDataSerializer::deserialize(payload);
+                if (!data) {
+                    return;
+                }
+
+                const auto targets = it.value();
+                for (const auto& targetRoute : targets) {
+                    if (!targetRoute.model) {
+                        continue;
+                    }
+
+                    auto targetNode = dynamic_cast<PBNodeDelegateModel*>(
+                        targetRoute.model->delegateModel<PBNodeDelegateModel>(targetRoute.inNodeId));
+                    if (targetNode) {
+                        targetNode->setInData(data, targetRoute.inPortIndex);
+                    }
+                }
+            }, Qt::QueuedConnection);
+        };
+
+        if (CycloneDDSBridge::instance().subscribeRaw(topicName, rawCallback)) {
+            qInfo() << "[MainWindow] CycloneDDS subscription created:"
+                    << sourceNodeId << "port" << outPortIndex;
+        } else {
+            mTransportRoutesBySource.remove(sourceKey);
+        }
+    }
+}
+
+void
+MainWindow::
+onConnectionDeleted( QtNodes::ConnectionId connectionId )
+{
+    const auto mode = TransportModeManager::instance().getTransportMode();
+    const bool useZenohTransport = (mode == TransportMode::ZenohOnly);
+    const bool useCycloneDDSTransport = (mode == TransportMode::CycloneDDSOnly);
+
+    if (!useZenohTransport && !useCycloneDDSTransport) {
+        return;
+    }
+
+    // Get current model
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model) {
+        return;
+    }
+
+    // Get source node
+    NodeId outNodeId = connectionId.outNodeId;
+    PortIndex outPortIndex = connectionId.outPortIndex;
+
+    auto outNode = dynamic_cast<PBNodeDelegateModel*>(model->delegateModel<PBNodeDelegateModel>(outNodeId));
+    if (!outNode) {
+        return;
+    }
+
+    NodeId inNodeId = connectionId.inNodeId;
+    PortIndex inPortIndex = connectionId.inPortIndex;
+    QString sourceNodeId = outNode->getNodeId();
+    QString sourceKey = makeTransportSourceKey(sourceNodeId, outPortIndex);
+
+    auto it = mTransportRoutesBySource.find(sourceKey);
+    if (it == mTransportRoutesBySource.end()) {
+        return;
+    }
+
+    auto& routeTargets = it.value();
+    for (int i = routeTargets.size() - 1; i >= 0; --i) {
+        const auto& target = routeTargets[i];
+        if (target.model == model &&
+            target.inNodeId == inNodeId &&
+            target.inPortIndex == inPortIndex) {
+            routeTargets.remove(i);
+        }
+    }
+
+    if (routeTargets.isEmpty()) {
+        if (useZenohTransport) {
+            ZenohBridge::instance().unsubscribe(sourceNodeId,
+                               static_cast<int>(outPortIndex),
+                               model->transportFlowFilename());
+        } else {
+            const QString topicName = TransportModeManager::makeTransportOutputTopicKey(
+                CycloneDDSBridge::instance().getComputerId(),
+                model->transportFlowFilename(),
+                sourceNodeId,
+                outPortIndex);
+            CycloneDDSBridge::instance().unsubscribeRaw(topicName);
+        }
+        mTransportRoutesBySource.remove(sourceKey);
+
+        qInfo() << "[MainWindow] Transport subscription removed:"
+                << sourceNodeId << "port" << outPortIndex;
+    }
+}
+
+void
+MainWindow::
+openZenohSettings()
+{
+    QSettings before(msSettingFilename, QSettings::IniFormat);
+    before.beginGroup("Zenoh");
+    const QString oldApplicationId = before.value("application_id", QSysInfo::machineHostName()).toString();
+    const QString oldMode = before.value("mode", "peer").toString();
+    const QString oldConnect = before.value("connect", "").toString();
+    const QString oldListen = before.value("listen", "").toString();
+    const bool oldMulticast = before.value("multicast", true).toBool();
+    const bool oldSharedMemory = before.value("sharedMemory", true).toBool();
+    before.endGroup();
+
+    ZenohSettingsDialog dialog(this);
+    
+    if (dialog.exec() == QDialog::Accepted) {
+        QSettings after(msSettingFilename, QSettings::IniFormat);
+        after.beginGroup("Zenoh");
+        const QString newApplicationId = after.value("application_id", QSysInfo::machineHostName()).toString();
+        const QString newMode = after.value("mode", "peer").toString();
+        const QString newConnect = after.value("connect", "").toString();
+        const QString newListen = after.value("listen", "").toString();
+        const bool newMulticast = after.value("multicast", true).toBool();
+        const bool newSharedMemory = after.value("sharedMemory", true).toBool();
+        after.endGroup();
+
+        const bool zenohRuntimeConfigChanged =
+            (oldApplicationId != newApplicationId) ||
+            (oldMode != newMode) ||
+            (oldConnect != newConnect) ||
+            (oldListen != newListen) ||
+            (oldMulticast != newMulticast) ||
+            (oldSharedMemory != newSharedMemory);
+
+        if (!zenohRuntimeConfigChanged) {
+            return;
+        }
+
+        const QString restartMessage =
+            "Zenoh runtime configuration changed (application ID and/or connection settings).\n\n"
+            "These changes require restart to fully reinitialize Zenoh.\n\n"
+            "Restart now?";
+
+        const auto reply = QMessageBox::warning(this,
+                                                "Restart Required",
+                                                restartMessage,
+                                                QMessageBox::Yes | QMessageBox::No,
+                                                QMessageBox::Yes);
+
+        if (reply == QMessageBox::Yes) {
+            mbRestartAfterClose = true;
+            close();
+        } else {
+            qInfo() << "[MainWindow] Zenoh runtime settings changed. User deferred restart.";
+        }
+    }
+}
+
+void
+MainWindow::
+openCycloneDDSSettings()
+{
+    QSettings before(msSettingFilename, QSettings::IniFormat);
+    before.beginGroup("CycloneDDS");
+    const QString oldApplicationId = before.value("application_id", QSysInfo::machineHostName()).toString();
+    const int oldDomainId = before.value("domain_id", 0).toInt();
+    const QString oldPartition = before.value("partition", "").toString();
+    before.endGroup();
+
+    CycloneDDSSettingsDialog dialog(this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    QSettings after(msSettingFilename, QSettings::IniFormat);
+    after.beginGroup("CycloneDDS");
+    const QString newApplicationId = after.value("application_id", QSysInfo::machineHostName()).toString();
+    const int newDomainId = after.value("domain_id", 0).toInt();
+    const QString newPartition = after.value("partition", "").toString();
+    after.endGroup();
+
+    const bool ddsRuntimeConfigChanged =
+        (oldApplicationId != newApplicationId) ||
+        (oldDomainId != newDomainId) ||
+        (oldPartition != newPartition);
+
+    if (!ddsRuntimeConfigChanged) {
+        return;
+    }
+
+    const QString restartMessage =
+        "CycloneDDS runtime configuration changed.\n\n"
+        "These changes require restart to fully reinitialize CycloneDDS.\n\n"
+        "Restart now?";
+
+    const auto reply = QMessageBox::warning(this,
+                                            "Restart Required",
+                                            restartMessage,
+                                            QMessageBox::Yes | QMessageBox::No,
+                                            QMessageBox::Yes);
+
+    if (reply == QMessageBox::Yes) {
+        mbRestartAfterClose = true;
+        close();
+    }
+}
+
+void
+MainWindow::
+onOperationModeTriggered(QAction *action)
+{
+    if (!action) {
+        return;
+    }
+
+    TransportMode newMode = TransportMode::QtOnly;
+    if (action == ui->mpActionModeZenoh) {
+        newMode = TransportMode::ZenohOnly;
+    } else if (action == ui->mpActionModeCycloneDDS) {
+        newMode = TransportMode::CycloneDDSOnly;
+    }
+
+    QSettings settings(msSettingFilename, QSettings::IniFormat);
+    settings.setValue("transport_mode", TransportModeManager::settingFromTransportMode(newMode));
+
+    TransportModeManager::instance().setTransportMode(newMode);
+
+    if (requiresDDS(newMode)) {
+        settings.beginGroup("CycloneDDS");
+        QString appId = settings.value("application_id", QSysInfo::machineHostName()).toString();
+        const int domainId = settings.value("domain_id", 0).toInt();
+        const QString partition = settings.value("partition", "").toString();
+        settings.endGroup();
+        if (appId.isEmpty()) {
+            appId = QSysInfo::machineHostName();
+        }
+        CycloneDDSBridge::instance().initialize(appId, domainId, partition);
+    }
+
+    updateTransportModeStatusBadge();
+    nodeChanged();
+
+    const QString restartMessage =
+        "Operation mode changed.\n\n"
+        "Restart now to fully apply transport runtime changes?";
+
+    const auto reply = QMessageBox::warning(this,
+                                            "Restart Required",
+                                            restartMessage,
+                                            QMessageBox::Yes | QMessageBox::No,
+                                            QMessageBox::Yes);
+    if (reply == QMessageBox::Yes) {
+        mbRestartAfterClose = true;
+        close();
+    }
+}
+
+void
+MainWindow::
+syncOperationModeMenu(TransportMode mode)
+{
+    if (!mpOperationModeActionGroup) {
+        return;
+    }
+
+    QAction* actionToCheck = ui->mpActionModeQt;
+    switch (mode) {
+    case TransportMode::ZenohOnly:
+        actionToCheck = ui->mpActionModeZenoh;
+        break;
+    case TransportMode::CycloneDDSOnly:
+        actionToCheck = ui->mpActionModeCycloneDDS;
+        break;
+
+    case TransportMode::QtOnly:
+    default:
+        actionToCheck = ui->mpActionModeQt;
+        break;
+    }
+    actionToCheck->setChecked(true);
+}
+
+void
+MainWindow::
+updateTransportModeStatusBadge()
+{
+    if (!mpTransportModeStatusLabel) {
+        return;
+    }
+
+    const auto mode = TransportModeManager::instance().getTransportMode();
+    const bool isZenohOnly = (mode == TransportMode::ZenohOnly);
+    const bool isCycloneDDSOnly = (mode == TransportMode::CycloneDDSOnly);
+    const bool zenohReady = ZenohBridge::instance().isInitialized();
+    const bool ddsReady = CycloneDDSBridge::instance().isInitialized();
+
+    const QString modeText = isZenohOnly ? "Zenoh"
+                         : (isCycloneDDSOnly ? "CycloneDDS" : "Qt");
+
+    const QString borderColor = isZenohOnly ? "#2a5f3a"
+                           : (isCycloneDDSOnly ? "#1f6f78" : "#2f4f7f");
+    const QString backgroundColor = isZenohOnly ? "#13301d"
+                               : (isCycloneDDSOnly ? "#0e3136" : "#182a44");
+    const QString textColor = "#f0f0f0";
+    mpTransportModeStatusLabel->setStyleSheet(
+        QString("QLabel#transportModeStatusBadge {"
+                "padding: 2px 8px;"
+                "border: 1px solid %1;"
+                "border-radius: 8px;"
+                "background: %2;"
+                "color: %3;"
+                "font-weight: 600;"
+                "}")
+            .arg(borderColor, backgroundColor, textColor));
+
+    mpTransportModeStatusLabel->setText(QString("Transport: %1").arg(modeText));
+    mpTransportModeStatusLabel->setToolTip(QString("Current node data transport mode for this session.\n"
+                                                   "Zenoh initialized: %1\n"
+                                                   "CycloneDDS initialized: %2\n"
+                                                   "Transport mode changes restart CVDevPro automatically.\n"
+                                                   "Connection/application settings may require restart.")
+                                               .arg(zenohReady ? "Yes" : "No")
+                                               .arg(ddsReady ? "Yes" : "No"));
+}
+
+void
+MainWindow::
+refreshCurrentTabTitle(bool dirty)
+{
+    if (mitSceneProperty == mlSceneProperty.end())
+        return;
+
+    QString title = mitSceneProperty->sDisplayName.trimmed();
+    if (title.isEmpty()) {
+        title = QFileInfo(mitSceneProperty->sFilename).completeBaseName();
+    }
+    if (title.isEmpty()) {
+        title = QStringLiteral("Untitle");
+    }
+
+    if (dirty) {
+        title = QStringLiteral("*") + title;
+    }
+
+    const int currentIndex = ui->mpTabWidget->currentIndex();
+    if (currentIndex >= 0) {
+        ui->mpTabWidget->setTabText(currentIndex, title);
+    }
+}
+
 /**
  * @brief Creates a new flow graph scene with complete MVC hierarchy
  * 
@@ -1232,6 +1949,12 @@ createScene(QString const & _filename, std::shared_ptr<NodeDelegateModelRegistry
     // to instantiate node delegate models when loading/creating nodes.
     sceneProperty.pDataFlowGraphModel = new PBDataFlowGraphModel(pDataModelRegistry);
     sceneProperty.sFilename = filename;
+    sceneProperty.sDisplayName = QFileInfo(filename).completeBaseName();
+    if (sceneProperty.sDisplayName.isEmpty()) {
+        sceneProperty.sDisplayName = QStringLiteral("Untitle");
+    }
+    sceneProperty.bReadOnly = false;
+    sceneProperty.pDataFlowGraphModel->setTransportFlowFilename(filename);
 
     // Step 2: Create graphics scene
     // The scene takes a REFERENCE to the model (model must outlive scene)
@@ -1247,8 +1970,7 @@ createScene(QString const & _filename, std::shared_ptr<NodeDelegateModelRegistry
     sceneProperty.pFlowGraphicsView = new PBFlowGraphicsView(sceneProperty.pDataFlowGraphicsScene);
 
     // Add view to tab widget (transfers ownership to QTabWidget)
-    QFileInfo file(filename);
-    int tabIndex = ui->mpTabWidget->addTab(static_cast<QWidget*>(sceneProperty.pFlowGraphicsView), file.completeBaseName() );
+    int tabIndex = ui->mpTabWidget->addTab(static_cast<QWidget*>(sceneProperty.pFlowGraphicsView), sceneProperty.sDisplayName );
 
     // Use local variables for signal connections (NOT member pointers)
     // These are safe to use here because the objects won't be deleted during this function
@@ -1261,6 +1983,10 @@ createScene(QString const & _filename, std::shared_ptr<NodeDelegateModelRegistry
     // Connect group lifecycle signals so MainWindow can update Workspace tree
     connect( model, &PBDataFlowGraphModel::groupCreated, this, &MainWindow::groupCreated );
     connect( model, &PBDataFlowGraphModel::groupDissolved, this, &MainWindow::groupDissolved );
+
+    // Connect Zenoh subscription handling for hybrid mode
+    connect( model, &PBDataFlowGraphModel::connectionCreated, this, &MainWindow::onConnectionCreated );
+    connect( model, &PBDataFlowGraphModel::connectionDeleted, this, &MainWindow::onConnectionDeleted );
 
     // Setup undo/redo integration
     QUndoStack* undoStack = &scene->undoStack();
@@ -1308,7 +2034,19 @@ closeScene( int index )
 {
     bool isDiscard = false;
     QString tabTitle = ui->mpTabWidget->tabText( index );
-    if( tabTitle.at(0) == QChar('*') )
+
+    bool isReadOnlyScene = false;
+    if (index >= 0 && index < ui->mpTabWidget->count()) {
+        PBFlowGraphicsView *pPage = static_cast<PBFlowGraphicsView*>(ui->mpTabWidget->widget(index));
+        for (auto it = mlSceneProperty.begin(); it != mlSceneProperty.end(); ++it) {
+            if (it->pFlowGraphicsView == pPage) {
+                isReadOnlyScene = it->bReadOnly;
+                break;
+            }
+        }
+    }
+
+    if (!isReadOnlyScene && tabTitle.length() > 0 && tabTitle.at(0) == QChar('*'))
     {
         QMessageBox msg;
         msg.setText("The scene " + tabTitle + " has been modified.");
@@ -1329,11 +2067,11 @@ closeScene( int index )
             return false;
         }
     }
-    if( !isDiscard )
+    if( !isDiscard && !isReadOnlyScene )
     {
         // check it again because the page might not be save.
         tabTitle = ui->mpTabWidget->tabText( index );
-        if( tabTitle.at(0) == QChar('*') )
+        if( tabTitle.length() > 0 && tabTitle.at(0) == QChar('*') )
             return false;
     }
 
@@ -1353,6 +2091,7 @@ closeScene( int index )
             createScene( "", mpDelegateModelRegistry );
             ui->mpTabWidget->removeTab( 0 );
         }
+        removeZenohRoutesForModel(mlSceneProperty.front().pDataFlowGraphModel);
         // Delete in proper order: view -> scene -> model
         delete mlSceneProperty.front().pFlowGraphicsView;
         delete mlSceneProperty.front().pDataFlowGraphicsScene;
@@ -1367,6 +2106,7 @@ closeScene( int index )
         {
             if( it->pFlowGraphicsView == pPage2bClosed )
             {
+                removeZenohRoutesForModel(it->pDataFlowGraphModel);
                 // Delete in proper order: view -> scene -> model
                 delete it->pFlowGraphicsView;
                 delete it->pDataFlowGraphicsScene;
@@ -1550,11 +2290,16 @@ void
 MainWindow::
 actionSave_slot()
 {
+    if (mitSceneProperty == mlSceneProperty.end() || mitSceneProperty->bReadOnly)
+        return;
+
     if( !mitSceneProperty->sFilename.isEmpty() && mitSceneProperty->sFilename != QString("Untitle.flow") )
     {
         PBDataFlowGraphModel* model = getCurrentModel();
-        if (model)
+        if (model) {
+            model->setTransportFlowFilename(mitSceneProperty->sFilename);
             model->save_to_file( mitSceneProperty->sFilename );
+        }
 
         // Mark undo stack as clean (this will remove the * from tab title)
         if (mitSceneProperty->pDataFlowGraphicsScene)
@@ -1562,14 +2307,51 @@ actionSave_slot()
             mitSceneProperty->pDataFlowGraphicsScene->undoStack().setClean();
         }
 
-        QFileInfo file( mitSceneProperty->sFilename );
-        ui->mpTabWidget->setTabText( ui->mpTabWidget->currentIndex(), file.completeBaseName() );
+        mitSceneProperty->sDisplayName = QFileInfo(mitSceneProperty->sFilename).completeBaseName();
+        refreshCurrentTabTitle(false);
         
         // Add file to recent files list
         addToRecentFiles(mitSceneProperty->sFilename);
     }
     else
         actionSaveAs_slot();
+}
+
+void
+MainWindow::
+actionSaveAll_slot()
+{
+    const int activeTab = ui->mpTabWidget->currentIndex();
+    const int tabCount = ui->mpTabWidget->count();
+
+    for( int tab = 0; tab < tabCount; ++tab )
+    {
+        ui->mpTabWidget->setCurrentIndex(tab);
+
+        if (mitSceneProperty == mlSceneProperty.end() || mitSceneProperty->bReadOnly) {
+            continue;
+        }
+
+        // If the scene has no filename yet, Save As may be cancelled by user.
+        const QString filenameBefore = mitSceneProperty->sFilename;
+        const bool hadRealFilename = !filenameBefore.isEmpty() && filenameBefore != QString("Untitle.flow");
+
+        actionSave_slot();
+
+        const QString filenameAfter = mitSceneProperty->sFilename;
+        const bool hasRealFilename = !filenameAfter.isEmpty() && filenameAfter != QString("Untitle.flow");
+
+        if( !hadRealFilename && !hasRealFilename )
+        {
+            QMessageBox::information(this,
+                                     tr("Save All"),
+                                     tr("Save All was cancelled. Remaining tabs were not saved."));
+            break;
+        }
+    }
+
+    if( activeTab >= 0 && activeTab < ui->mpTabWidget->count() )
+        ui->mpTabWidget->setCurrentIndex(activeTab);
 }
 
 void
@@ -1635,7 +2417,7 @@ actionLoadPlugin_slot()
 
     if( filename.isEmpty() )
         return;
-    load_plugin( mpDelegateModelRegistry, mPluginsList, filename );
+    PluginInterfaceUtils::load_plugin( mpDelegateModelRegistry, mPluginsList, filename );
     updateNodeCategoriesDockingWidget();
 }
 
@@ -1652,9 +2434,18 @@ closeEvent(QCloseEvent *ev)
         if( !closeScene(no_tab) )
         {
             ev->ignore();
+            mbClossingApp = false;
+            mbRestartAfterClose = false;
             return;
         }
     }
+
+    if (mbRestartAfterClose) {
+        const QString program = QCoreApplication::applicationFilePath();
+        const QStringList args = QCoreApplication::arguments().mid(1);
+        QProcess::startDetached(program, args);
+    }
+
     ev->accept();
 }
 
@@ -1662,6 +2453,9 @@ void
 MainWindow::
 actionSaveAs_slot()
 {
+    if (mitSceneProperty == mlSceneProperty.end() || mitSceneProperty->bReadOnly)
+        return;
+
     QString filename;
     if( QFileInfo::exists(msSettingFilename) )
     {
@@ -1689,6 +2483,7 @@ actionSaveAs_slot()
         if( model && model->save_to_file(filename) )
         {
             mitSceneProperty->sFilename = filename;
+            model->setTransportFlowFilename(filename);
 
             // Mark undo stack as clean (this will remove the * from tab title)
             if (mitSceneProperty->pDataFlowGraphicsScene)
@@ -1696,8 +2491,8 @@ actionSaveAs_slot()
                 mitSceneProperty->pDataFlowGraphicsScene->undoStack().setClean();
             }
 
-            QFileInfo file(filename);
-            ui->mpTabWidget->setTabText( ui->mpTabWidget->currentIndex(), file.completeBaseName() );
+            mitSceneProperty->sDisplayName = QFileInfo(filename).completeBaseName();
+            refreshCurrentTabTitle(false);
             
             // Add file to recent files list
             addToRecentFiles(filename);
@@ -2051,75 +2846,70 @@ void
 MainWindow::
 nodeChanged()
 {
-    // Check if the undo stack is clean (no unsaved changes)
+    if (mitSceneProperty == mlSceneProperty.end())
+        return;
+
+    // Read-only tabs must never show dirty marker or trigger save prompts.
+    if (mitSceneProperty->bReadOnly) {
+        refreshCurrentTabTitle(false);
+        return;
+    }
+
     bool isClean = false;
-    if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->pDataFlowGraphicsScene)
+    if (mitSceneProperty->pDataFlowGraphicsScene)
     {
         isClean = mitSceneProperty->pDataFlowGraphicsScene->undoStack().isClean();
     }
 
-    QString tabTitle = ui->mpTabWidget->tabText( ui->mpTabWidget->currentIndex() );
-
-    if (isClean)
-    {
-        // Remove * if undo stack is clean (back to saved state)
-        if (tabTitle.length() > 0 && tabTitle.at(0) == QChar('*'))
-        {
-            tabTitle = tabTitle.mid(1); // Remove the first character (*)
-            ui->mpTabWidget->setTabText( ui->mpTabWidget->currentIndex(), tabTitle );
-        }
-    }
-    else
-    {
-        // Add * if not already present
-        if( tabTitle.length() != 0 && tabTitle.at(0) != QChar('*') )
-        {
-            tabTitle = "*" + tabTitle;
-            ui->mpTabWidget->setTabText( ui->mpTabWidget->currentIndex(), tabTitle );
-        }
-    }
+    refreshCurrentTabTitle(!isClean);
 }
 
 void
 MainWindow::
 loadSettings()
 {
-    QString homePath = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
-    QDir configDir(homePath + "/.CVDev");
+    QDir configDir(CVDev::appHomePath());
     if( !configDir.exists() )
         configDir.mkpath(".");
 
-    msSettingFilename = configDir.filePath("cvdev.ini");
+    msSettingFilename = CVDev::cvdevIniPath();
     if( QFileInfo::exists(msSettingFilename) )
     {
         QSettings settings(msSettingFilename, QSettings::IniFormat);
+
+        const bool skipOpenScenesOnce = settings.value("Skip Open Scenes Once", false).toBool();
+        if (skipOpenScenesOnce) {
+            settings.setValue("Skip Open Scenes Once", false);
+        }
         
-        // Try to load all previously open scenes
-        QStringList openScenes = settings.value("Open Scenes", QStringList()).toStringList();
-        if (!openScenes.isEmpty())
-        {
-            // Load each scene that still exists
-            for (const QString& filename : openScenes)
+        if (!skipOpenScenesOnce) {
+            // Try to load all previously open scenes
+            QStringList openScenes = settings.value("Open Scenes", QStringList()).toStringList();
+            if (!openScenes.isEmpty())
             {
-                if (QFileInfo::exists(filename))
+                // Load each scene that still exists
+                for (const QString& filename : openScenes)
                 {
-                    loadScene(const_cast<QString&>(filename));
+                    if (QFileInfo::exists(filename))
+                    {
+                        loadScene(const_cast<QString&>(filename));
+                    }
+                }
+
+                // Restore the active tab
+                int activeTab = settings.value("Active Tab", 0).toInt();
+                if (activeTab >= 0 && activeTab < ui->mpTabWidget->count())
+                {
+                    ui->mpTabWidget->setCurrentIndex(activeTab);
                 }
             }
-            
-            // Restore the active tab
-            int activeTab = settings.value("Active Tab", 0).toInt();
-            if (activeTab >= 0 && activeTab < ui->mpTabWidget->count())
+            else
             {
-                ui->mpTabWidget->setCurrentIndex(activeTab);
+                // Fallback to old single scene format for backward compatibility
+                auto filename = settings.value("Open Scene", "").toString();
+                if( QFileInfo::exists(filename) )
+                    loadScene(filename);
             }
-        }
-        else
-        {
-            // Fallback to old single scene format for backward compatibility
-            auto filename = settings.value("Open Scene", "").toString();
-            if( QFileInfo::exists(filename) )
-                loadScene(filename);
         }
         
         // Load recent files list
@@ -2217,8 +3007,9 @@ loadScene(QString & filename)
         mitSceneProperty->sFilename = filename;
     if( model->load_from_file( filename ) )
     {
-        QFileInfo file(filename);
-        ui->mpTabWidget->setTabText( ui->mpTabWidget->currentIndex(), file.completeBaseName() );
+        mitSceneProperty->sDisplayName = QFileInfo(filename).completeBaseName();
+        mitSceneProperty->bReadOnly = false;
+        refreshCurrentTabTitle(false);
         // Mark the undo stack as clean after loading the file
         if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->pDataFlowGraphicsScene)
             mitSceneProperty->pDataFlowGraphicsScene->undoStack().setClean();
@@ -2347,6 +3138,10 @@ void
 MainWindow::
 actionGroupSelectedNodes_slot()
 {
+    if (mitSceneProperty == mlSceneProperty.end() || mitSceneProperty->bReadOnly) {
+        return;
+    }
+
     PBFlowGraphicsView* view = getCurrentView();
     PBDataFlowGraphModel* model = getCurrentModel();
     PBDataFlowGraphicsScene* scene = getCurrentScene();
@@ -2388,6 +3183,10 @@ void
 MainWindow::
 actionUngroupSelectedNodes_slot()
 {
+    if (mitSceneProperty == mlSceneProperty.end() || mitSceneProperty->bReadOnly) {
+        return;
+    }
+
     PBFlowGraphicsView* view = getCurrentView();
     PBDataFlowGraphModel* model = getCurrentModel();
     

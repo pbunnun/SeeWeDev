@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ CVSplitImageModel::
 
 CVSplitImageModel()
     : PBNodeDelegateModel( _model_name ),
-      _minPixmap( ":/CVSpiltImage.png" )
+      _minPixmap( ":/CVSplitImage.png" )
 {
     for(std::shared_ptr<CVImageData>& mp : mapCVImageData)
     {

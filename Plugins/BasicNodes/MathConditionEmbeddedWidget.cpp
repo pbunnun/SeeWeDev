@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -11,6 +11,20 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+
+/**
+ * @file MathConditionEmbeddedWidget.cpp
+ * @brief Implementation of the condition configuration embedded widget.
+ *
+ * Wires the Qt Designer UI to the signal/slot logic:
+ * - Combo box currentIndexChanged → condition_combo_box_current_index_changed()
+ * - Line edit textChanged → condition_number_text_changed()
+ * - Both slots re-emit condition_changed_signal(operatorIndex, numberString)
+ *   for the parent MathConditionModel to consume.
+ *
+ * A QDoubleValidator is installed on the number field to restrict entry to
+ * valid floating-point strings.
+ */
 
 #include "MathConditionEmbeddedWidget.hpp"
 #include <QLineEdit>

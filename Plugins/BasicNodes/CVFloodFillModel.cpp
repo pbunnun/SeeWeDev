@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -116,14 +116,15 @@ CVFloodFillModel::
 CVFloodFillModel()
     : PBAsyncDataModel( _model_name ),
       mpEmbeddedWidget(new CVFloodFillEmbeddedWidget),
-      _minPixmap( ":FloodFill.png" )
+      _minPixmap( ":/CVFloodFillModel.png" )
 {
     for(std::shared_ptr<CVImageData>& mp : mapCVImageData)
         mp = std::make_shared< CVImageData >( cv::Mat() );
     for(std::shared_ptr<CVImageData>& mp : mapCVImageInData)
         mp = std::make_shared< CVImageData >( cv::Mat() );
 
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
+    qRegisterMetaType<CVFloodFillParameters>( "CVFloodFillParameters" );
     connect( mpEmbeddedWidget, &CVFloodFillEmbeddedWidget::spinbox_clicked_signal, this, &CVFloodFillModel::em_spinbox_clicked );
 
     PointPropertyType pointPropertyType;
@@ -222,7 +223,7 @@ connectWorker(QObject* worker)
     auto* w = qobject_cast<CVFloodFillWorker*>(worker);
     if (w) {
         connect(w, &CVFloodFillWorker::frameReady,
-                this, &CVFloodFillModel::handleFrameReady,
+                this, &CVFloodFillModel::customHandleFrameReady,
                 Qt::QueuedConnection);
     }
 }
@@ -399,27 +400,27 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex portIndex)
 
 void
 CVFloodFillModel::
-handleFrameReady(std::shared_ptr<CVImageData> img, std::shared_ptr<CVImageData> mask)
+customHandleFrameReady(std::shared_ptr<CVImageData> img, std::shared_ptr<CVImageData> mask)
 {
     setWorkerBusy(false);
     
     if (img)
     {
         mapCVImageData[0] = img;
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
     
     if (mask)
     {
         mapCVImageData[1] = mask;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
     }
     
     // Emit sync "true" on port 2
     if (mpSyncData)
     {
         mpSyncData->data() = true;
-        Q_EMIT dataUpdated(2);
+        emitOutputPort(2);
     }
     
     // Process pending work if available
@@ -435,7 +436,7 @@ save() const
 {
     QJsonObject modelJson = PBAsyncDataModel::save();
 
-    QJsonObject cParams;
+    QJsonObject cParams = modelJson["cParams"].toObject();
     cParams["seedPointX"] = mParams.mCVPointSeed.x;
     cParams["seedPointY"] = mParams.mCVPointSeed.y;
     for(int i=0; i<4; i++)
@@ -696,7 +697,7 @@ process_cached_input()
     // Emit sync "false" signal in next event loop
     QTimer::singleShot(0, this, [this]() {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(2);
+        emitOutputPort(2);
     });
     
     if (isWorkerBusy())

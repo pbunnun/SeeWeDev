@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -123,6 +123,8 @@ typedef struct CVRTSPCameraParameters{
     int miConnectTimeoutMs {5000};  ///< Connection timeout in milliseconds
     int miReadTimeoutMs {5000};     ///< Read/receive timeout in milliseconds
 } CVRTSPCameraParameters;
+
+Q_DECLARE_METATYPE( CVRTSPCameraParameters )
 
 /**
  * @class CVRTSPCameraWorker

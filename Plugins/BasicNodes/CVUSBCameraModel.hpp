@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -59,6 +59,8 @@
 #include <QtCore/QThread>
 #include <QtCore/QSemaphore>
 #include <QtCore/QTimer>
+#include <QtCore/QString>
+#include <QtCore/QByteArray>
 
 #include "PBAsyncDataModel.hpp"
 
@@ -122,6 +124,8 @@ typedef struct CVUSBCameraParameters{
     int miAutoFocus {1};            ///< Auto focus (1=auto, 0=manual) - not all cameras support this
 } CVUSBCameraParameters;
 
+Q_DECLARE_METATYPE( CVUSBCameraParameters )
+
 /**
  * @class CVUSBCameraWorker
  * @brief Async worker (QObject) for USB camera capture inside PBAsyncDataModel worker thread.
@@ -131,6 +135,7 @@ class CVUSBCameraWorker : public QObject
     Q_OBJECT
 public:
     explicit CVUSBCameraWorker(QObject *parent = nullptr);
+    ~CVUSBCameraWorker() override;
 
 public Q_SLOTS:
     void setCameraId(int cameraId);
@@ -153,6 +158,8 @@ private Q_SLOTS:
     void captureFrame();
 
 private:
+    bool captureFrameFromDevice( cv::Mat &frame );
+
     void checkCamera();
 
     CVUSBCameraModel *mpModel{nullptr};
@@ -164,6 +171,7 @@ private:
     double mdFPS{0};
     CVUSBCameraParameters mUSBCameraParams;
     cv::VideoCapture mCVVideoCapture;
+    cv::Mat mLatestFrame;
 };
 
 /**
@@ -324,10 +332,6 @@ protected:
 
 private Q_SLOTS:
     /**
-     * @brief Handles new frame ready signal from capture thread.
-     * Triggers dataUpdated() to propagate frame through pipeline.
-     */
-    /**
      * @brief Process captured frame from camera thread.
      * @param frame Captured frame to process with pool
      */
@@ -396,7 +400,7 @@ private Q_SLOTS:
 
     QPixmap
     minPixmap() const override { return mMinPixmap; }
-private:
+
 private:
     int miBrightness {-10};         ///< Current brightness setting
     int miGain {70};                ///< Current gain/ISO setting
@@ -423,9 +427,7 @@ private:
 
     CVUSBCameraWorker * mpCameraWorker { nullptr };      ///< Async capture worker (in PBAsync thread)
 
-    std::shared_ptr< SyncData > mpSyncInData { nullptr };       ///< Trigger input (single-shot mode)
-    std::shared_ptr< CVImageData > mpCVImageData;               ///< Captured frame output
-    std::shared_ptr< InformationData > mpInformationData;       ///< Camera status output
+    std::shared_ptr< InformationData > mpInformationData { nullptr };       ///< Camera status output
     double mdLastFps{0.0};
 
     QPixmap mMinPixmap;

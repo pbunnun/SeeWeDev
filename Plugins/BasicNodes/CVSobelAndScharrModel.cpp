@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ CVSobelAndScharrModel()
     {
         mp = std::make_shared<CVImageData>(cv::Mat());
     }
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVSobelAndScharrEmbeddedWidget::checkbox_checked_signal, this, &CVSobelAndScharrModel::em_checkbox_checked);
 
     IntPropertyType intPropertyType;

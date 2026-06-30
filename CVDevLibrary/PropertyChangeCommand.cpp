@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -77,6 +77,7 @@ void PropertyChangeCommand::applyValue(const QVariant &value)
             DEBUG_LOG_INFO() << "[applyValue] Minimize property, hiding/showing widget";
             // Just hide/show the widget - PBNodeGeometry will handle the size
             if (value.toBool()) {
+                _delegateModel->setSavedWidgetSize(widget->size());
                 widget->hide();
             } else {
                 widget->show();

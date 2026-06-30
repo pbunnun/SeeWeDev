@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
 
 #include "PBNodeDelegateModel.hpp"
 #include "CVImageData.hpp"
+#include "InformationData.hpp"
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;
@@ -46,20 +47,16 @@ using QtNodes::NodeValidationState;
  */
 typedef struct TemplateMatchingParameters{
     int miMatchingMethod;     ///< Matching method (cv::TemplateMatchModes)
-    int mucLineColor[3];      ///< Rectangle line color [B, G, R]
-    int miLineThickness;      ///< Rectangle line thickness in pixels
-    int miLineType;           ///< Line type (cv::LineTypes)
+    int miMaxMatches;         ///< Maximum matching outputs for Information port
     
     /**
      * @brief Default constructor.
      *
-     * Initializes with TM_SQDIFF method, black rectangle (3px, LINE_8).
+     * Initializes with TM_SQDIFF method, 3 max matches.
      */
     TemplateMatchingParameters()
         : miMatchingMethod(cv::TM_SQDIFF),
-          mucLineColor{0},
-          miLineThickness(3),
-          miLineType(cv::LINE_8)
+          miMaxMatches(3)
     {
     }
 } TemplateMatchingParameters;
@@ -70,16 +67,16 @@ typedef struct TemplateMatchingParameters{
  *
  * This model implements template matching using OpenCV's cv::matchTemplate() function,
  * which slides a template image over a source image and computes similarity at each
- * position. It outputs both the raw similarity map and an annotated image showing the
- * best match location, making it suitable for simple object detection and localization.
+ * position. It outputs a cropped image corresponding to the region with the best match,
+ * and a text report listing candidate matching areas sorted by their matching score.
  *
  * **Input Ports:**
  * 1. **CVImageData** - Source image (where template is searched)
  * 2. **CVImageData** - Template image (what to find)
  *
  * **Output Ports:**
- * 1. **CVImageData** - Result map (similarity scores at each position)
- * 2. **CVImageData** - Annotated source image with rectangle marking best match
+ * 1. **CVImageData** - Cropped image of the best match region (maximum matching score)
+ * 2. **InformationData** - A text list of candidate bounding box rectangles sorted by score
  *
  * **Matching Methods (cv::TemplateMatchModes):**
  *
@@ -116,19 +113,11 @@ typedef struct TemplateMatchingParameters{
  * **Match Detection:**
  * - For TM_SQDIFF methods: Minimum value = best match
  * - For other methods: Maximum value = best match
- * - Uses cv::minMaxLoc() to find optimal position
- *
- * **Result Visualization:**
- * The second output draws a rectangle on the source image at the best match location:
- * - Rectangle size matches template dimensions
- * - Configurable color, thickness, and line type
- * - Helps visualize detection results
+ * - Uses cv::minMaxLoc() iteratively with peak suppression to extract multiple candidate regions.
  *
  * **Properties (Configurable):**
  * - **matching_method:** Matching algorithm (cv::TemplateMatchModes)
- * - **line_color:** Rectangle color [B, G, R]
- * - **line_thickness:** Rectangle thickness (pixels)
- * - **line_type:** Line rendering type (LINE_4, LINE_8, LINE_AA)
+ * - **max_matches:** Maximum matching candidates to output/display in the Information report (default: 3)
  *
  * **Use Cases:**
  * - Logo detection in images
@@ -142,7 +131,6 @@ typedef struct TemplateMatchingParameters{
  * **Limitations:**
  * - No rotation invariance (template must have same orientation)
  * - No scale invariance (template must have same size)
- * - Finds single best match (use other methods for multiple instances)
  * - Computationally expensive for large images/templates
  * - Lighting conditions must be similar
  *
@@ -150,23 +138,19 @@ typedef struct TemplateMatchingParameters{
  * 1. Use TM_CCOEFF_NORMED for general cases (best robustness)
  * 2. Ensure template is smaller than source image
  * 3. Pre-process both images identically (grayscale, blur, etc.)
- * 4. For multiple instances, analyze the result map manually
- * 5. Consider downscaling for faster processing
- * 6. Use threshold on result map for confidence estimation
+ * 4. Consider downscaling for faster processing
+ * 5. Set appropriate max matches limit to filter candidate report size
  *
  * **Example Workflow:**
  * @code
  * [Scene Image] ----\
- *                    [TemplateMatching: TM_CCOEFF_NORMED] -> [Result Map]
- * [Logo Template] --/                                      \-> [Annotated Image]
- * 
- * // If match confidence > 0.8, object is present
+ *                    [TemplateMatching] -> [Cropped Image]
+ * [Logo Template] --/                   \-> [Sorted Matches Info]
  * @endcode
  *
  * **Performance Notes:**
  * - Complexity: O(W×H×w×h) where (W,H) = source size, (w,h) = template size
  * - Faster with smaller templates
- * - Consider GPU acceleration (cv::cuda::matchTemplate) for real-time
  * - Normalized methods slightly slower but more robust
  *
  * @see cv::matchTemplate
@@ -181,7 +165,7 @@ public:
     /**
      * @brief Constructs a CVTemplateMatchingModel.
      *
-     * Initializes with TM_SQDIFF method and default rectangle visualization.
+     * Initializes with TM_SQDIFF method and default max matches value (3).
      */
     CVTemplateMatchingModel();
 
@@ -208,7 +192,7 @@ public:
     /**
      * @brief Returns the number of ports.
      * @param portType Input or Output.
-     * @return 2 for input (source + template), 2 for output (result map + annotated).
+     * @return 2 for input (source + template), 2 for output (cropped image + sorted matches).
      */
     unsigned int
     nPorts(PortType portType) const override;
@@ -217,15 +201,15 @@ public:
      * @brief Returns the data type for a specific port.
      * @param portType Input or Output.
      * @param portIndex Port index.
-     * @return CVImageData for all ports.
+     * @return CVImageData for inputs/cropped output, InformationData for sorted matches output.
      */
     NodeDataType
     dataType(PortType portType, PortIndex portIndex) const override;
 
     /**
      * @brief Returns the output data.
-     * @param port Port index (0=result map, 1=annotated image).
-     * @return Shared pointer to output CVImageData.
+     * @param port Port index (0=cropped image, 1=sorted matches list).
+     * @return Shared pointer to output NodeData (CVImageData or InformationData).
      */
     std::shared_ptr<NodeData>
     outData(PortIndex port) override;
@@ -233,7 +217,6 @@ public:
     /**
      * @brief Sets input data and triggers template matching.
      * @param nodeData Input CVImageData (source or template).
-     * @param Port index (0=source, 1=template).
      *
      * When both inputs are connected, performs template matching using
      * cv::matchTemplate() and updates both output ports.
@@ -250,7 +233,7 @@ public:
 
     /**
      * @brief Sets a model property.
-     * @param Property name ("matching_method", "line_color", "line_thickness", "line_type").
+     * @param Property name ("matching_method", "max_matches").
      * @param QVariant value.
      */
     void
@@ -263,28 +246,29 @@ public:
     QPixmap
     minPixmap() const override { return _minPixmap; }
 
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     static const QString _category;   ///< Node category
     static const QString _model_name; ///< Node display name
 
 private:
     TemplateMatchingParameters mParams;                       ///< Matching configuration
     std::shared_ptr<CVImageData> mapCVImageInData[2] {{ nullptr }}; ///< Input images [source, template]
-    std::shared_ptr<CVImageData> mapCVImageData[2] {{ nullptr }};   ///< Output images [result map, annotated]
-    QPixmap _minPixmap;                                       ///< Node icon
-
-    static const std::string color[3];                        ///< Color channel names
+    std::shared_ptr<CVImageData> mpCroppedImageData { nullptr };    ///< Output: Cropped image of max matching score
+    std::shared_ptr<InformationData> mpInfoData { nullptr };        ///< Output: Bounding box rect list sorted by score
+    QPixmap _minPixmap;                                       ///< Node iconBlock
 
     /**
      * @brief Processes input images and performs template matching.
      * @param in Array of 2 input CVImageData pointers [source, template].
-     * @param out Array of 2 output CVImageData pointers [result map, annotated].
+     * @param outCrop Output cropped image of maximum matching score.
+     * @param outInfo Output information with matching bounding box rectangles.
      * @param params Matching parameters.
-     *
-     * Executes cv::matchTemplate() on source and template images, finds best
-     * match location using cv::minMaxLoc(), generates result map, and creates
-     * annotated image with rectangle marking the match.
      */
-    void processData( const std::shared_ptr< CVImageData> (&in)[2], std::shared_ptr< CVImageData > (&out)[2],
+    void processData( const std::shared_ptr< CVImageData> (&in)[2],
+                      std::shared_ptr< CVImageData > & outCrop,
+                      std::shared_ptr< InformationData > & outInfo,
                       const TemplateMatchingParameters & params );
 };
 

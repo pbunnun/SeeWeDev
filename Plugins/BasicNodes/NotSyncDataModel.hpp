@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -190,41 +190,116 @@ class NotSyncDataModel : public PBNodeDelegateModel
     Q_OBJECT
 
 public:
+    /// @name Construction & Destruction
+    /// @{
+
+    /**
+     * @brief Constructs the NOT sync node with default settings.
+     *
+     * Initializes the output SyncData instance and the node icon.
+     */
     NotSyncDataModel();
 
+    /// @brief Destroys the node.
     virtual
     ~NotSyncDataModel() override {}
 
+    /// @}
+
+    /// @name Persistence
+    /// @{
+
+    /**
+     * @brief Saves node state to JSON.
+     * @return JSON object with base PBNodeDelegateModel state.
+     */
     QJsonObject
     save() const override;
 
+    /**
+     * @brief Loads node state from JSON.
+     * @param p JSON object from .flow file.
+     */
     void
     load(QJsonObject const &p) override;
 
+    /// @}
+
+    /// @name Port Interface
+    /// @{
+
+    /**
+     * @brief Returns the port count.
+     * @param portType In or Out.
+     * @return 1 for both input and output.
+     */
     unsigned int
     nPorts(PortType portType) const override;
 
+    /**
+     * @brief Returns the data type for the given port.
+     *
+     * Both input (port 0) and output (port 0) carry SyncData.
+     *
+     * @param portType Port direction (In/Out).
+     * @param portIndex Port index (must be 0).
+     * @return SyncData type, or empty NodeDataType for invalid port.
+     */
     NodeDataType
     dataType(PortType portType, PortIndex portIndex) const override;
 
+    /**
+     * @brief Returns the current output SyncData.
+     *
+     * Returns the inverted sync signal if the node is enabled, nullptr otherwise.
+     *
+     * @param port Output port index (0).
+     * @return Shared pointer to SyncData, or nullptr if disabled.
+     */
     std::shared_ptr<NodeData>
     outData(PortIndex port) override;
 
+    /**
+     * @brief Receives input sync and emits the inverted value.
+     *
+     * Reads the boolean value from the incoming SyncData and writes
+     * its complement (`!value`) to the output SyncData, then emits port 0.
+     *
+     * @param nodeData Incoming SyncData (may be nullptr for absent signal).
+     * @param portIndex Input port index (0).
+     */
     void
-    setInData(std::shared_ptr<NodeData>, PortIndex) override; 
+    setInData(std::shared_ptr<NodeData> nodeData, PortIndex portIndex) override; 
 
+    /// @}
+
+    /// @name UI Integration
+    /// @{
+
+    /**
+     * @brief Returns embedded widget (none for this node).
+     * @return nullptr (no embedded widget).
+     */
     QWidget *
     embeddedWidget() override { return nullptr; }
 
+    /**
+     * @brief Returns the minimized node icon.
+     * @return Icon pixmap (NotSync.png).
+     */
     QPixmap
-    minPixmap() const override{ return _minPixmap; }
+    minPixmap() const override { return _minPixmap; }
 
-    /*
-     * Recieve signals back from QtPropertyBrowser and use this function to
-     * set parameters/variables accordingly.
+    /**
+     * @brief Handles property changes from the property browser.
+     *
+     * Delegates to PBNodeDelegateModel for standard property handling.
+     *
+     * @param id Property identifier.
+     * @param value New property value.
      */
     void
-    setModelProperty( QString &, const QVariant & ) override;
+    setModelProperty( QString & id, const QVariant & value ) override;
 
     /*
      * These two static members must be defined for every models. _category can be duplicate with existing categories.
@@ -232,9 +307,11 @@ public:
      */
     static const QString _category;
 
+    /// Minimized node icon.
     static const QString _model_name;
 
 private:
+    /// Output SyncData instance carrying the inverted boolean value.
     std::shared_ptr< SyncData > mpSyncData; ///< Output inverted sync signal
 
     QPixmap _minPixmap;

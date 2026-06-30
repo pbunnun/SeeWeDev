@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -11,6 +11,20 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+
+/**
+ * @file CVVideoLoaderEmbeddedWidget.cpp
+ * @brief Implementation of interactive video playback control widget.
+ *
+ * Wires Qt Designer UI elements to the signal/slot layer:
+ * - Forward/Backward/Play-Pause/Filename buttons → button_clicked_signal(int)
+ * - Seek slider valueChanged → slider_value_signal(int)
+ * - Frame number spinbox valueChanged → slider_value_signal(int) (same channel)
+ * - Widget resize events → widget_resized_signal() for geometry recompute
+ *
+ * An event filter on the slider prevents mouse-wheel hijacking from the parent
+ * graphics scene while still allowing deliberate slider interaction.
+ */
 
 #include "CVVideoLoaderEmbeddedWidget.hpp"
 #include <QSpinBox>

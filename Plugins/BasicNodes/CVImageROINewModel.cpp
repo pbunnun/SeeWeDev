@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2021 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -27,11 +27,17 @@ const QString CVImageROINewModel::_model_name = QString( "CV ROI" );
 CVImageROINewModel::
 CVImageROINewModel()
     : PBNodeDelegateModel( _model_name ),
-    _minPixmap(":/ROI.png")
+    _minPixmap(":/ROI.png"),
+    mpEmbeddedWidget( new CVImageROIWidget() )
 {
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
-    mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );
-    mpCVImageOutData = std::make_shared< CVImageData >( cv::Mat() );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
+
+    connect( mpEmbeddedWidget, &CVImageROIWidget::roiSelected,
+             this,             &CVImageROINewModel::onROISelected );
+    connect( mpEmbeddedWidget, &CVImageROIWidget::widgetClicked,
+             this,             &PBNodeDelegateModel::selection_request_signal );
+
+    mpEmbeddedWidget->resize( 320, 240 );
 
     RectPropertyType rectPropertyType;
     rectPropertyType.miXPosition = mRectROI.x;
@@ -96,7 +102,8 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
             mpCVImageInData = d;
             processData(mpCVImageInData, mpCVImageOutData);
             mpCVImageOutData->set_timestamp( d->timestamp() );
-            Q_EMIT dataUpdated( 0 );
+            mpEmbeddedWidget->Display( d->data() );
+            emitOutputPort(0);
         }
     }
 }
@@ -147,6 +154,7 @@ load(const QJsonObject &p)
             typedProp->getData().miWidth = width.toInt();
             typedProp->getData().miHeight = height.toInt();
             mRectROI = cv::Rect(x.toInt(), y.toInt(), width.toInt(), height.toInt());
+            mpEmbeddedWidget->setDisplayROI( mRectROI );
         }
     }
 }
@@ -173,9 +181,17 @@ setModelProperty( QString & id, const QVariant & value )
 
         mRectROI = cv::Rect( rect.x(), rect.y(), rect.width(), rect.height() );
 
+        mpEmbeddedWidget->setDisplayROI( mRectROI );
         processData(mpCVImageInData, mpCVImageOutData);
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
+}
+
+void
+CVImageROINewModel::
+onROISelected( QRect roi )
+{
+    requestPropertyChange( "rect_id", roi );
 }
 
 void
@@ -197,5 +213,17 @@ processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData
         }
     }
 }
+
+void
+CVImageROINewModel::
+late_constructor()
+{
+    if( start_late_constructor() )
+    {
+        mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );
+        mpCVImageOutData = std::make_shared< CVImageData >( cv::Mat() );
+    }
+}
+
 
 

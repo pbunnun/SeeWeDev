@@ -1,13 +1,38 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
+
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
 //You may obtain a copy of the License at
+
 //    http://www.apache.org/licenses/LICENSE-2.0
+
 //Unless required by applicable law or agreed to in writing, software
 //distributed under the License is distributed on an "AS IS" BASIS,
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+
+/**
+ * @file CVCLAHEEqualizationModel.cpp
+ * @brief Implementation of CLAHE image enhancement node.
+ *
+ * Implements:
+ * - CVCLAHEEqualizationWorker: Async frame processing with CLAHE algorithm
+ * - CVCLAHEEqualizationModel: Node model with property system and state management
+ *
+ * **Key Processing Steps:**
+ * 1. Non-8U conversion (optional normalization)
+ * 2. CLAHE application (createCLAHE with parameters)
+ * 3. Color space handling (single-channel, luma-only, or all-channels)
+ * 4. Result pooling or direct allocation
+ * 5. Metadata tracking and frame delivery
+ *
+ * **Property Management:**
+ * - Typed properties stored in mvProperty vector
+ * - Fast O(1) lookup via mMapIdToProperty QMap
+ * - JSON serialization for save/load
+ * - Property change listeners for UI sync
+ */
 
 #include "CVCLAHEEqualizationModel.hpp"
 
@@ -165,7 +190,15 @@ void CVCLAHEEqualizationModel::dispatchPendingWork()
 QJsonObject CVCLAHEEqualizationModel::save() const
 {
     QJsonObject modelJson = PBAsyncDataModel::save();
-    QJsonObject cParams; cParams["clipLimit"] = mParams.mdClipLimit; cParams["tileSize"] = mParams.miTileSize; cParams["applyColorLuma"] = mParams.mbApplyColorLuma; cParams["colorSpaceIndex"] = mParams.miColorSpaceIndex; cParams["convertTo8Bit"] = mParams.mbConvertTo8Bit; modelJson["cParams"] = cParams; return modelJson;
+    
+    QJsonObject cParams = modelJson["cParams"].toObject(); 
+    cParams["clipLimit"] = mParams.mdClipLimit; 
+    cParams["tileSize"] = mParams.miTileSize; 
+    cParams["applyColorLuma"] = mParams.mbApplyColorLuma; 
+    cParams["colorSpaceIndex"] = mParams.miColorSpaceIndex; 
+    cParams["convertTo8Bit"] = mParams.mbConvertTo8Bit; 
+    modelJson["cParams"] = cParams; 
+    return modelJson;
 }
 
 void CVCLAHEEqualizationModel::load(const QJsonObject &p)
@@ -201,7 +234,7 @@ void CVCLAHEEqualizationModel::process_cached_input()
 {
     if (!mpCVImageInData || mpCVImageInData->data().empty()) return;
     cv::Mat input = mpCVImageInData->data();
-    QTimer::singleShot(0, this, [this]() { mpSyncData->data() = false; Q_EMIT dataUpdated(1); });
+    QTimer::singleShot(0, this, [this]() { mpSyncData->data() = false; emitOutputPort(1); });
     if (isWorkerBusy()) { mPendingFrame = input.clone(); mPendingParams = mParams; setPendingWork(true); }
     else {
         setWorkerBusy(true);

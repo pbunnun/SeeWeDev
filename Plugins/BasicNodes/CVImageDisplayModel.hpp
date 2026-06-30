@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -78,7 +78,10 @@ public:
      * @brief Destructor
      */
     virtual
-    ~CVImageDisplayModel() override {}
+    ~CVImageDisplayModel() override;
+
+    void
+    late_constructor() override;
 
     /**
      * @brief Returns the number of ports for the given port type
@@ -170,6 +173,8 @@ public:
     static const QString _model_name;
 
 private:
+    void updateDisplayFromFrame(const cv::Mat& frame, bool emitSyncSignal);
+
     /**
      * @brief Internal helper to update the displayed image
      * 

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -248,6 +248,12 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    void
+    late_constructor() override;
+
+    bool
+    resizable() const override { return false; }
+
     static const QString _category;   ///< Node category
     static const QString _model_name; ///< Node display name
 
@@ -270,7 +276,7 @@ private Q_SLOTS:
     void timeout_function();
 
 private:
-    QTimer * mpTimer;                                  ///< Qt timer for periodic triggering
+    QTimer * mpTimer { nullptr };                       ///< Qt timer for periodic triggering
     std::shared_ptr<SyncData> mpSyncData { nullptr };  ///< Output sync signal
 
     int miMillisecondInterval { 1000 };                ///< Timer interval in milliseconds

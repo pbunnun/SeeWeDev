@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -155,6 +155,8 @@ typedef struct CVFloodFillParameters{
     {
     }
 } CVFloodFillParameters;
+
+Q_DECLARE_METATYPE( CVFloodFillParameters )
 
 /**
  * @class CVFloodFillWorker
@@ -405,7 +407,7 @@ private Q_SLOTS:
      * @param img Processed image
      * @param mask Output mask
      */
-    void handleFrameReady(std::shared_ptr<CVImageData> img, std::shared_ptr<CVImageData> mask);
+    void customHandleFrameReady(std::shared_ptr<CVImageData> img, std::shared_ptr<CVImageData> mask);
 
 private:
     // Implement PBAsyncDataModel pure virtuals

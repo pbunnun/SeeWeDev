@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -109,7 +109,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex portIndex)
             {
                 processData(mvCVImageInData, mpCVImageData);
 
-                Q_EMIT dataUpdated(0);
+                emitOutputPort(0);
             }
         }
     }
@@ -185,7 +185,7 @@ setModelProperty( QString & id, const QVariant & value )
     {
         processData(mvCVImageInData, mpCVImageData);
 
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
 }
 

@@ -90,6 +90,8 @@ CVMedianBlurModel::CVMedianBlurModel()
     : PBAsyncDataModel("CV Median Blur"),
     _minPixmap(":/MedianBlur.png")
 {
+    qRegisterMetaType<CVMedianBlurParameters>( "CVMedianBlurParameters" );
+
     // Add kernel size property (odd numbers only, 3-31)
     IntPropertyType intPropertyType;
     intPropertyType.miValue = mParams.miKernelSize;

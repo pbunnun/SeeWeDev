@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -11,6 +11,20 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+
+/**
+ * @file MathConvertToIntModel.cpp
+ * @brief Implementation of InformationData-to-IntegerData conversion node.
+ *
+ * Implements MathConvertToIntModel: parses the numeric string carried by
+ * InformationData and emits an IntegerData result.
+ *
+ * **Core Logic (setInData):**
+ * - Receives InformationData on port 0
+ * - Calls `QString::toInt()` to parse the text value (truncates decimal, 0 on error)
+ * - Writes result into mpIntegerData and calls emitOutputPort(0)
+ * - Emits nullptr if input is absent or node is disabled
+ */
 
 #include "MathConvertToIntModel.hpp"
 

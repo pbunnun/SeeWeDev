@@ -1,5 +1,17 @@
 //Copyright © 2025 - 2026, NECTEC, all rights reserved
 
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+
+//    http://www.apache.org/licenses/LICENSE-2.0
+
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+
 #include "PythonEditorEmbeddedWidget.hpp"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -54,27 +66,23 @@ PythonEditorEmbeddedWidget::PythonEditorEmbeddedWidget(QWidget* parent)
     font.setPointSize(11);
     mpCodeEditor->setFont(font);
     
-    // Set placeholder text with usage instructions
-    mpCodeEditor->setPlaceholderText(
-        "# Python Code Editor\n"
-        "# Access inputs: input0, input1, ...\n"
-        "# Set outputs: output0, output1, ...\n"
-        "#\n"
-        "# Available types:\n"
-        "# - cv::Mat -> numpy.ndarray\n"
-        "# - numbers -> float/int\n"
-        "# - strings -> str\n"
-        "# - points/rects -> dict\n"
-        "#\n"
-        "# Example:\n"
+    // Use default template text instead of placeholder because QTextEdit
+    // placeholder rendering can collapse multi-line hints on some platforms.
+    mpCodeEditor->setPlainText(
+        "# Example: run initialization once, process every input frame\n"
+        "# Access input data via input0, input1, ... variables\n"
+        "# Set output data via output0, output1, ... variables\n"
         "# import cv2\n"
-        "# import numpy as np\n"
         "#\n"
-        "# # Process image input\n"
-        "# if 'input0' in globals():\n"
+        "# # Runs only once per Python session\n"
+        "# if 'model' not in globals():\n"
+        "#     model = cv2.dnn.readNetFromONNX('/path/to/dog_detector.onnx')\n"
+        "#\n"
+        "# # Runs every time the node receives new input\n"
+        "# if 'input0' in globals() and input0 is not None:\n"
         "#     img = input0\n"
-        "#     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)\n"
-        "#     output0 = gray\n"
+        "#     # TODO: preprocess + inference using model\n"
+        "#     output0 = img\n"
     );
     
     mainLayout->addWidget(mpCodeEditor);

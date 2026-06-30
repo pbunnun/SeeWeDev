@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 #include <QComboBox>
 #include <QPushButton>
 #include "ui_CVUSBCameraEmbeddedWidget.h"
-#include <QDebug>
 
 CVUSBCameraEmbeddedWidget::CVUSBCameraEmbeddedWidget(QWidget *parent)
     : QWidget(parent),
@@ -60,8 +59,15 @@ void
 CVUSBCameraEmbeddedWidget::
 set_ready_state( bool bReady )
 {
-    ui->mpStartButton->setEnabled( bReady );
-    ui->mpStopButton->setEnabled( !bReady );
+    set_button_states( bReady, !bReady );
+}
+
+void
+CVUSBCameraEmbeddedWidget::
+set_button_states( bool startEnabled, bool stopEnabled )
+{
+    ui->mpStartButton->setEnabled( startEnabled );
+    ui->mpStopButton->setEnabled( stopEnabled );
 }
 
 void
@@ -104,8 +110,6 @@ void
 CVUSBCameraEmbeddedWidget::
 start_button_clicked()
 {
-    ui->mpStopButton->setEnabled( true );
-    ui->mpStartButton->setEnabled( false );
     Q_EMIT button_clicked_signal( 0 );
 }
 
@@ -113,8 +117,6 @@ void
 CVUSBCameraEmbeddedWidget::
 stop_button_clicked()
 {
-    ui->mpStartButton->setEnabled( true );
-    ui->mpStopButton->setEnabled( false );
     Q_EMIT button_clicked_signal( 1 );
 }
 
@@ -123,8 +125,6 @@ CVUSBCameraEmbeddedWidget::
 camera_id_combo_box_current_index_changed( int )
 {
     mCVUSBCameraProperty.miCameraID = ui->mpCameraIDComboBox->currentText().toInt();
-    ui->mpStartButton->setEnabled( true );
-    ui->mpStopButton->setEnabled( false );
     Q_EMIT button_clicked_signal( 2 );
 }
 

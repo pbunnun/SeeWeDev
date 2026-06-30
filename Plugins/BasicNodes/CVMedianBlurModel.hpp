@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -38,6 +38,8 @@ typedef struct CVMedianBlurParameters {
     {
     }
 } CVMedianBlurParameters;
+
+Q_DECLARE_METATYPE( CVMedianBlurParameters )
 
 /**
  * @brief Worker for async median blur processing

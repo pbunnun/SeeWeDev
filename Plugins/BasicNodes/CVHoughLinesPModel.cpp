@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -199,10 +199,10 @@ connectWorker(QObject* worker)
                     mpCVImageData = img;
                     mpIntegerData = count;
                     
-                    Q_EMIT dataUpdated(0); // image
-                    Q_EMIT dataUpdated(1); // count
+                    emitOutputPort(0); // image
+                    emitOutputPort(1); // count
                     mpSyncData->data() = true;
-                    Q_EMIT dataUpdated(2); // sync
+                    emitOutputPort(2); // sync
                     
                     setWorkerBusy(false);
                     dispatchPendingWork();
@@ -298,7 +298,7 @@ save() const
 {
     QJsonObject modelJson = PBAsyncDataModel::save();
 
-    QJsonObject cParams;
+    QJsonObject cParams = modelJson["cParams"].toObject();
     cParams["rho"] = mParams.mdRho;
     cParams["theta"] = mParams.mdTheta;
     cParams["threshold"] = mParams.miThreshold;
@@ -506,7 +506,7 @@ process_cached_input()
     
     QTimer::singleShot(0, this, [this]() {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(2);
+        emitOutputPort(2);
     });
     
     if (isWorkerBusy())

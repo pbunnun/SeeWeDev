@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
 //limitations under the License.
 
 #include "InformationDisplayModel.hpp"
+
+#include <QtCore/QPointer>
+#include <QtWidgets/QApplication>
 
 #include "InformationData.hpp"
 #include "SyncData.hpp"
@@ -40,6 +43,20 @@ InformationDisplayModel()
 
     connect( mpEmbeddedWidget, &InformationDisplayEmbeddedWidget::widgetClicked, 
         this, &InformationDisplayModel::selection_request_signal);
+}
+
+InformationDisplayModel::
+~InformationDisplayModel()
+{
+}
+
+void
+InformationDisplayModel::
+late_constructor()
+{
+    if (!start_late_constructor()) {
+        return;
+    }
 }
 
 unsigned int
@@ -79,8 +96,8 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         if( d )
         {
             d->set_information();
-            mpEmbeddedWidget->appendPlainText("............................................\n");
-            mpEmbeddedWidget->appendPlainText( d->info() );
+            appendDisplayText("............................................");
+            appendDisplayText(d->info());
         }
     }
     else if(portIndex == 1)
@@ -88,9 +105,20 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         auto d = std::dynamic_pointer_cast< SyncData >( nodeData );
         if( d )
         {
-            mpEmbeddedWidget->appendPlainText(d->state_str() + "\n");
+            const QString syncText = d->state_str() + "\n";
+            appendDisplayText(syncText);
         }
     }
+}
+
+void
+InformationDisplayModel::
+appendDisplayText(const QString& text)
+{
+    if (!mpEmbeddedWidget || text.isEmpty()) {
+        return;
+    }
+    mpEmbeddedWidget->appendPlainText(text);
 }
 
 void

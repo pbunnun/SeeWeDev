@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -510,6 +510,13 @@ protected:
      * @see QGraphicsView::keyPressEvent() for base key handling
      */
     void keyPressEvent( QKeyEvent *event ) override;
+
+    /**
+     * @brief Handles mouse move events with resize-aware panning suppression.
+     *
+     * Prevents scene panning while a node resize gesture is active.
+     */
+    void mouseMoveEvent(QMouseEvent *event) override;
     
 private:
     /**

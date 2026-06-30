@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -105,7 +105,7 @@ outData(PortIndex)
 
 void
 NodeDataTimerModel::
-setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
+setInData(std::shared_ptr<NodeData> nodeData, PortIndex portIndex)
 {
     if (nodeData)
     {
@@ -189,7 +189,7 @@ load(QJsonObject const& p)
 
 void NodeDataTimerModel::em_timeout()
 {
-    Q_EMIT dataUpdated(0);
+    emitOutputPort(0);
 }
 
 

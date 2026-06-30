@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ CVImageLoaderModel()
       mpEmbeddedWidget( new CVImageLoaderEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
     _minPixmap(":/ImageLoader.png")
 {
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
 
     mpEmbeddedWidget->set_active(false);
     connect( mpEmbeddedWidget, &CVImageLoaderEmbeddedWidget::button_clicked_signal, this, &CVImageLoaderModel::em_button_clicked );
@@ -593,12 +593,12 @@ set_image_filename(QString & filename)
         if( isEnable() )
         {
             // Emit image and info ports immediately
-            Q_EMIT dataUpdated(0);
-            Q_EMIT dataUpdated(1);
+            emitOutputPort(0);
+            emitOutputPort(1);
             // Emit sync port in next event loop iteration
             QTimer::singleShot(0, this, [this]() {
                 mpSyncData->data() = true;
-                Q_EMIT dataUpdated(2);
+                emitOutputPort(2);
             });
         }
     }
@@ -786,11 +786,11 @@ enable_changed(bool enable)
     }
     else {
         // Optionally resume playback if desired, or just update outputs
-        Q_EMIT dataUpdated(0);
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(0);
+        emitOutputPort(1);
         QTimer::singleShot(0, this, [this]() {
             mpSyncData->data() = true;
-            Q_EMIT dataUpdated(2);
+            emitOutputPort(2);
         });
     }
 }

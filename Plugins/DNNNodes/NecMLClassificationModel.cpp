@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2024 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -278,7 +278,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if( nodeData && mpSyncData->data() == true )
     {
         mpSyncData->data() = false;
-        //Q_EMIT dataUpdated(2);
+        //emitOutputPort(2);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
             processData( d );
@@ -304,7 +304,6 @@ NecMLClassificationModel::
 load( QJsonObject const &p )
 {
     PBNodeDelegateModel::load( p );
-    late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -326,7 +325,6 @@ load( QJsonObject const &p )
             typedProp->getData() = v.toString();
             msConfig_Filename = v.toString();
         }
-        load_model();
     }
 }
 
@@ -363,7 +361,7 @@ void
 NecMLClassificationModel::
 late_constructor()
 {
-    if( !mpNecMLClassificationThread )
+    if( start_late_constructor() )
     {
         mpNecMLClassificationThread = new NecMLClassificationThread(this);
         connect( mpNecMLClassificationThread, &NecMLClassificationThread::result_ready, this, &NecMLClassificationModel::received_result );

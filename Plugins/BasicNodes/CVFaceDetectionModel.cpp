@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ CVFaceDetectionModel::CVFaceDetectionModel() : PBNodeDelegateModel( _model_name 
     mpEmbeddedWidget( new CVFaceDetectionEmbeddedWidget() ),
     _minPixmap( ":FaceDetection.png" ) 
 {
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVFaceDetectionEmbeddedWidget::button_clicked_signal, this, &CVFaceDetectionModel::em_button_clicked );
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
         
@@ -106,7 +106,7 @@ void CVFaceDetectionModel::setInData(std::shared_ptr<NodeData> nodeData, PortInd
         }
     }
 
-    Q_EMIT dataUpdated(0);
+    emitOutputPort(0);
 }
 
 cv::Mat CVFaceDetectionModel::processData(const std::shared_ptr<CVImageData> &p)

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -217,7 +217,10 @@ public:
     InformationDisplayModel();
 
     virtual
-    ~InformationDisplayModel() override {}
+    ~InformationDisplayModel() override;
+
+    void
+    late_constructor() override;
 
     unsigned int
     nPorts( PortType portType ) const override;
@@ -290,6 +293,7 @@ public:
     static const QString _model_name;
 
 private:
+    void appendDisplayText(const QString& text);
 
     InformationDisplayEmbeddedWidget * mpEmbeddedWidget;  ///< Embedded text display widget (QPlainTextEdit-based)
 

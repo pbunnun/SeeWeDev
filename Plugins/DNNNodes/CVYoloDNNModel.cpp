@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2021 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -348,7 +348,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if( nodeData && mpSyncData->data() == true )
     {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
             processData( d );
@@ -380,7 +380,6 @@ CVYoloDNNModel::
 load( QJsonObject const &p )
 {
     PBNodeDelegateModel::load( p );
-    late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -412,14 +411,13 @@ load( QJsonObject const &p )
             msConfig_Filename = v.toString();
         }
 
-        CVYoloDNNImageParameters params;
         v = paramsObj["inv_scale_factor"];
         if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["inv_scale_factor"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mdInvScaleFactor = v.toDouble();
+            mImageParams.mdInvScaleFactor = v.toDouble();
         }
 
         auto width = paramsObj["size_width"];
@@ -431,7 +429,7 @@ load( QJsonObject const &p )
             typedProp->getData().miWidth = width.toInt();
             typedProp->getData().miHeight = height.toInt();
 
-            params.mCVSize = cv::Size( width.toInt(), height.toInt() );
+            mImageParams.mCVSize = cv::Size( width.toInt(), height.toInt() );
         }
 
         v = paramsObj["swap_rb"];
@@ -441,12 +439,8 @@ load( QJsonObject const &p )
             auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
             typedProp->getData() = v.toBool();
 
-            params.mbSwapRB = v.toBool();
+            mImageParams.mbSwapRB = v.toBool();
         }
-
-        mpCVYoloDNNThread->setParams( params );
-
-        load_model();
     }
 }
 
@@ -521,11 +515,14 @@ void
 CVYoloDNNModel::
 late_constructor()
 {
-    if( !mpCVYoloDNNThread )
+    if( start_late_constructor() )
     {
         mpCVYoloDNNThread = new CVYoloDNNThread(this);
         connect( mpCVYoloDNNThread, &CVYoloDNNThread::result_ready, this, &CVYoloDNNModel::received_result );
+        mpCVYoloDNNThread->setParams( mImageParams );
+
         load_model();
+
         mpCVYoloDNNThread->start();
     }
 }

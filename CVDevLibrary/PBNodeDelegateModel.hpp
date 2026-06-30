@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -20,22 +20,25 @@
 // - Removed v2-specific methods: setEnable(), setMinimize(), setLockPosition(), setDrawEntries()
 // - These features are commented out and need reimplementation in the application layer:
 //   * Enable/Disable nodes - use validation state or custom tracking
-//   * Minimize nodes - requires custom painter/geometry implementation  
+//   * Minimize nodes - requires custom painter/geometry implementation
 //   * Lock position - use NodeFlags in DataFlowGraphModel
 //   * Draw entries - controlled by node geometry in v3
 
 #include "CVDevLibrary.hpp"
 #include "Property.hpp"
 #include "DebugLogging.hpp"
+#include <functional>
+#include <QtCore/QTimer>
 #include <QtNodes/NodeDelegateModel>
 
 using QtNodes::PortIndex;
 using QtNodes::NodeData;
 using QtNodes::NodeStyle;
+using QtNodes::NodeId;
 
 class CVDEVSHAREDLIB_EXPORT PBNodeDelegateModel : public QtNodes::NodeDelegateModel
 {
-    Q_OBJECT
+  Q_OBJECT
 public:
     explicit PBNodeDelegateModel(QString modelName, bool bSource=false, bool bEnable=true);
 
@@ -105,7 +108,12 @@ public:
     /// graph model and the UI previously invoked `late_constructor()`.
     virtual void late_constructor() { }
 
+    virtual QString portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const;
+
 protected:
+    void
+    emitOutputPort(PortIndex portIndex);
+
     void
     updateAllOutputPorts();
 
@@ -121,32 +129,42 @@ public:
     isSource( ) const { return mbSource; }
 
     /**
-     * @brief Checks if this node has Zenoh enabled.
-     * @return bool True if "enable_zenoh" property is true, false otherwise
+     * @brief Gets the runtime graph node identifier used for Zenoh keys.
+     *
+     * Returns the model-assigned NodeId when available (e.g., "0", "1", ...).
+     * Falls back to the object address string only before the model context is set.
      */
-    bool isZenohEnabled() const {
-        return getModelPropertyValue("enable_zenoh").toBool();
+    QString getNodeId() const {
+        if (mbHasRuntimeNodeId) {
+            return QString::number(static_cast<qulonglong>(miRuntimeNodeId));
+        }
+        return QString::number(reinterpret_cast<qulonglong>(this));
     }
 
     /**
-     * @brief Gets a unique identifier for this node (for Zenoh keys).
-     * @return QString Node identifier combining model name and instance ID
+     * @brief Sets runtime context used for transport key construction.
+     *
+     * @param nodeId Graph NodeId assigned by PBDataFlowGraphModel
+     * @param flowFilename Flow filename scope for transport keys (defaults to "Untitle" when empty)
      */
-    QString getNodeId() const {
-        return QString("%1_%2").arg(msModelName).arg(reinterpret_cast<quintptr>(this));
-    }
+    void setRuntimeTransportContext(NodeId nodeId, const QString& flowFilename);
+
+    /**
+     * @brief Gets the flow filename scope used for transport key construction.
+     */
+    QString getFlowFilename() const { return msFlowFilename; }
 
     virtual QPixmap
     minPixmap() const { return mMinPixmap; }
 
     /**
      * @brief Request a property change through the undo/redo system.
-     * 
+     *
      * This is the SINGLE POINT OF ENTRY for all property changes, regardless of source:
      * - Embedded widgets should call this instead of directly calling setters
      * - Property Browser changes route through MainWindow to here
      * - Programmatic changes should use this for undo/redo support
-     * 
+     *
      * @param propertyId The ID of the property to change
      * @param newValue The new value for the property
      * @param createUndoCommand If true, creates an undo command (default). Set to false when called from undo/redo itself.
@@ -156,16 +174,19 @@ public:
     // Tracking if the embedded widget is currently selected for editing
     bool isEditableEmbeddedWidgetSelected() const { return mbEditableEmbeddedWidgetSelected; }
 
-protected:
+    void setSavedWidgetSize(const QSize& size) { mSavedWidgetSize = size; }
+    QSize savedWidgetSize() const { return mSavedWidgetSize; }
+
+    protected:
     /**
-     * @brief Check if node is selected before allowing embedded widget interactions.
-     * 
-     * Call this at the start of any embedded widget signal handler to enforce
-     * the policy that nodes must be selected before users can interact with them.
-     * This prevents accidental interactions with unselected nodes.
-     * 
-     * @return true if the node is selected and interaction should proceed, false otherwise
-     */
+    * @brief Check if node is selected before allowing embedded widget interactions.
+    *
+    * Call this at the start of any embedded widget signal handler to enforce
+    * the policy that nodes must be selected before users can interact with them.
+    * This prevents accidental interactions with unselected nodes.
+    *
+    * @return true if the node is selected and interaction should proceed, false otherwise
+    */
     bool checkSelectionForInteraction() const
     {
         if (!isSelected())
@@ -175,11 +196,11 @@ protected:
         }
         return true;
     }
-    
+
     // Helper to calculate minimum widget size based on ports and caption
     // This ensures the embedded widget is large enough to accommodate the node layout
     QSize calculateMinimumWidgetSize(const QString& caption, int nInPorts, int nOutPorts) const;
-    
+
     // Start the late constructor if not already started
     bool mbLateConstructed{ false };
     bool start_late_constructor()
@@ -194,21 +215,21 @@ protected:
 
 Q_SIGNALS:
     /**
-     * Emitted when a property needs to be changed through undo/redo system.
-     * MainWindow listens to this and creates PropertyChangeCommand.
-     */
+    * Emitted when a property needs to be changed through undo/redo system.
+    * MainWindow listens to this and creates PropertyChangeCommand.
+    */
     void property_change_request_signal(const QString& propertyId, const QVariant& oldValue, const QVariant& newValue);
 
     /**
-     * Emitted after a property has been changed (for UI synchronization only).
-     * MainWindow listens to this to update the Property Browser.
-     */
+    * Emitted after a property has been changed (for UI synchronization only).
+    * MainWindow listens to this to update the Property Browser.
+    */
     void property_changed_signal( std::shared_ptr<Property> );
 
     /**
      * Emitted when an unselected node wants to be selected (e.g., user clicked embedded widget).
      * MainWindow listens to this and selects the node's graphics object.
-     */
+    */
     void selection_request_signal();
 
     void
@@ -265,7 +286,11 @@ private:
     bool mbDrawConnectionPoint{true};
     bool mbCaptionVisible{true};
     bool mbEditableEmbeddedWidgetSelected{false};
-
+    NodeId miRuntimeNodeId{0};
+    QString msFlowFilename{"Untitle"};
+    bool mbHasRuntimeNodeId{false};
+    QSize mSavedWidgetSize;
+    
     void enabled( bool );
     virtual void minimized( bool );
     void locked_position( bool );

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2022 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -185,7 +185,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
                 QString filename = msPrefix_Filename + "-" + QString::number(miCounter++) + "." + msImage_Format;
                 mpSavingImageThread->add_new_image( mCVMatInImage, filename );
                 mpSyncData->data() = true;
-                Q_EMIT dataUpdated(0);
+                emitOutputPort(0);
                 mCVMatInImage.release();   // just to make sure the data is released 
             }
         }
@@ -195,7 +195,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
             {
                 mpSavingImageThread->add_new_image( mCVMatInImage, msFilename );
                 mpSyncData->data() = true;
-                Q_EMIT dataUpdated(0);
+                emitOutputPort(0);
                 mCVMatInImage.release();
                 msFilename.clear();
             }
@@ -213,7 +213,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         {
             mpSavingImageThread->add_new_image( mCVMatInImage, msFilename );
             mpSyncData->data() = true;
-            Q_EMIT dataUpdated(0);
+            emitOutputPort(0);
             mCVMatInImage.release();
             msFilename.clear();
         }
@@ -228,14 +228,14 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
                 QString filename = msPrefix_Filename + "-" + QString::number(miCounter++) + "." + msImage_Format;
                 mpSavingImageThread->add_new_image( mCVMatInImage, filename );
                 mpSyncData->data() = true;
-                Q_EMIT dataUpdated(0);
+                emitOutputPort(0);
                 mCVMatInImage.release();
             }
             else
             {
                 mpSavingImageThread->add_new_image( mCVMatInImage, msFilename );
                 mpSyncData->data() = true;
-                Q_EMIT dataUpdated(0);
+                emitOutputPort(0);
                 mCVMatInImage.release();
                 msFilename.clear();
             }
@@ -243,7 +243,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
         else
         {
             mpSyncData->data() = false;
-            Q_EMIT dataUpdated(0);
+            emitOutputPort(0);
         }
     }
 }
@@ -269,7 +269,6 @@ CVSaveImageModel::
 load(QJsonObject const &p)
 {
     PBNodeDelegateModel::load(p);
-    late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -285,7 +284,6 @@ load(QJsonObject const &p)
                 auto typedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > > ( prop );
                 typedProp->getData().msPath = dirname;
                 msDirname = dirname;
-                mpSavingImageThread->set_saving_directory( msDirname );
             }
         }
         v = paramsObj["prefix_filename"];
@@ -367,9 +365,10 @@ void
 CVSaveImageModel::
 late_constructor()
 {
-    if( !mpSavingImageThread )
+    if( start_late_constructor() ) 
     {
         mpSavingImageThread = new SavingImageThread( this );
+        mpSavingImageThread->set_saving_directory( msDirname );
     }
 }
 

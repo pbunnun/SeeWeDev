@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2022 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -15,9 +15,36 @@
 #pragma once
 
 #include <QtCore/QtGlobal>
+#include <QStandardPaths>
+#include <QString>
 
 #if defined(CVDEV_LIBRARY)
 #  define CVDEVSHAREDLIB_EXPORT Q_DECL_EXPORT
 #else
 #  define CVDEVSHAREDLIB_EXPORT Q_DECL_IMPORT
 #endif
+
+namespace CVDev
+{
+
+inline QString homePath()
+{
+	return QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+}
+
+inline QString appHomePath(const QString &appDirName = ".CVDev")
+{
+	return homePath() + "/" + appDirName;
+}
+
+/// Returns the canonical path to the shared CVDev settings INI file.
+/// All components (MainWindow, ZenohSettingsDialog, CVDevDaemon) must
+/// use this path so that settings are read and written to a single file.
+inline QString cvdevIniPath()
+{
+	return appHomePath() + "/cvdev.ini";
+}
+
+} // namespace CVDev
+
+

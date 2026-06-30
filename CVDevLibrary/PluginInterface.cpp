@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QMessageBox>
-#include <QStandardPaths>
 
 #include "BoolData.hpp"
 #include "CVImageData.hpp"
@@ -31,6 +30,8 @@
 #include "SyncData.hpp"
 
 #include "InformationData.hpp"
+
+namespace PluginInterfaceUtils {
 
 std::shared_ptr<QtNodes::NodeData> converter(std::shared_ptr<QtNodes::NodeData> node_type)
 {
@@ -127,7 +128,7 @@ void load_plugins( std::shared_ptr< NodeDelegateModelRegistry > model_regs, QLis
     pluginsDir.cd( "cvdev_plugins" );
     load_plugins_from_dir( model_regs, plugins_list, pluginsDir );
 
-    pluginsDir = QDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation)+"/.CVDevPro/cvdev_plugins");
+    pluginsDir = QDir(CVDev::appHomePath()+"/cvdev_plugins");
     if( !pluginsDir.exists() )
         pluginsDir.mkpath(".");
     load_plugins_from_dir( model_regs, plugins_list, pluginsDir );
@@ -164,3 +165,5 @@ void load_plugin(std::shared_ptr< NodeDelegateModelRegistry > model_regs, QList<
        qCritical() << loader->errorString();
    }
 }
+
+} // namespace PluginInterfaceUtils

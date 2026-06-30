@@ -1,3 +1,17 @@
+//Copyright © 2021 - 2026, NECTEC, all rights reserved
+
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+
+//    http://www.apache.org/licenses/LICENSE-2.0
+
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+
 #include "PushButtonModel.hpp"
 #include <QDebug>
 #include <QEvent>
@@ -230,24 +244,6 @@ setModelProperty( QString & id, const QVariant & value )
 
         mpIntData->data() = value.toInt();
     }
-#if 0
-    else if( id == "size_id" )
-    {
-        auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( prop );
-        mSize = value.toSize();
-
-        typedProp->getData().miWidth = mSize.width();
-        typedProp->getData().miHeight = mSize.height();
-    }
-    else if( id == "point_id" )
-    {
-        auto typedProp = std::static_pointer_cast< TypedProperty< PointPropertyType > >( prop );
-        mPoint = value.toPoint();
-
-        typedProp->getData().miXPosition = mPoint.x();
-        typedProp->getData().miYPosition = mPoint.y();
-    }
-#endif
 }
 
 void
@@ -268,51 +264,6 @@ em_button_clicked( )
     else
         mpSyncData->data() = true;
     updateAllOutputPorts();
- //   Q_EMIT dataUpdated( 0 );
-#if 0
-    if( button == 0 ) //Start
-    {
-        auto prop = mMapIdToProperty[ "enable" ];
-        /*
-         * Update internal property.
-         */
-        auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
-        typedProp->getData() = true;
-
-        /*
-         * Emiting property_changed_signal will send a signal to QtPropertyBrowser
-         * and it will update its parameters accordingly.
-         */
-        Q_EMIT property_changed_signal( prop );
-
-        enable_changed( true );
-    }
-    else if( button == 1 ) //Stop
-    {
-        auto prop = mMapIdToProperty[ "enable" ];
-        auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
-        typedProp->getData() = false;
-        Q_EMIT property_changed_signal( prop );
-
-        enable_changed( false );
-    }
-    else if( button == 2 )
-    {
-        auto prop = mMapIdToProperty[ "spinbox_id" ];
-        auto typedProp = std::static_pointer_cast< TypedProperty< IntPropertyType > >( prop );
-        typedProp->getData().miValue = mpEmbeddedWidget->get_spinbox()->value();
-        Q_EMIT property_changed_signal( prop );
-    }
-    else if( button == 3 )
-    {
-        auto prop = mMapIdToProperty[ "combobox_id" ];
-        auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( prop );
-        typedProp->getData().miCurrentIndex = typedProp->getData().mslEnumNames.indexOf( mpEmbeddedWidget->get_combobox_text() );
-        Q_EMIT property_changed_signal( prop );
-    }
-    // Notify node's NodeGraphicsObject to redraw itself.
-    Q_EMIT embeddedWidgetStatusUpdated();
-#endif
 }
 
 

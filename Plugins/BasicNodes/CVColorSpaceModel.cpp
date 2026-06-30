@@ -1,16 +1,16 @@
-// Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
 
 //    http://www.apache.org/licenses/LICENSE-2.0
 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
 
 #include "CVColorSpaceModel.hpp"
 
@@ -30,6 +30,8 @@ CVColorSpaceModel::
     : PBAsyncDataModel(_model_name),
       _minPixmap(":/CVColorSpaceModel.png")
 {
+    qRegisterMetaType<CVColorSpaceParameters>( "CVColorSpaceParameters" );
+
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList({"GRAY", "BGR", "RGB", "HSV"});
     enumPropertyType.miCurrentIndex = 1;
@@ -94,7 +96,7 @@ void CVColorSpaceModel::
     QTimer::singleShot(0, this, [this]()
                        {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1); });
+        emitOutputPort(1); });
 
     if (isWorkerBusy())
     {
@@ -119,7 +121,7 @@ CVColorSpaceModel::
 {
     QJsonObject modelJson = PBAsyncDataModel::save();
 
-    QJsonObject cParams;
+    QJsonObject cParams = modelJson["cParams"].toObject();
     cParams["colorSpaceInput"] = mParams.miCVColorSpaceInput;
     cParams["colorSpaceOutput"] = mParams.miCVColorSpaceOutput;
     modelJson["cParams"] = cParams;

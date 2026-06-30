@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 
 #include "CVImageData.hpp"
-
-#include <opencv2/imgproc.hpp>
 #include <QtCore/QEvent>
 #include <QtCore/QDir>
+#include <opencv2/imgproc.hpp>
 #include <QtCore/QTimer>
 #include <QtNodes/internal/ConnectionIdUtils.hpp>
 #include <QDebug>
@@ -138,7 +137,7 @@ process_cached_input()
     // Emit sync "false" signal in next event loop
     QTimer::singleShot(0, this, [this]() {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
     });
     
     if(isWorkerBusy())

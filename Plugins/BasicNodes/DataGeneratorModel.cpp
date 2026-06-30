@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ DataGeneratorModel()
 {
     mpInformationData = std::make_shared<InformationData>();
 
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect(mpEmbeddedWidget,&DataGeneratorEmbeddedWidget::widget_clicked_signal,this,&DataGeneratorModel::em_widget_clicked);
 
     EnumPropertyType enumPropertyType;
@@ -139,7 +139,7 @@ void DataGeneratorModel::em_widget_clicked()
     const int dataType = mpEmbeddedWidget->get_combobox_index();
     const QString input = mpEmbeddedWidget->get_text_input();
     processData(dataType,input,mpInformationData);
-    Q_EMIT dataUpdated(0);
+    emitOutputPort(0);
 }
 
 void

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -354,6 +354,13 @@ public:
      * @endcode
      */
     bool isSnapToGrid() const { return mbSnapToGrid; }
+
+    /**
+     * @brief Checks whether a node resize interaction is currently active.
+     *
+     * @return bool True while dragging a node resize handle, false otherwise.
+     */
+    bool isResizingNodes() const { return mbResizingNodes; }
     
     /**
      * @brief Returns the grid size for snap-to-grid.
@@ -461,6 +468,8 @@ protected:
      * @note Ensures final position is grid-aligned after drag
      */
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+
+    void helpEvent(QGraphicsSceneHelpEvent *event) override;
 
     /**
      * @brief Handles context menu requests in the scene

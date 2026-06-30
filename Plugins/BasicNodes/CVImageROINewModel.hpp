@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
 
 #include "PBNodeDelegateModel.hpp"
 #include "CVImageData.hpp"
+#include "CVImageROIWidget.hpp"
 
 #include <opencv2/videoio.hpp>
 
@@ -177,12 +178,13 @@ public:
     setInData(std::shared_ptr<NodeData>, PortIndex) override;
 
     /**
-     * @brief No embedded widget for this node
-     * 
-     * @return nullptr - Parameters are set via property browser
+     * @brief Returns the embedded ROI selection widget.
+     *
+     * The widget displays the current input image and allows the user to
+     * drag a rectangle to interactively define the ROI.
      */
     QWidget *
-    embeddedWidget() override { return nullptr; }
+    embeddedWidget() override { return mpEmbeddedWidget; }
 
     /**
      * @brief Sets model properties from the property browser
@@ -203,11 +205,21 @@ public:
     void
     setModelProperty( QString &, const QVariant & ) override;
 
+    void
+    late_constructor() override;
+
     /** @brief Category name for node organization */
     static const QString _category;
 
     /** @brief Display name for the node type */
     static const QString _model_name;
+
+private Q_SLOTS:
+    /**
+     * @brief Handles an ROI rectangle drawn interactively by the user.
+     * @param roi New ROI in image-pixel coordinates.
+     */
+    void onROISelected( QRect roi );
 
 private:
     /**
@@ -243,6 +255,9 @@ private:
      */
     cv::Rect mRectROI { cv::Rect( 0, 0, 640, 480 ) };
     QPixmap _minPixmap;
+
+    /** @brief Embedded widget for interactive ROI drag-selection. */
+    CVImageROIWidget *mpEmbeddedWidget { nullptr };
 };
 
 

@@ -1,0 +1,23 @@
+/**
+ * @file CycloneDDSRawPayload.idl
+ * @brief DDS Interface Definition Language (IDL) for raw payload topic.
+ *
+ * Defines the DDS data structure for transporting arbitrary byte sequences
+ * in CVDev remote operations. Used by CycloneDDS compiler to generate
+ * serialization/deserialization code.
+ *
+ * **Topic Definition:**
+ * - Module: cvdev
+ * - Type: RawPayload (single field: sequence of bytes)
+ * - Usage: Generic pub/sub for transport-agnostic payloads
+ */
+
+module cvdev {
+  /// @brief Generic raw payload container for DDS topics.
+  /// Contains a sequence of octets (bytes) for transport of any serialized data.
+  @topic
+  struct RawPayload {
+    /// Byte sequence payload (variable-length).
+    sequence<octet> payload;
+  };
+};

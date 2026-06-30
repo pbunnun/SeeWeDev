@@ -24,8 +24,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 COMPONENTS Widgets OpenGL OpenGLWidgets REQUIRED)
 find_package(OpenCV CONFIG REQUIRED)
 
-if( Qt6_FOUND )
-    find_package(Qt6 COMPONENTS OpenGLWidgets REQUIRED)
+# Try to find Zenoh (optional dependency for distributed mode)
+find_package(zenohc QUIET)
+if(zenohc_FOUND)
+    message(STATUS "BasicNodes: Zenoh found - enabling Zenoh bridge nodes")
+    add_definitions(-DZENOH_ENABLED)
+    set(ZENOH_LIBRARIES zenohc::lib)
+else()
+    message(STATUS "BasicNodes: Zenoh not found - Zenoh bridge nodes disabled")
+    set(ZENOH_LIBRARIES "")
 endif()
 
 file(GLOB CPP_FILES *.cpp)
@@ -60,6 +67,7 @@ include_directories(${CVDevLibrary_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME}
     CVDevLibrary
     ${OpenCV_LIBS}
+    ${ZENOH_LIBRARIES}
     Qt6::OpenGLWidgets
     )
 

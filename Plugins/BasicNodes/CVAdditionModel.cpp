@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -102,7 +102,7 @@ CVAdditionModel()
     IntPropertyType poolSizeProperty;
     poolSizeProperty.miMin = 1;
     poolSizeProperty.miMax = 128;
-    poolSizeProperty.miValue = miPoolSize;
+    poolSizeProperty.miValue = CVImagePool::DefaultPoolSize;
     QString propId = "pool_size";
     auto propPoolSize = std::make_shared< TypedProperty< IntPropertyType > >( "Pool Size", propId, QMetaType::Int, poolSizeProperty );
     mvProperty.push_back( propPoolSize );
@@ -373,7 +373,7 @@ processData(const std::vector< cv::Mat >&in, std::shared_ptr<CVImageData> &out)
         }
 
         out = std::move(newImageData);
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
 }
 
@@ -452,7 +452,7 @@ void CVAdditionModel::process_cached_input()
     // Emit sync "false" signal in next event loop
     QTimer::singleShot(0, this, [this]() {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
     });
     
     ensure_frame_pool(mvCVImageInData[0].cols, mvCVImageInData[0].rows, mvCVImageInData[0].type());
@@ -530,10 +530,10 @@ void CVAdditionModel::handleFrameReady(std::shared_ptr<CVImageData> img)
     if(img)
     {
         mpCVImageData = img;
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
         QTimer::singleShot(0, this, [this]() {
             mpSyncData->data() = true;
-            Q_EMIT dataUpdated(1);
+            emitOutputPort(1);
         });
     }
     mWorkerBusy = false;

@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -98,9 +98,7 @@
 
 #include <QtPlugin>
 #include <QPluginLoader>
-// TODO NodeEditor v3 Migration: Updated include for NodeDelegateModelRegistry
-// Old v2: #include <DataModelRegistry>
-// New v3: #include <QtNodes/NodeDelegateModelRegistry>
+#include <QSysInfo>
 #include <QtNodes/NodeDelegateModelRegistry>
 #include "CVDevLibrary.hpp"
 #include <QDir>
@@ -135,6 +133,8 @@ using QtNodes::NodeDelegateModelRegistry;  // v3
  * @note Should be called before loading plugins to ensure converters are available
  * @see NodeDelegateModelRegistry::registerTypeConverter() for converter registration
  */
+namespace PluginInterfaceUtils {
+
 void CVDEVSHAREDLIB_EXPORT add_type_converters( std::shared_ptr< NodeDelegateModelRegistry > model_regs );
 
 /**
@@ -246,6 +246,8 @@ void CVDEVSHAREDLIB_EXPORT load_plugins( std::shared_ptr< NodeDelegateModelRegis
  * @see QPluginLoader::errorString() for error messages
  */
 void CVDEVSHAREDLIB_EXPORT load_plugin( std::shared_ptr< NodeDelegateModelRegistry > model_regs, QList< QPluginLoader *> & plugins_list, QString filename );
+
+} // namespace PluginInterfaceUtils
 
 /**
  * @class PluginInterface

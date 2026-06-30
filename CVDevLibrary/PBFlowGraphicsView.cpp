@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -639,6 +639,21 @@ keyPressEvent(QKeyEvent *event)
     
     // If not handled, pass to base class
     QtNodes::GraphicsView::keyPressEvent(event);
+}
+
+void
+PBFlowGraphicsView::
+mouseMoveEvent(QMouseEvent *event)
+{
+    if (auto *pbScene = dynamic_cast<PBDataFlowGraphicsScene*>(mpDataFlowGraphicsScene)) {
+        if (pbScene->isResizingNodes()) {
+            // Bypass QtNodes::GraphicsView drag-panning while resize is active.
+            QGraphicsView::mouseMoveEvent(event);
+            return;
+        }
+    }
+
+    QtNodes::GraphicsView::mouseMoveEvent(event);
 }
 
 void

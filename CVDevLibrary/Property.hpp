@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -305,6 +305,8 @@ typedef struct FilePathPropertyType {
     QString msFilename;          ///< Full file path
     QString msFilter;            ///< File dialog filter string
     QString msMode{"open"};      ///< Dialog mode: "open" or "save"
+    QString msDescriptionToolTip; ///< Optional tooltip for property label
+    QString msValueToolTip;       ///< Optional tooltip for property value editor
 } FilePathPropertyType;
 
 /**

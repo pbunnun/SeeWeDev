@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -11,6 +11,20 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+
+/**
+ * @file MathIntegerSumModel.cpp
+ * @brief Implementation of integer addition node.
+ *
+ * Implements MathIntegerSumModel: adds two IntegerData inputs and emits the
+ * result on output port 0.
+ *
+ * **Core Logic (setInData):**
+ * - Caches both inputs in mpIntegerData_1 / mpIntegerData_2
+ * - Computes `sum = a + b` when both inputs are present and node is enabled
+ * - Writes result into mpIntegerData and calls emitOutputPort(0)
+ * - Emits nullptr if either input is absent
+ */
 
 #include "MathIntegerSumModel.hpp"
 

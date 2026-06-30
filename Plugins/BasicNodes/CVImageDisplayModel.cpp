@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,11 +16,14 @@
 
 #include <QtCore/QEvent>
 #include <QtCore/QDir>
+#include <QtCore/QPointer>
+#include <QtWidgets/QApplication>
 
 #include <QtWidgets/QFileDialog>
 
 
 #include "CVImageData.hpp"
+#include "NodeDataSerializer.hpp"
 
 const QString CVImageDisplayModel::_category = QString( "Output" );
 
@@ -34,7 +37,6 @@ CVImageDisplayModel()
 {
     mpEmbeddedWidget->installEventFilter( this );
     mpEmbeddedWidget->resize(640, 480);
-    mpSyncData = std::make_shared<SyncData>( true );
 
     // Make the minimize property read-only for display nodes
     auto minimizePropId = QString("minimize");
@@ -60,6 +62,21 @@ CVImageDisplayModel()
     auto propFormat = std::make_shared< TypedProperty< QString > >( "Format", propId, QMetaType::QString, "", "", true );
     mvProperty.push_back( propFormat );
     mMapIdToProperty[ propId ] = propFormat;
+}
+
+CVImageDisplayModel::
+~CVImageDisplayModel()
+{
+}
+
+void
+CVImageDisplayModel::
+late_constructor()
+{
+    if( start_late_constructor() ) 
+    {
+        mpSyncData = std::make_shared<SyncData>( true );
+    }
 }
 
 unsigned int
@@ -119,15 +136,26 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
             const cv::Mat& frame = d->data();
             if( frame.data != nullptr )
             {
-                mpSyncData->data() = false;
-                // Consumer: read-only access to the pooled or owned frame
-                // Copy only when displaying to avoid holding the pool slot
-                frame.copyTo( mCVImageDisplay );
-                display_image();
-                mpSyncData->data() = true;
-                Q_EMIT dataUpdated(0);
+                updateDisplayFromFrame(frame, true);
             }
         }
+    }
+}
+
+void
+CVImageDisplayModel::
+updateDisplayFromFrame(const cv::Mat& frame, bool emitSyncSignal)
+{
+    mpSyncData->data() = false;
+
+    // Consumer: read-only access to the pooled or owned frame.
+    // Copy only when displaying to avoid holding the pool slot.
+    frame.copyTo(mCVImageDisplay);
+    display_image();
+
+    mpSyncData->data() = true;
+    if (emitSyncSignal) {
+        emitOutputPort(0);
     }
 }
 
@@ -157,6 +185,10 @@ display_image()
             
             // Resize the widget to match the aspect ratio
             mpEmbeddedWidget->resize(currentWidth, newHeight);
+
+            // Notify graph model to recompute node geometry/boundary for the
+            // new embedded widget size across all transport modes.
+            Q_EMIT embeddedWidgetSizeUpdated();
         }
 
         auto prop = mMapIdToProperty["image_size"];

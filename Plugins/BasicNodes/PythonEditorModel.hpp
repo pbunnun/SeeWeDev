@@ -1,15 +1,27 @@
 //Copyright © 2025 - 2026, NECTEC, all rights reserved
 
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+
+//    http://www.apache.org/licenses/LICENSE-2.0
+
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+
 #pragma once
 
 #include <QtCore/QObject>
-#include <QProcess>
-#include <QTemporaryFile>
+#include <QThread>
 #include <QStringList>
 #include <vector>
 #include "PBNodeDelegateModel.hpp"
 #include "InformationData.hpp"
 #include "PythonEditorEmbeddedWidget.hpp"
+#include "PythonSessionWorker.hpp"
 
 using QtNodes::PortType;
 using QtNodes::PortIndex;
@@ -34,7 +46,7 @@ class PythonEditorModel : public PBNodeDelegateModel
 
 public:
     PythonEditorModel();
-    virtual ~PythonEditorModel() override {};
+    virtual ~PythonEditorModel() override;
 
     unsigned int nPorts(PortType portType) const override;
 
@@ -52,6 +64,7 @@ public:
 
     QJsonObject save() const override;
     void load(QJsonObject const &p) override;
+    void late_constructor() override;
 
     static const QString _category;
     static const QString _model_name;
@@ -60,6 +73,10 @@ private Q_SLOTS:
     void onExecutePython();
     void onNumInputsChanged();
     void onNumOutputsChanged();
+    void onSessionStarted();
+    void onSessionFailed( const QString& errorMessage );
+    void onResultReady( const QString& outputsJson );
+    void onExecutionError( const QString& errorMessage );
 
 private:
     enum PortDataTypeIndex
@@ -71,7 +88,8 @@ private:
         PortTypePoint,
         PortTypeRect,
         PortTypeSize,
-        PortTypeSync
+        PortTypeSync,
+        PortTypeInfo
     };
 
     QStringList availablePortTypeNames() const;
@@ -82,6 +100,7 @@ private:
     void rebuildPortTypeProperties();
 
     void executePythonCode();
+    QString buildInputsJson();
     QString serializeInputData(int index);
     bool deserializeOutputData(int index, const QString& jsonStr, QString& errorMessage);
     
@@ -107,4 +126,13 @@ private:
     // Execution status
     std::shared_ptr<InformationData> mpExecutionInfo;
     bool mbExecutionSuccess{true};
+
+    QThread* mpWorkerThread { nullptr };
+    PythonSessionWorker* mpSessionWorker { nullptr };
+    bool mbSessionRunning { false };
+    bool mbBusy { false };
+    bool mbPendingExecution { false };
+    QString msLastExecutedCode;
+    QString msPythonExecutable { "python3" };
+    QString msLastSessionExecutable;
 };

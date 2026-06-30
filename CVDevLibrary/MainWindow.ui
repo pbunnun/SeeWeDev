@@ -54,7 +54,7 @@
      <x>0</x>
      <y>0</y>
      <width>1200</width>
-     <height>26</height>
+     <height>37</height>
     </rect>
    </property>
    <widget class="QMenu" name="mpMenuFile">
@@ -115,6 +115,23 @@
     <addaction name="mpActionEnableAll"/>
     <addaction name="separator"/>
    </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <addaction name="mpMenuOperationModes"/>
+    <addaction name="separator"/>
+    <addaction name="mpActionZenohSettings"/>
+    <addaction name="mpActionCycloneDDSSettings"/>
+   </widget>
+     <widget class="QMenu" name="mpMenuOperationModes">
+    <property name="title">
+     <string>Operation Modes</string>
+    </property>
+    <addaction name="mpActionModeQt"/>
+    <addaction name="mpActionModeZenoh"/>
+    <addaction name="mpActionModeCycloneDDS"/>
+     </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>Help</string>
@@ -125,6 +142,7 @@
    <addaction name="menuEdit"/>
    <addaction name="mpMenuView"/>
    <addaction name="menuControl"/>
+   <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="mpStatusBar"/>
@@ -576,6 +594,52 @@
   <action name="mpActionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="mpActionZenohSettings">
+   <property name="text">
+    <string>Zenoh Configuration...</string>
+   </property>
+   <property name="toolTip">
+    <string>Configure Zenoh distributed dataflow settings</string>
+   </property>
+   <property name="statusTip">
+    <string>Open Zenoh configuration dialog to set connection mode, endpoints, and transport options</string>
+   </property>
+  </action>
+  <action name="mpActionCycloneDDSSettings">
+   <property name="text">
+    <string>CycloneDDS Configuration...</string>
+   </property>
+   <property name="toolTip">
+    <string>Configure CycloneDDS distributed dataflow settings</string>
+   </property>
+   <property name="statusTip">
+    <string>Open CycloneDDS configuration dialog to set domain and partition options</string>
+   </property>
+  </action>
+  <action name="mpActionModeQt">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Qt</string>
+   </property>
+  </action>
+  <action name="mpActionModeZenoh">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Zenoh</string>
+   </property>
+  </action>
+  <action name="mpActionModeCycloneDDS">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>CycloneDDS</string>
    </property>
   </action>
   <action name="mpActionFullScreen">

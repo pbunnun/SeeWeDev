@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 #include <QDebug> //for debugging using qDebug()
 
-
 #include <opencv2/imgproc.hpp>
 #include "qtvariantproperty_p.h"
 
@@ -32,7 +31,7 @@ CVBlendImagesModel()
 {
     mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
 
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     connect( mpEmbeddedWidget, &CVBlendImagesEmbeddedWidget::radioButton_clicked_signal, this, &CVBlendImagesModel::em_radioButton_clicked );
 
     DoublePropertyType doublePropertyType;
@@ -129,7 +128,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex portIndex)
         }
     }
 
-    Q_EMIT dataUpdated(0);
+    emitOutputPort(0);
 }
 
 QJsonObject
@@ -248,7 +247,7 @@ setModelProperty( QString & id, const QVariant & value )
     {
         processData( mapCVImageInData, mpCVImageData, mParams );
 
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
 }
 
@@ -257,7 +256,7 @@ void CVBlendImagesModel::em_radioButton_clicked()
     if(allports_are_active(mapCVImageInData))
     {
         processData(mapCVImageInData,mpCVImageData,mParams);
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
 }
 

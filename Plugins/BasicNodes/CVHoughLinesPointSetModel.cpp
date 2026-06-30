@@ -1,3 +1,17 @@
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
+
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+
+//    http://www.apache.org/licenses/LICENSE-2.0
+
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+
 #include "CVHoughLinesPointSetModel.hpp"
 #include <opencv2/imgproc.hpp>
 #include <algorithm>
@@ -244,7 +258,7 @@ QJsonObject CVHoughLinesPointSetModel::save() const
 {
     QJsonObject modelJson = PBAsyncDataModel::save();
 
-    QJsonObject cParams;
+    QJsonObject cParams = modelJson["cParams"].toObject();
     cParams["linesMax"] = mParams.miLinesMax;
     cParams["threshold"] = mParams.miThreshold;
     cParams["minRho"] = mParams.mdMinRho;
@@ -542,7 +556,7 @@ void CVHoughLinesPointSetModel::connectWorker(QObject *worker)
     if (w)
     {
         connect(w, &CVHoughLinesPointSetWorker::frameReady, this, [this](std::shared_ptr<CVImageData> img, std::shared_ptr<IntegerData> count)
-                { mpCVImageData=img; mpIntegerData=count; Q_EMIT dataUpdated(0); Q_EMIT dataUpdated(1); mpSyncData->data()=true; Q_EMIT dataUpdated(2); setWorkerBusy(false); dispatchPendingWork(); }, Qt::QueuedConnection);
+                { mpCVImageData=img; mpIntegerData=count; emitOutputPort(0); emitOutputPort(1); mpSyncData->data()=true; emitOutputPort(2); setWorkerBusy(false); dispatchPendingWork(); }, Qt::QueuedConnection);
     }
 }
 

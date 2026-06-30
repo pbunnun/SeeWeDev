@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -144,20 +144,61 @@ class MathConvertToIntModel : public PBNodeDelegateModel
     Q_OBJECT
 
 public:
+    /// @name Construction & Destruction
+    /// @{
+
+    /**
+     * @brief Constructs the node and initializes the output IntegerData instance.
+     */
     MathConvertToIntModel();
 
+    /// @brief Destroys the node.
     virtual
     ~MathConvertToIntModel() override {}
 
+    /// @}
+
+    /// @name Port Interface
+    /// @{
+
+    /**
+     * @brief Returns the port count.
+     * @param portType In or Out.
+     * @return 1 for both input and output.
+     */
     unsigned int
     nPorts( PortType portType ) const override;
 
+    /**
+     * @brief Returns the data type for the given port.
+     *
+     * - Input (port 0): InformationData (text string)
+     * - Output (port 0): IntegerData (parsed integer)
+     *
+     * @param portType Port direction (In/Out).
+     * @param portIndex Port index (must be 0).
+     * @return Appropriate data type, or empty NodeDataType for invalid port.
+     */
     NodeDataType
     dataType( PortType portType, PortIndex portIndex ) const override;
 
+    /**
+     * @brief Returns the current output integer value.
+     * @param port Output port index (0).
+     * @return Shared pointer to IntegerData, or nullptr if no input or node disabled.
+     */
     std::shared_ptr<NodeData>
     outData(PortIndex port) override;
 
+    /**
+     * @brief Receives InformationData and emits the parsed integer.
+     *
+     * Calls `QString::toInt()` on the text value (truncates decimals, 0 on error)
+     * and emits the result on output port 0.
+     *
+     * @param nodeData Incoming InformationData (may be nullptr).
+     * @param port Input port index (0).
+     */
     void
     setInData( std::shared_ptr< NodeData > nodeData, PortIndex port ) override;
 

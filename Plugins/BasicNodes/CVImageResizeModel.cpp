@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2021 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ CVImageResizeModel()
     : PBNodeDelegateModel( _model_name ),
     _minPixmap(":/CVImageResizeModel.png")
 {
-    qRegisterMetaType<cv::Mat>( "cv::Mat&" );
+    qRegisterMetaType<cv::Mat>( "cv::Mat" );
     mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );
     mpCVImageOutData = std::make_shared< CVImageData >( cv::Mat() );
 
@@ -93,7 +93,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
         {
             mpCVImageInData = d;
             processData(mpCVImageInData, mpCVImageOutData);
-            Q_EMIT dataUpdated( 0 );
+            emitOutputPort(0);
         }
     }
 }
@@ -163,7 +163,7 @@ setModelProperty( QString & id, const QVariant & value )
         mSize = cv::Size( size.width(), size.height() );
 
         processData(mpCVImageInData, mpCVImageOutData);
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
     }
 }
 

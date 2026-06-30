@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2022 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
         {
             mpIntegerData->data() = cv::sum( d->data() )[0];
             mpIntegerData->set_information();
-            Q_EMIT dataUpdated( 0 );
+            emitOutputPort(0);
         }
     }
 }

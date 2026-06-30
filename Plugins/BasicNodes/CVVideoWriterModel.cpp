@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2020 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -11,6 +11,26 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+
+/**
+ * @file CVVideoWriterModel.cpp
+ * @brief Implementation of video file writer node (VideoWriterThread + CVVideoWriterModel).
+ *
+ * **VideoWriterThread** implementation:
+ * - `run()`: dequeues frames from mqCVImage and writes via cv::VideoWriter;
+ *   uses QSemaphore to block when queue is empty
+ * - `open_writer()`: creates cv::VideoWriter with XVID codec at configured FPS
+ *   and size derived from the first frame
+ * - `add_image()`: enqueues a frame copy and releases semaphore to unblock run()
+ * - `stop_writer()`: sets mbAbort, releases semaphore, waits for thread exit
+ *
+ * **CVVideoWriterModel** implementation:
+ * - `late_constructor()`: creates VideoWriterThread and wires error signal
+ * - `setInData()`: delegates to processData() which calls thread->add_image() if recording
+ * - `em_button_clicked()`: toggles recording state (start/stop VideoWriterThread)
+ * - `enable_changed()`: stops recording when node is disabled
+ * - `setModelProperty()`: updates filename, FPS, frames-per-file properties
+ */
 
 #include "CVVideoWriterModel.hpp"
 
@@ -281,7 +301,6 @@ CVVideoWriterModel::
 load(QJsonObject const &p)
 {
     PBNodeDelegateModel::load(p);
-    late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -348,7 +367,7 @@ void
 CVVideoWriterModel::
 late_constructor()
 {
-    if( !mpVideoWriterThread )
+    if( start_late_constructor() )
     {
         mpVideoWriterThread = new VideoWriterThread(this);
         connect( mpVideoWriterThread, &VideoWriterThread::video_writer_error_signal, this, &CVVideoWriterModel::video_writer_error_occured );
@@ -375,7 +394,6 @@ enable_changed(bool enable)
 
     mpEmbeddedWidget->setEnabled( enable );
 }
-
 
 void
 CVVideoWriterModel::

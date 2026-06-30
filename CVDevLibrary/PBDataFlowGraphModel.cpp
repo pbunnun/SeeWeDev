@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 #include "PBNodeDelegateModel.hpp"
 #include "InformationData.hpp"
 #include "PBNodeGroup.hpp"
+#include "TransportModeManager.hpp"
+#include "ZenohBridge.hpp"
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -35,6 +37,16 @@ PBDataFlowGraphModel(std::shared_ptr<NodeDelegateModelRegistry> registry, QObjec
     : QtNodes::DataFlowGraphModel(registry)
 {
     Q_UNUSED(parent);
+    setTransportFlowFilename(QStringLiteral("Untitle"));
+}
+
+void
+PBDataFlowGraphModel::
+setTransportFlowFilename(const QString& filename)
+{
+    const QString baseName = QFileInfo(filename).completeBaseName().trimmed();
+    msFlowFilename = baseName.isEmpty() ? QStringLiteral("Untitle") : baseName;
+    updateAllNodeTransportContext();
 }
 
 NodeId
@@ -49,6 +61,7 @@ addNode(QString const nodeType)
         auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(newId);
         
         if (delegateModel) {
+            delegateModel->setRuntimeTransportContext(newId, msFlowFilename);
             // Connect embeddedWidgetSizeUpdated to trigger node visual update
             connect(delegateModel,
                     &QtNodes::NodeDelegateModel::embeddedWidgetSizeUpdated,
@@ -61,6 +74,10 @@ addNode(QString const nodeType)
             // into the scene. This centralizes the deferred initialization so
             // that registry/menu instantiations remain lightweight.
             delegateModel->late_constructor();
+
+            if (auto w = nodeData(newId, NodeRole::Widget).value<QWidget *>()) {
+                w->setEnabled(true);
+            }
         }
     }
     
@@ -92,7 +109,7 @@ load(const QJsonObject& json)
 {
     // Load base graph data (nodes, connections)
     DataFlowGraphModel::load(json);
-    
+
     // Load groups
     mGroups.clear();
     mNextGroupId = 1;
@@ -147,6 +164,9 @@ load_from_file(QString const & sFilename)
     if( !QFileInfo::exists(sFilename) )
         return false;
 
+    // Update flow filename scope before loading nodes so loaded delegates get the right key context.
+    setTransportFlowFilename(sFilename);
+
     QFile file(sFilename);
     if( !file.open(QIODevice::ReadOnly) )
         return false;
@@ -196,10 +216,18 @@ saveNode(NodeId const nodeId) const
     // Save the embedded widget's size (not the node's size)
     // The node size includes margins, captions, ports, etc. and is recalculated from the widget
     if (auto w = nodeData(nodeId, NodeRole::Widget).value<QWidget *>()) {
-        if (w->size().isValid() && w->size().width() > 0 && w->size().height() > 0) {
+        auto *delegateModel = const_cast<PBDataFlowGraphModel*>(this)->delegateModel<PBNodeDelegateModel>(nodeId);
+        QSize widgetSize;
+        if (delegateModel && delegateModel->isMinimize()) {
+            widgetSize = delegateModel->savedWidgetSize();
+        } else {
+            widgetSize = w->size();
+        }
+
+        if (widgetSize.isValid() && widgetSize.width() > 0 && widgetSize.height() > 0) {
             QJsonObject widgetSizeJson;
-            widgetSizeJson["width"] = w->width();
-            widgetSizeJson["height"] = w->height();
+            widgetSizeJson["width"] = widgetSize.width();
+            widgetSizeJson["height"] = widgetSize.height();
             nodeJson["widget-size"] = widgetSizeJson;
         }
     }
@@ -275,6 +303,7 @@ loadNode(QJsonObject const &nodeJson)
     // Connect embeddedWidgetSizeUpdated signal for the loaded node
     auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(restoredNodeId);
     if (delegateModel) {
+        delegateModel->setRuntimeTransportContext(restoredNodeId, msFlowFilename);
         connect(delegateModel,
                 &QtNodes::NodeDelegateModel::embeddedWidgetSizeUpdated,
                 this,
@@ -286,6 +315,10 @@ loadNode(QJsonObject const &nodeJson)
         // node is actually present in the scene during load. This mirrors the
         // behavior used when nodes are created via addNode().
         delegateModel->late_constructor();
+
+        if (auto w = nodeData(restoredNodeId, NodeRole::Widget).value<QWidget *>()) {
+            w->setEnabled(true);
+        }
     }
     
     // Now restore the embedded widget's size if it was saved
@@ -307,19 +340,37 @@ loadNode(QJsonObject const &nodeJson)
             // after the current event loop turn using a single-shot timer.
             if (auto w = nodeData(restoredNodeId, NodeRole::Widget).value<QWidget *>()) {
                 w->resize(widgetSize);
+                if (delegateModel) {
+                    delegateModel->setSavedWidgetSize(widgetSize);
+                }
 
                 // Trigger node update to recalculate node geometry based on new widget size
                 Q_EMIT nodeUpdated(restoredNodeId);
 
                 // Re-apply after a short delay to catch any immediate resizes, ex: CV Video Loader
                 // RUT : TODO Should not have this hack to fix the problem.
-                QTimer::singleShot(0, this, [this, restoredNodeId, widgetSize]() {
+                QTimer::singleShot(0, this, [this, restoredNodeId, widgetSize, delegateModel]() {
                     if (auto w2 = nodeData(restoredNodeId, NodeRole::Widget).value<QWidget *>()) {
                         w2->resize(widgetSize);
+                        if (delegateModel) {
+                            delegateModel->setSavedWidgetSize(widgetSize);
+                        }
                         Q_EMIT nodeUpdated(restoredNodeId);
                     }
                 });
             }
+        }
+    }
+}
+
+void
+PBDataFlowGraphModel::
+updateAllNodeTransportContext()
+{
+    for (const auto nodeId : allNodeIds()) {
+        auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(nodeId);
+        if (delegateModel) {
+            delegateModel->setRuntimeTransportContext(nodeId, msFlowFilename);
         }
     }
 }

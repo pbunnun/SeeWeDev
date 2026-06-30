@@ -110,7 +110,7 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
         if( d )
         {
             mpSyncData->data() = !d->data();
-            Q_EMIT dataUpdated( 0 );
+            emitOutputPort(0);
         }
     }
 }

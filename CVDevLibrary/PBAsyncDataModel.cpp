@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2025 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -21,13 +21,6 @@
 PBAsyncDataModel::PBAsyncDataModel(const QString& modelName, bool bSource, bool bEnable)
     : PBNodeDelegateModel(modelName, bSource, bEnable)
 {
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-    mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );
-    // Inherited model needs to set a mpSyncData data true or false itself later.
-    // Don't forget to implement proper handling in when starting and 
-    // fisnishing processing input data.
-    mpSyncData = std::make_shared< SyncData >();
-
     qRegisterMetaType<std::shared_ptr<CVImageData>>("std::shared_ptr<CVImageData>");
     qRegisterMetaType<std::shared_ptr<CVImagePool>>("std::shared_ptr<CVImagePool>");
     qRegisterMetaType<cv::Mat>("cv::Mat");
@@ -81,7 +74,14 @@ void PBAsyncDataModel::late_constructor()
 {
     if( !start_late_constructor() )
         return;
-    
+
+    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
+    mpCVImageInData = std::make_shared< CVImageData >( cv::Mat() );
+    // Inherited model needs to set a mpSyncData data true or false itself later.
+    // Don't forget to implement proper handling in when starting and 
+    // fisnishing processing input data.
+    mpSyncData = std::make_shared< SyncData >();
+
     // Create worker via derived class factory method
     mpWorker = createWorker();
     
@@ -193,10 +193,10 @@ void PBAsyncDataModel::handleFrameReady(std::shared_ptr<CVImageData> img)
     }
     if (img) {
         mpCVImageData = img;
-        Q_EMIT dataUpdated(0);
+        emitOutputPort(0);
         QTimer::singleShot(0, this, [this]() {
             mpSyncData->data() = true;
-            Q_EMIT dataUpdated(1);
+            emitOutputPort(1);
         });
     }
     onWorkCompleted();

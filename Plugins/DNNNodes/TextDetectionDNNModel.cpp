@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2021 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -235,7 +235,7 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
     if( nodeData && mpSyncData->data() == true )
     {
         mpSyncData->data() = false;
-        Q_EMIT dataUpdated(1);
+        emitOutputPort(1);
         auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
         if( d )
             processData( d );
@@ -267,7 +267,6 @@ TextDetectionDNNModel::
 load( QJsonObject const &p )
 {
     PBNodeDelegateModel::load( p );
-    late_constructor();
 
     QJsonObject paramsObj = p["cParams"].toObject();
     if( !paramsObj.isEmpty() )
@@ -281,14 +280,13 @@ load( QJsonObject const &p )
             msDBModel_Filename = v.toString();
         }
 
-        TextDetectionDBParameters params;
         v = paramsObj["binary_threshold"];
         if( !v.isNull() )
         {
             auto prop = mMapIdToProperty["binary_threshold"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mfBinaryThreshold = v.toDouble();
+            mBlobImageParams.mfBinaryThreshold = v.toDouble();
         }
 
         v = paramsObj["polygon_threshold"];
@@ -297,7 +295,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["polygon_threshold"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mfPolygonThreshold = v.toDouble();
+            mBlobImageParams.mfPolygonThreshold = v.toDouble();
         }
 
         v = paramsObj["unclip_ratio"];
@@ -306,7 +304,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["unclip_ratio"];
             auto typedProp = std::static_pointer_cast< TypedProperty<DoublePropertyType> >( prop );
             typedProp->getData().mdValue = v.toDouble();
-            params.mdUnclipRatio = v.toDouble();
+            mBlobImageParams.mdUnclipRatio = v.toDouble();
         }
 
         v = paramsObj["max_candidate"];
@@ -315,7 +313,7 @@ load( QJsonObject const &p )
             auto prop = mMapIdToProperty["max_candidate"];
             auto typedProp = std::static_pointer_cast< TypedProperty<IntPropertyType> >( prop );
             typedProp->getData().miValue = v.toInt();
-            params.miMaxCandidate = v.toDouble();
+            mBlobImageParams.miMaxCandidate = v.toInt();
         }
 
         auto width = paramsObj["size_width"];
@@ -327,12 +325,8 @@ load( QJsonObject const &p )
             typedProp->getData().miWidth = width.toInt();
             typedProp->getData().miHeight = height.toInt();
 
-            params.mCVSize = cv::Size( width.toInt(), height.toInt() );
+            mBlobImageParams.mCVSize = cv::Size( width.toInt(), height.toInt() );
         }
-
-        mpTextDetectionDNNThread->setParams( params );
-
-        load_model();
     }
 }
 
@@ -409,10 +403,11 @@ void
 TextDetectionDNNModel::
 late_constructor()
 {
-    if( !mpTextDetectionDNNThread )
+    if( start_late_constructor() )
     {
         mpTextDetectionDNNThread = new TextDetectionDBThread(this);
         connect( mpTextDetectionDNNThread, &TextDetectionDBThread::result_ready, this, &TextDetectionDNNModel::received_result );
+        mpTextDetectionDNNThread->setParams( mBlobImageParams );
         load_model();
         mpTextDetectionDNNThread->start();
     }

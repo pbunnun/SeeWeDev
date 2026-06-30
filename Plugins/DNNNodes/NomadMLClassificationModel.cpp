@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2024 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -14,26 +14,23 @@
 
 #include "NomadMLClassificationModel.hpp"
 
-
 #include "CVImageData.hpp"
 
 #include <opencv2/imgproc.hpp>
 
 #include "qtvariantproperty_p.h"
 #include <QFile>
+#include <QMessageBox>
 #include <QElapsedTimer>
 
 const QString NomadMLClassificationModel::_category = QString("DNN");
 
-const QString NomadMLClassificationModel::_model_name = QString( "NomadML Classification" );
+const QString NomadMLClassificationModel::_model_name = QString("NomadML Classification");
 
-
-NomadMLClassificationThread::NomadMLClassificationThread( QObject * parent )
+NomadMLClassificationThread::NomadMLClassificationThread(QObject *parent)
     : QThread(parent)
 {
-
 }
-
 
 NomadMLClassificationThread::
 ~NomadMLClassificationThread()
@@ -43,17 +40,16 @@ NomadMLClassificationThread::
     wait();
 }
 
-
 void
 NomadMLClassificationThread::
 run()
 {
-    while( !mbAbort )
+    while (!mbAbort)
     {
         mWaitingSemaphore.acquire();
-        if( mbAbort )
+        if (mbAbort)
             break;
-        if( !mbModelReady )
+        if (!mbModelReady)
             continue;
         mLockMutex.lock();
 
@@ -61,7 +57,7 @@ run()
         etimer.start();
 
         cv::Mat blob;
-        cv::dnn::blobFromImage( mCVImage, blob, 1./mParams.mdInvScaleFactor, mParams.mCVSize, mParams.mdInvScaleFactor*mParams.mCVScalarMean, true );
+        cv::dnn::blobFromImage(mCVImage, blob, 1. / mParams.mdInvScaleFactor, mParams.mCVSize, mParams.mdInvScaleFactor * mParams.mCVScalarMean, true);
         cv::divide(blob, mParams.mCVScalarStd, blob);
         mNomadMLClassification.setInput(blob);
         cv::Mat out = mNomadMLClassification.forward();
@@ -69,14 +65,14 @@ run()
         cv::Point minLoc, maxLoc;
         cv::minMaxLoc(out, &min, &max, &minLoc, &maxLoc);
         float sumScores = 0;
-        for( int idx = 0; idx < out.cols; ++idx )
+        for (int idx = 0; idx < out.cols; ++idx)
             sumScores += exp(out.at<float>(idx));
-        float confidence = exp(max)/sumScores;
-        //qDebug() << "Got Confidence ... " << confidence << " " << maxLoc.x;
-        //qDebug() << "Elapsed Time : " << etimer.nsecsElapsed()/1000000.;
+        float confidence = exp(max) / sumScores;
+        // qDebug() << "Got Confidence ... " << confidence << " " << maxLoc.x;
+        // qDebug() << "Elapsed Time : " << etimer.nsecsElapsed()/1000000.;
 
         QString result_information;
-        if( maxLoc.x < static_cast<int>(mvStrClasses.size()) )
+        if (maxLoc.x < static_cast<int>(mvStrClasses.size()))
         {
             QString out_text = "\"Class\" : \"" + QString::fromStdString(mvStrClasses[maxLoc.x] + "\"");
             result_information = "{\n    " + out_text;
@@ -85,38 +81,39 @@ run()
             result_information += ",\n    " + out_text + "\n}";
             cv::putText(mCVImage, out_text.toStdString(), cv::Point(5, 40), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
         }
-        Q_EMIT result_ready( mCVImage, result_information );
+        Q_EMIT result_ready(mCVImage, result_information);
         mLockMutex.unlock();
     }
 }
-
 
 void
 NomadMLClassificationThread::
 detect( const cv::Mat & in_image )
 {
-    if( mLockMutex.tryLock() )
+    if (mLockMutex.tryLock())
     {
-        in_image.copyTo( mCVImage );
+        in_image.copyTo(mCVImage);
         mWaitingSemaphore.release();
         mLockMutex.unlock();
     }
 }
 
-
 bool
 NomadMLClassificationThread::
 read_net( QString & model_filename )
 {
-    try {
+    try
+    {
         mNomadMLClassification = cv::dnn::readNetFromONNX(model_filename.toStdString());
-        //mNomadMLClassification.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
-        //mNomadMLClassification.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
-        if( mvStrClasses.size() != 0 )
+        // mNomadMLClassification.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
+        // mNomadMLClassification.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+        if (mvStrClasses.size() != 0)
             mbModelReady = true;
         qDebug() << "Read Model Success! Good to go...";
-    }  catch ( cv::Exception & e ) {
-        qDebug() << "Cannot Read Model!";
+    }
+    catch (cv::Exception &e)
+    {
+        qDebug() << "Cannot Read Model! " << e.what();
         mbModelReady = false;
     }
     return mbModelReady;
@@ -124,7 +121,7 @@ read_net( QString & model_filename )
 
 void
 NomadMLClassificationThread::
-    setParams(NomadMLClassificationBlobImageParameters & params, std::vector< std::string > & classes )
+setParams(NomadMLClassificationBlobImageParameters & params, std::vector< std::string > & classes )
 {
     mParams = params;
     mvStrClasses = classes;
@@ -133,88 +130,87 @@ NomadMLClassificationThread::
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 NomadMLClassificationModel::
-NomadMLClassificationModel()
-    : PBNodeDelegateModel( _model_name ),
-    _minPixmap(":/NomadML.png")
+NomadMLClassificationModel(): PBNodeDelegateModel( _model_name ),
+	_minPixmap(":/NomadML.png")
 {
-    mpCVImageData = std::make_shared< CVImageData >( cv::Mat() );
-    mpSyncData = std::make_shared< SyncData >( true );
-    mpInformationData = std::make_shared< InformationData >();
+    mpCVImageData = std::make_shared<CVImageData>(cv::Mat());
+    mpSyncData = std::make_shared<SyncData>(true);
+    mpInformationData = std::make_shared<InformationData>();
 
     FilePathPropertyType filePathPropertyType;
     filePathPropertyType.msFilename = msDNNModel_Filename;
     filePathPropertyType.msFilter = "*.onnx";
     filePathPropertyType.msMode = "open";
     QString propId = "model_filename";
-    auto propFileName = std::make_shared< TypedProperty<FilePathPropertyType> >("Model Filename", propId, QtVariantPropertyManager::filePathTypeId(), filePathPropertyType);
-    mvProperty.push_back( propFileName );
-    mMapIdToProperty[ propId ] = propFileName;
+    auto propFileName = std::make_shared<TypedProperty<FilePathPropertyType>>("Model Filename", propId, QtVariantPropertyManager::filePathTypeId(), filePathPropertyType);
+    mvProperty.push_back(propFileName);
+    mMapIdToProperty[propId] = propFileName;
 
     filePathPropertyType.msFilename = msConfig_Filename;
     filePathPropertyType.msFilter = "*.json";
     filePathPropertyType.msMode = "open";
     propId = "config_filename";
-    propFileName = std::make_shared< TypedProperty<FilePathPropertyType> >("Config Filename", propId, QtVariantPropertyManager::filePathTypeId(), filePathPropertyType);
-    mvProperty.push_back( propFileName );
-    mMapIdToProperty[ propId ] = propFileName;
+    propFileName = std::make_shared<TypedProperty<FilePathPropertyType>>("Config Filename", propId, QtVariantPropertyManager::filePathTypeId(), filePathPropertyType);
+    mvProperty.push_back(propFileName);
+    mMapIdToProperty[propId] = propFileName;
 
     DoublePropertyType doublePropertyType;
     doublePropertyType.mdMin = 0.00001;
     doublePropertyType.mdMax = 10000.0;
     doublePropertyType.mdValue = 255.;
     propId = "inv_scale_factor";
-    auto propInvScaleFactor = std::make_shared< TypedProperty< DoublePropertyType > >("Inverse Scale Factor", propId, QMetaType::Double, doublePropertyType, "Blob Image", true );
-    mvProperty.push_back( propInvScaleFactor );
-    mMapIdToProperty[ propId ] = propInvScaleFactor;
+    auto propInvScaleFactor = std::make_shared<TypedProperty<DoublePropertyType>>("Inverse Scale Factor", propId, QMetaType::Double, doublePropertyType, "Blob Image", true);
+    mvProperty.push_back(propInvScaleFactor);
+    mMapIdToProperty[propId] = propInvScaleFactor;
 
     doublePropertyType.mdValue = 0.485;
     propId = "mean_r";
-    auto propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean R", propId, QMetaType::Double, doublePropertyType, "Blob Image", true );
-    mvProperty.push_back( propMean );
-    mMapIdToProperty[ propId ] = propMean;
+    auto propMean = std::make_shared<TypedProperty<DoublePropertyType>>("Mean R", propId, QMetaType::Double, doublePropertyType, "Blob Image", true);
+    mvProperty.push_back(propMean);
+    mMapIdToProperty[propId] = propMean;
 
     doublePropertyType.mdValue = 0.456;
     propId = "mean_g";
-    propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean G", propId, QMetaType::Double, doublePropertyType, "Blob Image", true );
-    mvProperty.push_back( propMean );
-    mMapIdToProperty[ propId ] = propMean;
+    propMean = std::make_shared<TypedProperty<DoublePropertyType>>("Mean G", propId, QMetaType::Double, doublePropertyType, "Blob Image", true);
+    mvProperty.push_back(propMean);
+    mMapIdToProperty[propId] = propMean;
 
     doublePropertyType.mdValue = 0.406;
     propId = "mean_b";
-    propMean = std::make_shared< TypedProperty< DoublePropertyType > >("Mean B", propId, QMetaType::Double, doublePropertyType, "Blob Image", true );
-    mvProperty.push_back( propMean );
-    mMapIdToProperty[ propId ] = propMean;
+    propMean = std::make_shared<TypedProperty<DoublePropertyType>>("Mean B", propId, QMetaType::Double, doublePropertyType, "Blob Image", true);
+    mvProperty.push_back(propMean);
+    mMapIdToProperty[propId] = propMean;
 
     doublePropertyType.mdValue = 0.229;
     propId = "std_r";
-    auto propStd = std::make_shared< TypedProperty< DoublePropertyType > >("Std R", propId, QMetaType::Double, doublePropertyType, "Blob Image", true );
-    mvProperty.push_back( propStd );
-    mMapIdToProperty[ propId ] = propStd;
+    auto propStd = std::make_shared<TypedProperty<DoublePropertyType>>("Std R", propId, QMetaType::Double, doublePropertyType, "Blob Image", true);
+    mvProperty.push_back(propStd);
+    mMapIdToProperty[propId] = propStd;
 
     doublePropertyType.mdValue = 0.224;
     propId = "std_g";
-    propStd = std::make_shared< TypedProperty< DoublePropertyType > >("Std G", propId, QMetaType::Double, doublePropertyType, "Blob Image", true );
-    mvProperty.push_back( propStd );
-    mMapIdToProperty[ propId ] = propStd;
+    propStd = std::make_shared<TypedProperty<DoublePropertyType>>("Std G", propId, QMetaType::Double, doublePropertyType, "Blob Image", true);
+    mvProperty.push_back(propStd);
+    mMapIdToProperty[propId] = propStd;
 
     doublePropertyType.mdValue = 0.225;
     propId = "std_b";
-    propStd = std::make_shared< TypedProperty< DoublePropertyType > >("Std B", propId, QMetaType::Double, doublePropertyType, "Blob Image", true );
-    mvProperty.push_back( propStd );
-    mMapIdToProperty[ propId ] = propStd;
+    propStd = std::make_shared<TypedProperty<DoublePropertyType>>("Std B", propId, QMetaType::Double, doublePropertyType, "Blob Image", true);
+    mvProperty.push_back(propStd);
+    mMapIdToProperty[propId] = propStd;
 
     SizePropertyType sizePropertyType;
     sizePropertyType.miHeight = 300;
     sizePropertyType.miWidth = 300;
     propId = "size";
-    auto propBlobSize = std::make_shared< TypedProperty< SizePropertyType > >("Size", propId, QMetaType::QSize, sizePropertyType, "Blob Image", true );
-    mvProperty.push_back( propBlobSize );
-    mMapIdToProperty[ propId ] = propBlobSize;
+    auto propBlobSize = std::make_shared<TypedProperty<SizePropertyType>>("Size", propId, QMetaType::QSize, sizePropertyType, "Blob Image", true);
+    mvProperty.push_back(propBlobSize);
+    mMapIdToProperty[propId] = propBlobSize;
 }
 
 unsigned int
 NomadMLClassificationModel::
-nPorts(PortType portType) const
+    nPorts(PortType portType) const
 {
     unsigned int result = 1;
 
@@ -239,18 +235,18 @@ NodeDataType
 NomadMLClassificationModel::
 dataType(PortType portType, PortIndex portIndex) const
 {
-    if( portType == PortType::In )
+    if (portType == PortType::In)
     {
-        if(portIndex == 0)
+        if (portIndex == 0)
             return CVImageData().type();
     }
-    else if( portType == PortType::Out )
+    else if (portType == PortType::Out)
     {
-        if(portIndex == 0)
+        if (portIndex == 0)
             return CVImageData().type();
-        else if(portIndex == 1)
+        else if (portIndex == 1)
             return InformationData().type();
-        else if(portIndex == 2)
+        else if (portIndex == 2)
             return SyncData().type();
     }
     return NodeDataType();
@@ -260,13 +256,13 @@ std::shared_ptr<NodeData>
 NomadMLClassificationModel::
 outData(PortIndex port)
 {
-    if( isEnable() )
+    if (isEnable())
     {
-        if( port == 0 )
+        if (port == 0)
             return mpCVImageData;
-        else if( port == 1 )
+        else if (port == 1)
             return mpInformationData;
-        else if( port == 2 )
+        else if (port == 2)
             return mpSyncData;
     }
     return nullptr;
@@ -276,21 +272,20 @@ void
 NomadMLClassificationModel::
 setInData( std::shared_ptr< NodeData > nodeData, PortIndex )
 {
-    if( !isEnable() )
+    if (!isEnable())
         return;
-    if( nodeData && mpSyncData->data() == true )
+    if (nodeData && mpSyncData->data() == true)
     {
         mpSyncData->data() = false;
-        //Q_EMIT dataUpdated(2);
-        auto d = std::dynamic_pointer_cast< CVImageData >( nodeData );
-        if( d )
+        // emitOutputPort(2);
+        auto d = std::dynamic_pointer_cast<CVImageData>(nodeData);
+        if (d)
         {
-            mpInformationData->set_timestamp( d->timestamp() );
-            processData( d );
+            mpInformationData->set_timestamp(d->timestamp());
+            processData(d);
         }
     }
 }
-
 
 QJsonObject
 NomadMLClassificationModel::
@@ -304,59 +299,55 @@ save() const
     return modelJson;
 }
 
-
 void
 NomadMLClassificationModel::
 load( QJsonObject const &p )
 {
-    PBNodeDelegateModel::load( p );
-    late_constructor();
+    PBNodeDelegateModel::load(p);
 
     QJsonObject paramsObj = p["cParams"].toObject();
-    if( !paramsObj.isEmpty() )
+    if (!paramsObj.isEmpty())
     {
         QJsonValue v = paramsObj["model_filename"];
-        if( !v.isNull() )
+        if (!v.isNull())
         {
             auto prop = mMapIdToProperty["model_filename"];
-            auto typedProp = std::static_pointer_cast< TypedProperty<QString> >(prop);
+            auto typedProp = std::static_pointer_cast<TypedProperty<QString>>(prop);
             typedProp->getData() = v.toString();
             msDNNModel_Filename = v.toString();
         }
 
         v = paramsObj["config_filename"];
-        if( !v.isNull() )
+        if (!v.isNull())
         {
             auto prop = mMapIdToProperty["config_filename"];
-            auto typedProp = std::static_pointer_cast< TypedProperty<QString> >( prop );
+            auto typedProp = std::static_pointer_cast<TypedProperty<QString>>(prop);
             typedProp->getData() = v.toString();
             msConfig_Filename = v.toString();
         }
-        load_model();
     }
 }
-
 
 void
 NomadMLClassificationModel::
 setModelProperty( QString & id, const QVariant & value )
 {
-    PBNodeDelegateModel::setModelProperty( id, value );
-    if( !mMapIdToProperty.contains( id ) )
+    PBNodeDelegateModel::setModelProperty(id, value);
+    if (!mMapIdToProperty.contains(id))
         return;
 
-    auto prop = mMapIdToProperty[ id ];
-    if( id == "model_filename" || id == "config_filename" )
+    auto prop = mMapIdToProperty[id];
+    if (id == "model_filename" || id == "config_filename")
     {
-        if( id == "model_filename" )
+        if (id == "model_filename")
         {
-            auto typedProp = std::static_pointer_cast< TypedProperty< QString > >(prop);
+            auto typedProp = std::static_pointer_cast<TypedProperty<QString>>(prop);
             typedProp->getData() = value.toString();
             msDNNModel_Filename = value.toString();
         }
-        else if( id == "config_filename" )
+        else if (id == "config_filename")
         {
-            auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( prop );
+            auto typedProp = std::static_pointer_cast<TypedProperty<QString>>(prop);
             typedProp->getData() = value.toString();
             msConfig_Filename = value.toString();
         }
@@ -364,27 +355,25 @@ setModelProperty( QString & id, const QVariant & value )
     }
 }
 
-
 void
 NomadMLClassificationModel::
 late_constructor()
 {
-    if( !mpNomadMLClassificationThread )
+    if (start_late_constructor())
     {
         mpNomadMLClassificationThread = new NomadMLClassificationThread(this);
-        connect( mpNomadMLClassificationThread, &NomadMLClassificationThread::result_ready, this, &NomadMLClassificationModel::received_result );
-        //load_model();
+        connect(mpNomadMLClassificationThread, &NomadMLClassificationThread::result_ready, this, &NomadMLClassificationModel::received_result);
+        load_model();
         mpNomadMLClassificationThread->start();
     }
 }
-
 
 void
 NomadMLClassificationModel::
 received_result( cv::Mat & result, QString text )
 {
-    mpCVImageData->set_image( result );
-    mpInformationData->set_information( text );
+    mpCVImageData->set_image(result);
+    mpInformationData->set_information(text);
     mpSyncData->data() = true;
 
     updateAllOutputPorts();
@@ -394,111 +383,125 @@ void
 NomadMLClassificationModel::
 load_model(bool bUpdateDisplayProperties)
 {
-    if( msDNNModel_Filename.isEmpty() || msConfig_Filename.isEmpty() )
+    if (msDNNModel_Filename.isEmpty() || msConfig_Filename.isEmpty())
         return;
-    if( QFile::exists( msConfig_Filename) )
+    if (QFile::exists(msConfig_Filename))
     {
         cv::FileStorage fs;
-        fs.open(msConfig_Filename.toStdString(), cv::FileStorage::READ );
-        if( fs.isOpened() )
+        try
         {
-            NomadMLClassificationBlobImageParameters params;
-            params.mdInvScaleFactor = 255.;
-
-            int wSize, hSize ;
-            std::vector<int> vSize;
-            fs["input_size"] >> vSize;
-            if( vSize.size() == 2 )
+            fs.open(msConfig_Filename.toStdString(), cv::FileStorage::READ);
+            if (fs.isOpened())
             {
-                wSize = vSize[0];
-                hSize = vSize[1];
-            }
-            else
-            {
-                wSize = hSize = 224;
-            }
-            if( wSize > 0 && hSize > 0 )
-            {
-                auto prop = mMapIdToProperty["size"];
-                auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType> >( prop );
-                typedProp->getData().miWidth = wSize;
-                typedProp->getData().miHeight = hSize;
-                params.mCVSize = cv::Size( hSize, wSize );
-                if( bUpdateDisplayProperties )
-                    Q_EMIT property_changed_signal(prop);
-            }
+                NomadMLClassificationBlobImageParameters params;
+                params.mdInvScaleFactor = 255.;
 
-            std::vector<float> vMean, vStd;
-            fs["image_mean"] >> vMean;
-            fs["image_std"] >> vStd;
-            if( vMean.size() == 3 && vStd.size() == 3 )
-            {
-                auto prop = mMapIdToProperty["mean_r"];
-                auto typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType> >( prop );
-                typedProp->getData().mdValue = vMean[0];
-                params.mCVScalarMean[0] = vMean[0];
-                if( bUpdateDisplayProperties )
-                    Q_EMIT property_changed_signal(prop);
-
-                prop = mMapIdToProperty["mean_g"];
-                typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType> >( prop );
-                typedProp->getData().mdValue = vMean[1];
-                params.mCVScalarMean[1] = vMean[1];
-                if( bUpdateDisplayProperties )
-                    Q_EMIT property_changed_signal(prop);
-
-                prop = mMapIdToProperty["mean_b"];
-                typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType> >( prop );
-                typedProp->getData().mdValue = vMean[2];
-                params.mCVScalarMean[2] = vMean[2];
-                if( bUpdateDisplayProperties )
-                    Q_EMIT property_changed_signal(prop);
-
-                prop = mMapIdToProperty["std_r"];
-                typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType> >( prop );
-                typedProp->getData().mdValue = vStd[0];
-                params.mCVScalarStd[0] = vStd[0];
-                if( bUpdateDisplayProperties )
-                    Q_EMIT property_changed_signal(prop);
-
-                prop = mMapIdToProperty["std_g"];
-                typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType> >( prop );
-                typedProp->getData().mdValue = vStd[1];
-                params.mCVScalarStd[1] = vStd[1];
-                if( bUpdateDisplayProperties )
-                    Q_EMIT property_changed_signal(prop);
-
-                prop = mMapIdToProperty["std_b"];
-                typedProp = std::static_pointer_cast< TypedProperty< DoublePropertyType> >( prop );
-                typedProp->getData().mdValue = vStd[2];
-                params.mCVScalarStd[2] = vStd[2];
-                if( bUpdateDisplayProperties )
-                    Q_EMIT property_changed_signal(prop);
-            }
-
-            std::vector< std::string > str_classes;
-            fs["id2label"] >> str_classes;
-
-            mpNomadMLClassificationThread->setParams( params, str_classes );
-
-            if( QFile::exists(msDNNModel_Filename) )
-            {
-                if( mpNomadMLClassificationThread->read_net( msDNNModel_Filename ) )
+                int wSize, hSize;
+                std::vector<int> vSize;
+                fs["input_size"] >> vSize;
+                if (vSize.size() == 2)
                 {
-                    auto prop = mMapIdToProperty["enable"];
-                    auto typedProp = std::static_pointer_cast< TypedProperty< bool > > (prop);
-                    typedProp->getData() = true;
-                    if( bUpdateDisplayProperties )
+                    wSize = vSize[0];
+                    hSize = vSize[1];
+                }
+                else
+                {
+                    wSize = hSize = 224;
+                }
+                if (wSize > 0 && hSize > 0)
+                {
+                    auto prop = mMapIdToProperty["size"];
+                    auto typedProp = std::static_pointer_cast<TypedProperty<SizePropertyType>>(prop);
+                    typedProp->getData().miWidth = wSize;
+                    typedProp->getData().miHeight = hSize;
+                    params.mCVSize = cv::Size(hSize, wSize);
+                    if (bUpdateDisplayProperties)
                         Q_EMIT property_changed_signal(prop);
-                    return;
+                }
+
+                std::vector<float> vMean, vStd;
+                fs["image_mean"] >> vMean;
+                fs["image_std"] >> vStd;
+                if (vMean.size() == 3 && vStd.size() == 3)
+                {
+                    auto prop = mMapIdToProperty["mean_r"];
+                    auto typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
+                    typedProp->getData().mdValue = vMean[0];
+                    params.mCVScalarMean[0] = vMean[0];
+                    if (bUpdateDisplayProperties)
+                        Q_EMIT property_changed_signal(prop);
+
+                    prop = mMapIdToProperty["mean_g"];
+                    typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
+                    typedProp->getData().mdValue = vMean[1];
+                    params.mCVScalarMean[1] = vMean[1];
+                    if (bUpdateDisplayProperties)
+                        Q_EMIT property_changed_signal(prop);
+
+                    prop = mMapIdToProperty["mean_b"];
+                    typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
+                    typedProp->getData().mdValue = vMean[2];
+                    params.mCVScalarMean[2] = vMean[2];
+                    if (bUpdateDisplayProperties)
+                        Q_EMIT property_changed_signal(prop);
+
+                    prop = mMapIdToProperty["std_r"];
+                    typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
+                    typedProp->getData().mdValue = vStd[0];
+                    params.mCVScalarStd[0] = vStd[0];
+                    if (bUpdateDisplayProperties)
+                        Q_EMIT property_changed_signal(prop);
+
+                    prop = mMapIdToProperty["std_g"];
+                    typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
+                    typedProp->getData().mdValue = vStd[1];
+                    params.mCVScalarStd[1] = vStd[1];
+                    if (bUpdateDisplayProperties)
+                        Q_EMIT property_changed_signal(prop);
+
+                    prop = mMapIdToProperty["std_b"];
+                    typedProp = std::static_pointer_cast<TypedProperty<DoublePropertyType>>(prop);
+                    typedProp->getData().mdValue = vStd[2];
+                    params.mCVScalarStd[2] = vStd[2];
+                    if (bUpdateDisplayProperties)
+                        Q_EMIT property_changed_signal(prop);
+                }
+
+                std::vector<std::string> str_classes;
+                fs["id2label"] >> str_classes;
+
+                mpNomadMLClassificationThread->setParams(params, str_classes);
+
+                if (QFile::exists(msDNNModel_Filename))
+                {
+                    if (mpNomadMLClassificationThread->read_net(msDNNModel_Filename))
+                    {
+                        auto prop = mMapIdToProperty["enable"];
+                        auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);
+                        typedProp->getData() = true;
+                        if (bUpdateDisplayProperties)
+                            Q_EMIT property_changed_signal(prop);
+                        return;
+                    }
                 }
             }
         }
+        catch (cv::Exception &e)
+        {
+            QMessageBox err;
+            err.setWindowTitle("Config Error!");
+            err.setText(caption() + " Config Files Error!");
+            QString sInformativeText = "Cannot load the following files ... \n";
+            sInformativeText += msConfig_Filename + " is missing or malformed!\n";
+            err.setInformativeText(sInformativeText);
+            err.exec();
+            DEBUG_LOG_CRITICAL() << e.what();        
+        }
     }
     auto prop = mMapIdToProperty["enable"];
-    auto typedProp = std::static_pointer_cast< TypedProperty< bool > > (prop);
+    auto typedProp = std::static_pointer_cast<TypedProperty<bool>>(prop);
     typedProp->getData() = false;
-    if( bUpdateDisplayProperties )
+    if (bUpdateDisplayProperties)
         Q_EMIT property_changed_signal(prop);
 }
 
@@ -506,9 +509,8 @@ void
 NomadMLClassificationModel::
 processData(const std::shared_ptr< CVImageData > & in)
 {
-    cv::Mat& in_image = in->data();
-    if( !in_image.empty() )
-        mpNomadMLClassificationThread->detect( in_image );
+    cv::Mat &in_image = in->data();
+    if (!in_image.empty())
+        mpNomadMLClassificationThread->detect(in_image);
 }
-
 

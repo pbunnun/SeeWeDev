@@ -1,4 +1,4 @@
-//Copyright © 2025, NECTEC, all rights reserved
+//Copyright © 2024 - 2026, NECTEC, all rights reserved
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -28,21 +28,6 @@ CombineSyncModel()
     mpEmbeddedWidget( new CombineSyncEmbeddedWidget( qobject_cast<QWidget *>(this) ) ),
     _minPixmap(":/Combinesync.png")
 {
-    mpSyncData = std::make_shared< SyncData >( );
-    
-    // Initialize vectors with default size of 2
-    miInputSize = 2;
-    mvbReady.resize(miInputSize, false);
-    mvSyncValues.resize(miInputSize, false);
-
-    // Connect widget signals
-    connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::operation_changed_signal, 
-            this, &CombineSyncModel::combine_operation_changed);
-    connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::input_size_changed_signal, 
-            this, &CombineSyncModel::input_size_changed);
-    connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::reset_clicked_signal, 
-            this, &CombineSyncModel::reset_clicked);
-
     // Properties
     EnumPropertyType enumPropertyType;
     enumPropertyType.mslEnumNames = QStringList({"AND", "OR"});
@@ -341,4 +326,24 @@ setModelProperty( QString & id, const QVariant & value )
     }
 }
 
+void
+CombineSyncModel::late_constructor()
+{
+    if(start_late_constructor())
+    {
+        mpSyncData = std::make_shared< SyncData >( );
+    
+        // Initialize vectors with default size of 2
+        miInputSize = 2;
+        mvbReady.resize(miInputSize, false);
+        mvSyncValues.resize(miInputSize, false);
 
+        // Connect widget signals
+        connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::operation_changed_signal, 
+            this, &CombineSyncModel::combine_operation_changed);
+        connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::input_size_changed_signal, 
+            this, &CombineSyncModel::input_size_changed);
+        connect(mpEmbeddedWidget, &CombineSyncEmbeddedWidget::reset_clicked_signal, 
+            this, &CombineSyncModel::reset_clicked);
+    }
+}
