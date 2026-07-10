@@ -702,3 +702,15 @@ refresh_camera_list()
 }
 
 // Helper template functions
+
+QString
+CVRTSPCameraModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Stream Frame: The live image frame fetched from the RTSP network camera.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

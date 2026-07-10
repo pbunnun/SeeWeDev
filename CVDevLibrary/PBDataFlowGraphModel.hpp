@@ -99,6 +99,10 @@
 #include <QtNodes/NodeDelegateModelRegistry>
 #include "PBNodeGroup.hpp"
 #include <map>
+#include <QMap>
+#include <QStringList>
+#include <QJsonObject>
+#include <QJsonArray>
 
 namespace QtNodes {
     class NodeDelegateModelRegistry;
@@ -527,6 +531,7 @@ public:
      * @see NodeDelegateModelRegistry::registerTypeConverter()
      */
     bool connectionPossible(QtNodes::ConnectionId const connectionId) const override;
+    bool deleteConnection(QtNodes::ConnectionId const connectionId) override;
 
     // ========== Node Grouping API ==========
     
@@ -641,7 +646,50 @@ public:
      */
     void setTransportFlowFilename(const QString& filename);
 
+    bool isReadOnly() const { return mbReadOnly; }
+    void setReadOnly(bool readOnly) { mbReadOnly = readOnly; }
+
+    // ===== Preset Parameters =====
+    bool isPresetMode() const { return mbPresetMode; }
+    void enablePresetMode(const QString& initialPresetName);
+    void disablePresetMode();
+    void snapshotActivePreset();
+    void applyPreset(const QString& presetName);
+    void addPreset(const QString& name);
+    void renamePreset(const QString& oldName, const QString& newName);
+    void deletePreset(const QString& name);
+    QString activePresetName() const { return msActivePreset; }
+    QStringList presetNames() const { return mPresetOrder; }
+
+    // View and UI states getters/setters
+    void setViewportCenter(const QPointF& center) { mViewportCenter = center; }
+    QPointF viewportCenter() const { return mViewportCenter; }
+
+    void setZoomScale(double scale) { mZoomScale = scale; }
+    double zoomScale() const { return mZoomScale; }
+
+    void setHideCategory(bool hide) { mHideCategory = hide; }
+    bool hideCategory() const { return mHideCategory; }
+
+    void setHideProperties(bool hide) { mHideProperties = hide; }
+    bool hideProperties() const { return mHideProperties; }
+
+    void setHideWorkspace(bool hide) { mHideWorkspace = hide; }
+    bool hideWorkspace() const { return mHideWorkspace; }
+
+    void setInFocusView(bool focus) { mInFocusView = focus; }
+    bool inFocusView() const { return mInFocusView; }
+
+    void setInFullScreen(bool full) { mInFullScreen = full; }
+    bool inFullScreen() const { return mInFullScreen; }
+
+    void setSnapToGrid(bool snap) { mSnapToGrid = snap; }
+    bool snapToGrid() const { return mSnapToGrid; }
+
 Q_SIGNALS:
+    void presetModeChanged(bool enabled);
+    void presetsChanged();
+
     /**
      * @brief Emitted when a group is created
      * @param groupId ID of the created group
@@ -662,13 +710,31 @@ Q_SIGNALS:
 
 private:
     void updateAllNodeTransportContext();
+    void triggerInitialPropagation();
 
     // Track error messages for nodes that couldn't be loaded
     QStringList mLoadErrors;
     QString msFlowFilename{"Untitle"};
+    bool mbReadOnly{false};
+    bool mbRestoringGraph{false};
     
     // Node grouping
     std::map<GroupId, PBNodeGroup> mGroups;  ///< All groups in the model
     GroupId mNextGroupId{1};                ///< Next available group ID
 
+    // Presets
+    bool mbPresetMode{false};
+    QString msActivePreset;
+    QStringList mPresetOrder;
+    QMap<QString, QMap<QString, QJsonObject>> mPresets;
+
+    // View and UI states
+    QPointF mViewportCenter{0.0, 0.0};
+    double mZoomScale{1.0};
+    bool mHideCategory{false};
+    bool mHideProperties{false};
+    bool mHideWorkspace{false};
+    bool mInFocusView{false};
+    bool mInFullScreen{false};
+    bool mSnapToGrid{false};
 };

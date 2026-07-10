@@ -372,3 +372,14 @@ late_constructor()
     }
 }
 
+QString
+CVSaveImageModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Image to Save: The input image frame to save to disk.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

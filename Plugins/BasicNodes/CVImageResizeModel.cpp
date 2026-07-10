@@ -182,4 +182,19 @@ processData(const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageData
     }
 }
 
-
+QString
+CVImageResizeModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input image to resize.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Resized Image: The resized output image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

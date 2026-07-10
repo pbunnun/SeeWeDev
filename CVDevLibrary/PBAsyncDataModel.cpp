@@ -51,6 +51,15 @@ PBAsyncDataModel::~PBAsyncDataModel()
 {
     // Set shutdown flag
     mShuttingDown.store(true, std::memory_order_release);
+
+    // Shutdown frame pool to unblock any worker threads waiting in acquire()
+    {
+        QMutexLocker locker(&mFramePoolMutex);
+        if (mpFramePool)
+        {
+            mpFramePool->shutdown();
+        }
+    }
     
     if (mpWorker)
     {

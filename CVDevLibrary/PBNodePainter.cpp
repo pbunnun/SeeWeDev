@@ -14,6 +14,7 @@
 
 #include "PBNodePainter.hpp"
 #include "PBNodeDelegateModel.hpp"
+#include "PBDataFlowGraphModel.hpp"
 
 #include <QtNodes/internal/AbstractGraphModel.hpp>
 #include <QtNodes/internal/AbstractNodeGeometry.hpp>
@@ -37,6 +38,9 @@ void PBNodePainter::paint(QPainter *painter, NodeGraphicsObject &ngo) const
     AbstractGraphModel &model = ngo.graphModel();
     NodeId const nodeId = ngo.nodeId();
     
+    auto *pbModel = dynamic_cast<PBDataFlowGraphModel*>(&model);
+    const bool focusViewActive = (pbModel && pbModel->inFocusView());
+
     auto *dataFlowModel = dynamic_cast<DataFlowGraphModel*>(&model);
     if (dataFlowModel) {
         auto *delegateModel = dataFlowModel->delegateModel<PBNodeDelegateModel>(nodeId);
@@ -65,24 +69,32 @@ void PBNodePainter::paint(QPainter *painter, NodeGraphicsObject &ngo) const
             }
             
             // Draw checkboxes
-            drawMinimizeCheckbox(painter, ngo);
-            drawLockCheckbox(painter, ngo);
-            drawEnableCheckbox(painter, ngo);
+            if (!focusViewActive) {
+                drawMinimizeCheckbox(painter, ngo);
+                drawLockCheckbox(painter, ngo);
+                drawEnableCheckbox(painter, ngo);
+            }
             return;
         }
     }
     
     // Normal drawing - ensure widget is visible
     drawNodeRect(painter, ngo);
-    drawConnectionPoints(painter, ngo);
-    drawFilledConnectionPoints(painter, ngo);
+    if (!focusViewActive) {
+        drawConnectionPoints(painter, ngo);
+        drawFilledConnectionPoints(painter, ngo);
+    }
     drawNodeCaption(painter, ngo);
     drawEntryLabels(painter, ngo);
-    drawResizeRect(painter, ngo);
+    if (!focusViewActive) {
+        drawResizeRect(painter, ngo);
+    }
     drawValidationIcon(painter, ngo);
-    drawEnableCheckbox(painter, ngo);  // Custom enable/disable checkbox
-    drawLockCheckbox(painter, ngo);    // Custom lock position checkbox
-    drawMinimizeCheckbox(painter, ngo); // Custom minimize checkbox
+    if (!focusViewActive) {
+        drawEnableCheckbox(painter, ngo);  // Custom enable/disable checkbox
+        drawLockCheckbox(painter, ngo);    // Custom lock position checkbox
+        drawMinimizeCheckbox(painter, ngo); // Custom minimize checkbox
+    }
 }
 
 void PBNodePainter::drawNodeRect(QPainter *painter, NodeGraphicsObject &ngo) const

@@ -471,4 +471,14 @@ em_button_clicked( bool checked )
     }
 }
 
-
+QString
+CVVideoWriterModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Frame to Write: The input image frame to write to the video file.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

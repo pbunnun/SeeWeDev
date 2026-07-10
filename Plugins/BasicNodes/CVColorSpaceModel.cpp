@@ -192,3 +192,20 @@ void CVColorSpaceModel::
         process_cached_input();
     }
 }
+
+QString
+CVColorSpaceModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image to convert.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Converted Image: Output image in target color space.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

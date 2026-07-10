@@ -1352,3 +1352,15 @@ update_camera_capabilities( bool autoFocusSupported,
     set_property_read_only<IntPropertyType>( "gain", !mCVUSBCameraCapabilities.mbGainSupported );
     set_property_read_only<IntPropertyType>( "exposure", !mCVUSBCameraCapabilities.mbExposureSupported );
 }
+
+QString
+CVUSBCameraModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Captured Frame: The raw image frame captured from the USB camera.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

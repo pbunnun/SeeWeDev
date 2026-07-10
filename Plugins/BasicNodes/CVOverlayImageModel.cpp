@@ -269,3 +269,22 @@ inputConnectionDeleted(QtNodes::ConnectionId const& conx)
     auto idx = QtNodes::getPortIndex(PortType::In, conx);
     mvCVImageInData[idx].release();
 }
+
+QString
+CVOverlayImageModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Background Image: Base image to overlay on.";
+        else if (portIndex == 1)
+            return "Foreground Image: Image to overlay (supports transparency).";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Overlay Result: Blended output image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

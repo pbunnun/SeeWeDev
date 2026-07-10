@@ -281,3 +281,20 @@ void CVNormalizationModel::load(const QJsonObject& json)
         }
     }
 }
+
+QString
+CVNormalizationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Normalized Image: Normalized output image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

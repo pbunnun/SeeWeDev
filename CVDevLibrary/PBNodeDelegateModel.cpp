@@ -93,6 +93,11 @@ PBNodeDelegateModel::PBNodeDelegateModel(QString modelName, bool bSource, bool b
     mvProperty.push_back( propCaptionVisible );
     mMapIdToProperty[ propId ] = propCaptionVisible;
 
+    propId = "hide_in_focus_view";
+    auto propHideInFocusView = std::make_shared< TypedProperty< bool > >( "Hide in Focus View", propId, QMetaType::Bool, mbHideInFocusView, "Common" );
+    mvProperty.push_back( propHideInFocusView );
+    mMapIdToProperty[ propId ] = propHideInFocusView;
+
     connect( this, SIGNAL( enable_changed_signal(bool) ), this, SLOT( enable_changed(bool) ) );
     connect( this, SIGNAL( minimize_changed_signal(bool) ), this, SLOT( minimize_changed(bool) ) );
     connect( this, SIGNAL( draw_entries_changed_signal(bool) ), this, SLOT( draw_entries_changed(bool) ) );
@@ -114,6 +119,7 @@ save() const
     params["draw_entries"] = isDrawEntries();
     params["lock_position"] = isLockPosition();
     params["caption_visible"] = mbCaptionVisible;
+    params["hide_in_focus_view"] = mbHideInFocusView;
     if( mbSource )
         params["enable"] = false;
 
@@ -203,6 +209,16 @@ load(QJsonObject const &p)
             typedProp->getData() = v.toBool();
 
             mbCaptionVisible = v.toBool();
+        }
+
+        v = paramsObj[ "hide_in_focus_view" ];
+        if( !v.isNull() )
+        {
+            auto prop = mMapIdToProperty[ "hide_in_focus_view" ];
+            auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+            typedProp->getData() = v.toBool();
+
+            mbHideInFocusView = v.toBool();
         }
     }
 }
@@ -341,6 +357,13 @@ setModelProperty(QString & id, const QVariant & value)
         // Trigger repaint to show/hide caption
         Q_EMIT embeddedWidgetSizeUpdated();
     }
+    else if( id == "hide_in_focus_view" )
+    {
+        auto typedProp = std::static_pointer_cast< TypedProperty< bool > >( prop );
+        typedProp->getData() = value.toBool();
+
+        mbHideInFocusView = value.toBool();
+    }
 }
 
 void
@@ -386,15 +409,22 @@ minimized( bool minimize )
     // In v3, we just track the state internally
     mbMinimize = minimize;
     
-    if (minimize) {
-        if (auto w = embeddedWidget()) {
+    if (auto w = embeddedWidget()) {
+        w->setProperty("minimized", minimize);
+        if (minimize) {
             // Only capture if it's visible, to avoid capturing shrunk/hidden sizes
             if (w->isVisible()) {
                 mSavedWidgetSize = w->size();
             }
-        }
-    } else {
-        if (auto w = embeddedWidget()) {
+            w->hide();
+            if (auto *proxy = w->graphicsProxyWidget()) {
+                proxy->hide();
+            }
+        } else {
+            w->show();
+            if (auto *proxy = w->graphicsProxyWidget()) {
+                proxy->show();
+            }
             if (mSavedWidgetSize.isValid() && mSavedWidgetSize.width() > 0 && mSavedWidgetSize.height() > 0) {
                 // Clear any potential layout/size constraints on the widget first
                 w->setMinimumHeight(0);

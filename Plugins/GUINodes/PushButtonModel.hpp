@@ -246,6 +246,9 @@ public:
     NodeDataType
     dataType(PortType portType, PortIndex portIndex) const override;
 
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     /**
      * @brief Returns output data.
      * @param port Output port index (0 = sync, 1 = count).

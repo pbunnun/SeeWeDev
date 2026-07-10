@@ -1015,4 +1015,19 @@ em_button_clicked( int button )
     }
 }
 
-
+QString
+CVCameraCalibrationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if( portType == QtNodes::PortType::In )
+    {
+        if( portIndex == 0 )
+            return QString( "Camera Calibration: the input image for camera calibration" );
+    }
+    else if( portType == QtNodes::PortType::Out )
+    {
+        if( portIndex == 0 )
+            return QString( "Camera Calibration: the output image for camera calibration" );
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

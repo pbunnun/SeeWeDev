@@ -228,6 +228,8 @@ public:
     NodeDataType
     dataType( PortType portType, PortIndex portIndex ) const override;
 
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
     /**
      * @brief Receives InformationData and appends it to the embedded text display.
      *

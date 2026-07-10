@@ -286,4 +286,19 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageDa
     }
 }
 
-
+QString
+CVThresholdingModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input image to threshold.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Thresholded Image: Output binary/segmented image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

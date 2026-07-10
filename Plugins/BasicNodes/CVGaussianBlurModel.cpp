@@ -360,3 +360,20 @@ process_cached_input()
             Q_ARG(QString, producerId));
     }
 }
+
+QString
+CVGaussianBlurModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input image to blur.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Blurred Image: The resulting smoothed image after Gaussian filtering.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

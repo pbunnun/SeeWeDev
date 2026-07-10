@@ -240,3 +240,20 @@ void CVMedianBlurModel::process_cached_input()
                              Q_ARG(long, frameId),
                              Q_ARG(QString, producerId));
 }
+
+QString
+CVMedianBlurModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Median Blur: Resulting smoothed image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

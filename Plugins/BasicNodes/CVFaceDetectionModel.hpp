@@ -263,6 +263,9 @@ class CVFaceDetectionModel : public PBNodeDelegateModel {
         NodeDataType
         dataType(PortType portType, PortIndex portIndex) const override;
 
+        QString
+        portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+        
         std::shared_ptr<NodeData>
         outData(PortIndex port) override;
 

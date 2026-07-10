@@ -486,3 +486,20 @@ void CVOpticalFlowFarnebackModel::load(const QJsonObject &json)
         }
     }
 }
+
+QString
+CVOpticalFlowFarnebackModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image stream.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Flow Map: Color-coded optical flow visualization.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

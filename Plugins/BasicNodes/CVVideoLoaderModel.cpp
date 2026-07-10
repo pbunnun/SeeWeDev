@@ -857,3 +857,15 @@ enable_changed( bool enable )
         mpEmbeddedWidget->pause_video();
     }
 }
+
+QString
+CVVideoLoaderModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Video Frame: The current frame read from the video source.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

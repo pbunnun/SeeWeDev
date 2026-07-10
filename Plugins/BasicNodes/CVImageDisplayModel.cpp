@@ -212,4 +212,14 @@ display_image()
     }
 }
 
-
+QString
+CVImageDisplayModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Image to Display: The input image frame to show in the display panel.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

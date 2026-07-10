@@ -537,3 +537,20 @@ process_cached_input()
                                   Q_ARG(QString, producerId));
     }
 }
+
+QString
+CVHoughLinesPModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input binary/edge image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: Image with detected line segments drawn.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

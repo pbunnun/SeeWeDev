@@ -566,3 +566,22 @@ CVAdditionModel::~CVAdditionModel()
         mpWorker = nullptr;
     }
 }
+
+QString
+CVAdditionModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image 1: The first input image.";
+        else if (portIndex == 1)
+            return "Source Image 2: The second input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Sum Image: The resulting added image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

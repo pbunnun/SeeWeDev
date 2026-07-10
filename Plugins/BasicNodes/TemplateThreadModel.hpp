@@ -278,6 +278,9 @@ public:
     NodeDataType
     dataType( PortType portType, PortIndex portIndex ) const override;
 
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     /**
      * @brief Sets input data and potentially triggers thread processing.
      * @param nodeData Input data.

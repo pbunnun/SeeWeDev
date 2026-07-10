@@ -428,3 +428,20 @@ setModelProperty( QString & id, const QVariant & value )
     if (mpCVImageInData && !isShuttingDown())
         process_cached_input();
 }
+
+QString
+CVFilter2DModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Input Image: The input image (grayscale or color).";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Output Image: Output image after 2D convolution.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

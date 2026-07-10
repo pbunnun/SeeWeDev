@@ -604,3 +604,20 @@ void CVHoughLinesPointSetModel::process_cached_input()
     setPendingWork(true);
     dispatchPendingWork();
 }
+
+QString
+CVHoughLinesPointSetModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Points Set: Input collection of 2D points.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: Image showing detected lines through point set.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

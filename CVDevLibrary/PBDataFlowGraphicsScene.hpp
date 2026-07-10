@@ -524,12 +524,15 @@ private Q_SLOTS:
      */
     void onGroupLockToggled(GroupId groupId, bool locked);
     
+public Q_SLOTS:
     /**
      * @brief Handles ungroup request from context menu
      * @param groupId ID of the group to dissolve
+     * @return true if the group was dissolved, false otherwise
      */
-    void onUngroupRequested(GroupId groupId);
+    bool onUngroupRequested(GroupId groupId);
     
+private Q_SLOTS:
     /**
      * @brief Handles rename request from context menu
      * @param groupId ID of the group to rename
@@ -585,4 +588,7 @@ private:
     bool mbMovingGroup{false};
     GroupId mMovingGroupId{InvalidGroupId};
     std::map<QtNodes::NodeId, QPointF> mGroupOrigPositions;
+    
+    // Recursion guard for group updates
+    bool mbUpdatingGroups{false};
 };

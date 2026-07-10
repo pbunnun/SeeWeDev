@@ -322,3 +322,22 @@ bool CVBlendImagesModel::allports_are_active(const std::shared_ptr<CVImageData> 
     }
     return true;
 }
+
+QString
+CVBlendImagesModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image 1: The first input image.";
+        else if (portIndex == 1)
+            return "Source Image 2: The second input image to blend.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Blended Image: The resulting alpha-blended image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

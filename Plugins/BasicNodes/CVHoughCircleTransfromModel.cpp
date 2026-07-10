@@ -736,3 +736,20 @@ void CVHoughCircleTransformModel::
                       Q_ARG(QString, producerId));
     }
 }
+
+QString
+CVHoughCircleTransformModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input grayscale image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: Image with detected circles drawn.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

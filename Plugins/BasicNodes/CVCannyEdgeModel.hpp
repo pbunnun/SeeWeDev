@@ -234,6 +234,10 @@ public:
 protected:
     // Implement PBAsyncDataModel pure virtuals
     QObject* createWorker() override;
+    
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     void connectWorker(QObject* worker) override;
     void dispatchPendingWork() override;
 

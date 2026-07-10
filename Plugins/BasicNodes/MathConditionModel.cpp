@@ -271,4 +271,19 @@ em_changed( int cond_idx, QString number )
     Q_EMIT embeddedWidgetSizeUpdated();
 }
 
-
+QString
+MathConditionModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Integer Value: Input integer value to test against the condition.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Sync Out: Synchronization signal emitted if condition is met.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

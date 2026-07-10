@@ -260,4 +260,19 @@ void CVFindContourModel::processData(const std::shared_ptr<CVImageData> &in, std
     outContour->data() = vvPtContours;
 }
 
-
+QString
+CVFindContourModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Binary input image (contours are extracted from non-zero pixels).";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Contours Data: Vector containing list of contours (detected boundary points).";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -303,3 +303,20 @@ void CVHistogramEqualizationModel::process_cached_input()
                                   Q_ARG(QString, producerId));
     }
 }
+
+QString
+CVHistogramEqualizationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Input Image: The input image (grayscale or color).";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Output Image: Output image after histogram equalization.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -138,4 +138,16 @@ setModelProperty( QString & id, const QVariant & value )
     }
 }
 
-
+QString
+InformationDisplayModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Info to Display: Input text/information payload to display.";
+        else if (portIndex == 1)
+            return "Sync Trigger: Optional synchronization signal.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

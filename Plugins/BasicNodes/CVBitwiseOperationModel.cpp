@@ -274,3 +274,42 @@ inputConnectionDeleted(QtNodes::ConnectionId const& conx)
         }
     }
 }
+
+QString
+CVBitwiseOperationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if( portType == QtNodes::PortType::In )
+    {
+        if( portIndex == 2 )
+            return "Mask (Optional)";
+        else if( portIndex == 0 )
+            return "First Input Image";
+        else if( portIndex == 1 )
+            return "Second Input Image";
+    }
+    else if( portType == QtNodes::PortType::Out )
+    {
+        if( portIndex == 0 )
+        {
+            QString operation = "";
+            switch(mBitwiseOperationType)
+            {
+                case BITWISE_AND:
+                    operation = "AND";
+                    break;
+                case BITWISE_OR:
+                    operation = "OR";
+                    break;
+                case BITWISE_XOR:
+                    operation = "XOR";
+                    break;
+                case BITWISE_NOT:
+                    operation = "NOT";
+                    break;
+            }
+            return QString("Bitwise Image: the result of the %1 operation.").arg(operation);
+        }
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

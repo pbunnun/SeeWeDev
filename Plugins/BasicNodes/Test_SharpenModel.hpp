@@ -155,6 +155,9 @@ class Test_SharpenModel : public PBNodeDelegateModel
          */
         NodeDataType dataType(PortType portType, PortIndex portIndex) const override;
         
+        QString
+        portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
         /**
          * @brief Returns the sharpened image.
          * @param port Port index (0).

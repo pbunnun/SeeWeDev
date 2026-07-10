@@ -195,4 +195,9 @@ TemplateThreadModel::
 
 }
 
-
+QString
+TemplateThreadModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

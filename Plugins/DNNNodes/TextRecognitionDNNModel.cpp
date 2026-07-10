@@ -350,4 +350,23 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpTextRecognitionDNNThread->detect( in_image );
 }
 
-
+QString
+TextRecognitionDNNModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input frame to recognize text from.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: The input frame with bounding boxes and recognized text overlay.";
+        else if (portIndex == 1)
+            return "Recognized Text: The extracted text sequence/characters as output.";
+        else if (portIndex == 2)
+            return "Sync Out: Emitted when text recognition completes.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

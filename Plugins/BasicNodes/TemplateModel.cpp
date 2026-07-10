@@ -443,4 +443,9 @@ em_button_clicked( int button )
     Q_EMIT embeddedWidgetSizeUpdated();
 }
 
-
+QString
+TemplateModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

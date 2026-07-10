@@ -347,3 +347,19 @@ CombineSyncModel::late_constructor()
             this, &CombineSyncModel::reset_clicked);
     }
 }
+
+QString
+CombineSyncModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        return QString("Sync %1: Input trigger signal %1 to combine.").arg(portIndex);
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Combined Sync: Emitted when all active input sync signals have arrived.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

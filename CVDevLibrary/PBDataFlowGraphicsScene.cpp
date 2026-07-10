@@ -25,8 +25,10 @@
 #include "MoveGroupCommand.hpp"
 #include "GroupLockCommand.hpp"
 #include "ToggleGroupMinimizeCommand.hpp"
+#include "GroupCommands.hpp"
 #include "TransportModeManager.hpp"
 #include "ZenohBridge.hpp"
+#include "DebugLogging.hpp"
 
 #include <QtNodes/internal/DataFlowGraphModel.hpp>
 #include <QtNodes/internal/AbstractNodeGeometry.hpp>
@@ -41,6 +43,7 @@
 #include <QEvent>
 #include <QApplication>
 #include <QInputDialog>
+#include <QMessageBox>
 #include <QColorDialog>
 #include <QGraphicsView>
 #include <QWidget>
@@ -67,12 +70,25 @@ PBDataFlowGraphicsScene::PBDataFlowGraphicsScene(DataFlowGraphModel &graphModel,
                 this, &PBDataFlowGraphicsScene::updateGroupVisual);
         connect(pbModel, &PBDataFlowGraphModel::groupDissolved,
                 this, [this](GroupId groupId) {
+                    DEBUG_LOG_INFO() << "PBDataFlowGraphicsScene groupDissolved signal received for ID:" << groupId;
                     // Remove graphics item for dissolved group
                     auto it = mGroupItems.find(groupId);
                     if (it != mGroupItems.end()) {
+                        DEBUG_LOG_INFO() << "Found group item in mGroupItems, removing it now.";
+                        QRectF rect = it->second->sceneBoundingRect();
                         removeItem(it->second);
                         delete it->second;
                         mGroupItems.erase(it);
+                        
+                        // Force a full scene update and view-level viewport updates
+                        this->update();
+                        for (auto* v : views()) {
+                            if (v && v->viewport()) {
+                                v->viewport()->update();
+                            }
+                        }
+                    } else {
+                        DEBUG_LOG_WARNING() << "Group ID not found in mGroupItems map!";
                     }
                 });
         connect(pbModel, &PBDataFlowGraphModel::groupUpdated,
@@ -102,9 +118,10 @@ PBDataFlowGraphicsScene::PBDataFlowGraphicsScene(DataFlowGraphModel &graphModel,
         // trigger group visual updates so the group's bounding rect follows
         // member node resizes live without modifying NodeEditor internals.
         connect(this, &QGraphicsScene::changed, this, [this](const QList<QRectF>&){
-            // Debounce: call updateAllGroupVisuals directly; it's cheap
-            // relative to painting and will early-return if no groups exist.
-            updateAllGroupVisuals();
+            // Only update group visuals during active interactive resizing of nodes to avoid high CPU load
+            if (mbResizingNodes) {
+                updateAllGroupVisuals();
+            }
         });
     }
 }
@@ -121,6 +138,12 @@ void PBDataFlowGraphicsScene::installCustomGeometry()
 
 void PBDataFlowGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
+    auto *pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
+    if (pbModel && pbModel->inFocusView()) {
+        event->ignore();
+        return;
+    }
+
     // If resizing nodes, apply delta with grid snapping
     if (mbResizingNodes && (QApplication::mouseButtons() & Qt::LeftButton)) {
         QPointF delta = event->scenePos() - mResizeStartScenePos;
@@ -215,6 +238,12 @@ void PBDataFlowGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 void PBDataFlowGraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
+    auto *pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
+    if (pbModel && pbModel->inFocusView()) {
+        DataFlowGraphicsScene::mouseReleaseEvent(event);
+        return;
+    }
+
     // If we were resizing, finalize and push undo command
     if (mbResizingNodes) {
         std::map<NodeId, QSize> oldWidgetSizes = mResizeOrigSizes;
@@ -266,6 +295,21 @@ void PBDataFlowGraphicsScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     
     // Call base implementation
     DataFlowGraphicsScene::mouseReleaseEvent(event);
+
+    // Apply snap to grid on release to update model positions smoothly
+    if (mbSnapToGrid) {
+        for (auto *item : selectedItems()) {
+            if (auto *ngo = qgraphicsitem_cast<NodeGraphicsObject*>(item)) {
+                QPointF pos = ngo->pos();
+                qreal xSnapped = std::floor(pos.x() / miGridSize) * miGridSize;
+                qreal ySnapped = std::floor(pos.y() / miGridSize) * miGridSize;
+                QPointF snappedPos(xSnapped, ySnapped);
+                
+                ngo->setPos(snappedPos);
+                graphModel().setNodeData(ngo->nodeId(), QtNodes::NodeRole::Position, snappedPos);
+            }
+        }
+    }
 }
 
 void PBDataFlowGraphicsScene::helpEvent(QGraphicsSceneHelpEvent *event)
@@ -389,8 +433,24 @@ QRectF PBDataFlowGraphicsScene::getMinimizeCheckboxRect(NodeId nodeId) const
 
 void PBDataFlowGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
+    auto *pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
+    if (pbModel && pbModel->inFocusView()) {
+        DataFlowGraphicsScene::mousePressEvent(event);
+        return;
+    }
+
     // Check if click is on any node's enable/disable or lock checkbox
     QGraphicsItem *item = itemAt(event->scenePos(), QTransform());
+    
+    if (event->button() == Qt::LeftButton) {
+        if (auto *ngo = qgraphicsitem_cast<NodeGraphicsObject*>(item)) {
+            // Pre-emptively select the node if there is a multi-selection active
+            // to prevent QGraphicsScene from clearing the selection.
+            if (!selectedItems().isEmpty() && !ngo->isSelected()) {
+                ngo->setSelected(true);
+            }
+        }
+    }
     
     if (auto *ngo = qgraphicsitem_cast<NodeGraphicsObject*>(item)) {
         NodeId nodeId = ngo->nodeId();
@@ -662,8 +722,7 @@ updateGroupVisual(GroupId groupId)
     
     for (NodeId nodeId : group->nodes()) {
         // Check if node still exists in the model
-        auto allNodes = pbModel->allNodeIds();
-        if (std::find(allNodes.begin(), allNodes.end(), nodeId) == allNodes.end()) {
+        if (!pbModel->nodeExists(nodeId)) {
             continue;
         }
         
@@ -710,14 +769,19 @@ void
 PBDataFlowGraphicsScene::
 updateAllGroupVisuals()
 {
-    auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
-    if (!pbModel) {
+    if (mbUpdatingGroups) {
         return;
     }
-    
-    for (const auto& pair : pbModel->groups()) {
-        updateGroupVisual(pair.first);
+    mbUpdatingGroups = true;
+
+    auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
+    if (pbModel) {
+        for (const auto& pair : pbModel->groups()) {
+            updateGroupVisual(pair.first);
+        }
     }
+
+    mbUpdatingGroups = false;
 }
 
 PBNodeGroupGraphicsItem*
@@ -929,17 +993,34 @@ onToggleGroupMinimize(GroupId groupId)
     }
 }
 
-void
+bool
 PBDataFlowGraphicsScene::
 onUngroupRequested(GroupId groupId)
 {
+    DEBUG_LOG_INFO() << "onUngroupRequested called for ID:" << groupId;
     auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel());
     if (!pbModel) {
-        return;
+        return false;
     }
     
-    // Simply dissolve the group - no confirmation needed from context menu
-    pbModel->dissolveGroup(groupId);
+    const PBNodeGroup* group = pbModel->getGroup(groupId);
+    if (group) {
+        QWidget* parentWidget = nullptr;
+        auto viewsList = views();
+        if (!viewsList.isEmpty()) {
+            parentWidget = viewsList.first();
+        }
+        
+        QString groupName = group->name();
+        auto reply = QMessageBox::question(parentWidget, "Ungroup Nodes",
+                                           QString("Dissolve group '%1'?").arg(groupName),
+                                           QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::Yes) {
+            undoStack().push(new GroupDissolveCommand(this, pbModel, *group));
+            return true;
+        }
+    }
+    return false;
 }
 
 void

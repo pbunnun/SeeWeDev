@@ -190,28 +190,39 @@ void PBNodeGroupGraphicsItem::updateBounds(const std::map<NodeId, QPointF>& node
     }
     
     // During updates, prevent itemChange from emitting signals
-    // Set the local rect first
-    setRect(0, 0, bounds.width(), bounds.height());
+    // Only update rect if it has changed
+    QRectF currentRect = rect();
+    if (currentRect.width() != bounds.width() || currentRect.height() != bounds.height() ||
+        currentRect.x() != 0 || currentRect.y() != 0) {
+        setRect(0, 0, bounds.width(), bounds.height());
+    }
     
-    // Then update the position in scene coordinates
+    // Only update position if it has changed
     // The flag prevents itemChange from emitting groupMoved again
-    setPos(bounds.topLeft());
+    if (pos() != bounds.topLeft()) {
+        setPos(bounds.topLeft());
+    }
     
     // Position label - centered horizontally, with gap from top
+    QPointF expectedLabelPos;
     if (mMinimized) {
         // Center the label both horizontally and vertically when minimized
         qreal labelX = bounds.width() / 2.0 - mpLabel->boundingRect().width() / 2;
         qreal labelY = bounds.height() / 2.0 - mpLabel->boundingRect().height() / 2;
-        mpLabel->setPos(labelX, labelY);
+        expectedLabelPos = QPointF(labelX, labelY);
     } else {
         // Position at center-top with gap for expanded state
         qreal labelX = bounds.width() / 2.0 - mpLabel->boundingRect().width() / 2;
         qreal labelY = 0.0;  // Reduced from LABEL_TOP_PADDING (20) to move label higher
-        mpLabel->setPos(labelX, labelY);
+        expectedLabelPos = QPointF(labelX, labelY);
+    }
+    if (mpLabel->pos() != expectedLabelPos) {
+        mpLabel->setPos(expectedLabelPos);
     }
     
-    show();
-    update();
+    if (!isVisible()) {
+        show();
+    }
     
     mUpdatingPosition = false;
 }

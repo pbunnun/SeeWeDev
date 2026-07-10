@@ -70,6 +70,8 @@
 		<file alias="16x16/system-lock-screen.png">tango/16x16/actions/system-lock-screen.png</file>
 		<file alias="16x16/system-log-out.png">tango/16x16/actions/system-log-out.png</file>
 		<file alias="16x16/system-search.png">tango/16x16/actions/system-search.png</file>
+		<file alias="16x16/center-scene.png">tango/16x16/actions/center-scene.png</file>
+		<file alias="16x16/reset-pan.png">tango/16x16/actions/reset-pan.png</file>
 		<file alias="16x16/system-shutdown.png">tango/16x16/actions/system-shutdown.png</file>
 		<file alias="16x16/tab-new.png">tango/16x16/actions/tab-new.png</file>
 		<file alias="16x16/view-fullscreen.png">tango/16x16/actions/view-fullscreen.png</file>
@@ -286,6 +288,8 @@
 		<file alias="22x22/system-lock-screen.png">tango/22x22/actions/system-lock-screen.png</file>
 		<file alias="22x22/system-log-out.png">tango/22x22/actions/system-log-out.png</file>
 		<file alias="22x22/system-search.png">tango/22x22/actions/system-search.png</file>
+		<file alias="22x22/center-scene.png">tango/22x22/actions/center-scene.png</file>
+		<file alias="22x22/reset-pan.png">tango/22x22/actions/reset-pan.png</file>
 		<file alias="22x22/system-shutdown.png">tango/22x22/actions/system-shutdown.png</file>
 		<file alias="22x22/tab-new.png">tango/22x22/actions/tab-new.png</file>
 		<file alias="22x22/view-fullscreen.png">tango/22x22/actions/view-fullscreen.png</file>
@@ -502,6 +506,8 @@
 		<file alias="32x32/system-lock-screen.png">tango/32x32/actions/system-lock-screen.png</file>
 		<file alias="32x32/system-log-out.png">tango/32x32/actions/system-log-out.png</file>
 		<file alias="32x32/system-search.png">tango/32x32/actions/system-search.png</file>
+		<file alias="32x32/center-scene.png">tango/32x32/actions/center-scene.png</file>
+		<file alias="32x32/reset-pan.png">tango/32x32/actions/reset-pan.png</file>
 		<file alias="32x32/system-shutdown.png">tango/32x32/actions/system-shutdown.png</file>
 		<file alias="32x32/tab-new.png">tango/32x32/actions/tab-new.png</file>
 		<file alias="32x32/view-fullscreen.png">tango/32x32/actions/view-fullscreen.png</file>

@@ -151,4 +151,14 @@ setModelProperty( QString & id, const QVariant & value )
     }
 }
 
-
+QString
+ExternalCommandModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Trigger Sync: Input synchronization signal to trigger external command execution.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

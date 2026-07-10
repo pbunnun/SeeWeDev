@@ -18,14 +18,11 @@
 #include <QSurfaceFormat>
 
 #include <QFileDialog>
-#include <QCryptographicHash>
 #include <QMessageBox>
 
-#include <QFile>
 #include <QTextStream>
 #include <QMutex>
 #include <QDateTime>
-#include <QStandardPaths>
 #include <QLoggingCategory>
 
 //#define __SAVE_LOG__

@@ -248,6 +248,9 @@ public:
     NodeDataType
     dataType(PortType portType, PortIndex portIndex) const override;
 
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     /**
      * @brief Returns the computed gradient data.
      * @param port Port index (0=X-gradient, 1=Y-gradient, 2=magnitude).

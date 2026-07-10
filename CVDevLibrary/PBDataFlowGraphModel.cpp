@@ -53,6 +53,9 @@ NodeId
 PBDataFlowGraphModel::
 addNode(QString const nodeType)
 {
+    if (mbPresetMode)
+        return QtNodes::InvalidNodeId;
+
     // Call parent's addNode to create the node
     NodeId newId = DataFlowGraphModel::addNode(nodeType);
     
@@ -88,6 +91,11 @@ QJsonObject
 PBDataFlowGraphModel::
 save() const
 {
+    // Save current preset parameters if active
+    if (mbPresetMode) {
+        const_cast<PBDataFlowGraphModel*>(this)->snapshotActivePreset();
+    }
+
     // Get base graph data (nodes, connections)
     QJsonObject jsonObj = DataFlowGraphModel::save();
     
@@ -100,6 +108,44 @@ save() const
         jsonObj["groups"] = groupsArray;
     }
     
+    jsonObj["readOnly"] = mbReadOnly;
+    
+    // Add presets
+    if (mbPresetMode) {
+        QJsonObject presetsObj;
+        presetsObj["active"] = msActivePreset;
+        
+        QJsonArray orderArray;
+        for (const QString& name : mPresetOrder) {
+            orderArray.append(name);
+        }
+        presetsObj["order"] = orderArray;
+        
+        QJsonObject setsObj;
+        for (auto it = mPresets.begin(); it != mPresets.end(); ++it) {
+            QJsonObject setObj;
+            for (auto nodeIt = it.value().begin(); nodeIt != it.value().end(); ++nodeIt) {
+                setObj[nodeIt.key()] = nodeIt.value();
+            }
+            setsObj[it.key()] = setObj;
+        }
+        presetsObj["sets"] = setsObj;
+        
+        jsonObj["presets"] = presetsObj;
+    }
+    
+    QJsonObject viewState;
+    viewState["centerX"] = mViewportCenter.x();
+    viewState["centerY"] = mViewportCenter.y();
+    viewState["zoomScale"] = mZoomScale;
+    viewState["hideCategory"] = mHideCategory;
+    viewState["hideProperties"] = mHideProperties;
+    viewState["hideWorkspace"] = mHideWorkspace;
+    viewState["inFocusView"] = mInFocusView;
+    viewState["inFullScreen"] = mInFullScreen;
+    viewState["snapToGrid"] = mSnapToGrid;
+    jsonObj["viewState"] = viewState;
+    
     return jsonObj;
 }
 
@@ -107,8 +153,33 @@ void
 PBDataFlowGraphModel::
 load(const QJsonObject& json)
 {
+    mbRestoringGraph = true;
+
+    if (json.contains("viewState")) {
+        QJsonObject viewState = json["viewState"].toObject();
+        mViewportCenter = QPointF(viewState["centerX"].toDouble(), viewState["centerY"].toDouble());
+        mZoomScale = viewState["zoomScale"].toDouble();
+        mHideCategory = viewState["hideCategory"].toBool();
+        mHideProperties = viewState["hideProperties"].toBool();
+        mHideWorkspace = viewState["hideWorkspace"].toBool();
+        mInFocusView = viewState["inFocusView"].toBool();
+        mInFullScreen = viewState["inFullScreen"].toBool();
+        mSnapToGrid = viewState["snapToGrid"].toBool(false);
+    } else {
+        mViewportCenter = QPointF(0.0, 0.0);
+        mZoomScale = 1.0;
+        mHideCategory = false;
+        mHideProperties = false;
+        mHideWorkspace = false;
+        mInFocusView = false;
+        mInFullScreen = false;
+        mSnapToGrid = false;
+    }
+
     // Load base graph data (nodes, connections)
     DataFlowGraphModel::load(json);
+
+    mbReadOnly = json.value("readOnly").toBool(false);
 
     // Load groups
     mGroups.clear();
@@ -134,6 +205,58 @@ load(const QJsonObject& json)
                 }
             }
         }
+    }
+
+    // Load presets
+    mbPresetMode = false;
+    msActivePreset.clear();
+    mPresetOrder.clear();
+    mPresets.clear();
+    
+    if (json.contains("presets") && json["presets"].isObject()) {
+        QJsonObject presetsObj = json["presets"].toObject();
+        mbPresetMode = true;
+        msActivePreset = presetsObj["active"].toString();
+        
+        QJsonArray orderArray = presetsObj["order"].toArray();
+        for (const QJsonValue& val : orderArray) {
+            mPresetOrder << val.toString();
+        }
+        
+        QJsonObject setsObj = presetsObj["sets"].toObject();
+        for (auto it = setsObj.begin(); it != setsObj.end(); ++it) {
+            QJsonObject setObj = it.value().toObject();
+            QMap<QString, QJsonObject> nodeMap;
+            for (auto nodeIt = setObj.begin(); nodeIt != setObj.end(); ++nodeIt) {
+                nodeMap[nodeIt.key()] = nodeIt.value().toObject();
+            }
+            mPresets[it.key()] = nodeMap;
+        }
+        
+        // Apply active preset parameters to the newly loaded nodes
+        if (!msActivePreset.isEmpty() && mPresets.contains(msActivePreset)) {
+            const auto& presetData = mPresets[msActivePreset];
+            for (NodeId nodeId : allNodeIds()) {
+                auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(nodeId);
+                if (delegateModel) {
+                    QString idStr = QString::number(nodeId);
+                    if (presetData.contains(idStr)) {
+                        QJsonObject fullJson = delegateModel->save();
+                        fullJson["cParams"] = presetData[idStr];
+                        delegateModel->load(fullJson);
+                    }
+                }
+            }
+        }
+    }
+
+    mbRestoringGraph = false;
+
+    triggerInitialPropagation();
+
+    if (mbPresetMode) {
+        Q_EMIT presetModeChanged(true);
+        Q_EMIT presetsChanged();
     }
 }
 
@@ -319,6 +442,12 @@ loadNode(QJsonObject const &nodeJson)
         if (auto w = nodeData(restoredNodeId, NodeRole::Widget).value<QWidget *>()) {
             w->setEnabled(true);
         }
+
+        if (delegateModel->isMinimize()) {
+            QTimer::singleShot(0, this, [this, restoredNodeId]() {
+                Q_EMIT nodeUpdated(restoredNodeId);
+            });
+        }
     }
     
     // Now restore the embedded widget's size if it was saved
@@ -401,6 +530,17 @@ setPortData(NodeId nodeId,
             QVariant const &value,
             QtNodes::PortRole role)
 {
+    if (mbRestoringGraph) {
+        return true;
+    }
+
+    if (role == QtNodes::PortRole::Data && portType == QtNodes::PortType::In) {
+        auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(nodeId);
+        if (delegateModel && !delegateModel->isEnable()) {
+            return true;
+        }
+    }
+
     // For input ports with data role, check if type conversion is needed
     if (role == QtNodes::PortRole::Data && portType == QtNodes::PortType::In) {
         auto incomingData = value.value<std::shared_ptr<QtNodes::NodeData>>();
@@ -446,6 +586,9 @@ bool
 PBDataFlowGraphModel::
 connectionPossible(QtNodes::ConnectionId const connectionId) const
 {
+    if (mbPresetMode)
+        return false;
+
     // First check if the basic parent class validation passes
     // This handles exact type matching, port bounds, port vacancy, and loop detection
     if (DataFlowGraphModel::connectionPossible(connectionId)) {
@@ -536,6 +679,15 @@ connectionPossible(QtNodes::ConnectionId const connectionId) const
     
     // For other type combinations, don't allow conversion
     return false;
+}
+
+bool
+PBDataFlowGraphModel::
+deleteConnection(QtNodes::ConnectionId const connectionId)
+{
+    if (mbPresetMode)
+        return false;
+    return DataFlowGraphModel::deleteConnection(connectionId);
 }
 
 // ========== Node Grouping Implementation ==========
@@ -793,6 +945,9 @@ bool
 PBDataFlowGraphModel::
 deleteNode(NodeId const nodeId)
 {
+    if (mbPresetMode)
+        return false;
+
     // If the node belongs to a group, remove it from that group first so
     // that group data structures never reference a node that no longer
     // exists in the underlying model. removeNodesFromGroup will dissolve
@@ -806,5 +961,212 @@ deleteNode(NodeId const nodeId)
 
     // Delegate to the base implementation to erase node and its connections
     return DataFlowGraphModel::deleteNode(nodeId);
+}
+
+void
+PBDataFlowGraphModel::
+triggerInitialPropagation()
+{
+    // Find all source-like nodes: nodes that have no incoming connection links
+    std::vector<NodeId> sourceNodes;
+    auto allIds = allNodeIds();
+    for (NodeId nodeId : allIds) {
+        auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(nodeId);
+        if (!delegateModel) {
+            continue;
+        }
+
+        bool hasIncomingConnections = false;
+        unsigned int nInputPorts = delegateModel->nPorts(QtNodes::PortType::In);
+        for (QtNodes::PortIndex port = 0; port < nInputPorts; ++port) {
+            if (!connections(nodeId, QtNodes::PortType::In, port).empty()) {
+                hasIncomingConnections = true;
+                break;
+            }
+        }
+        if (!hasIncomingConnections) {
+            sourceNodes.push_back(nodeId);
+        }
+    }
+
+    // Propagate output data for each source-like node
+    for (NodeId nodeId : sourceNodes) {
+        auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(nodeId);
+        if (!delegateModel || !delegateModel->isEnable()) {
+            continue;
+        }
+
+        unsigned int nOutputPorts = delegateModel->nPorts(QtNodes::PortType::Out);
+        for (QtNodes::PortIndex port = 0; port < nOutputPorts; ++port) {
+            Q_EMIT delegateModel->dataUpdated(port);
+        }
+    }
+}
+
+void
+PBDataFlowGraphModel::
+enablePresetMode(const QString& initialPresetName)
+{
+    if (mbPresetMode)
+        return;
+    
+    mbPresetMode = true;
+    msActivePreset = initialPresetName;
+    mPresetOrder.clear();
+    mPresetOrder << initialPresetName;
+    mPresets.clear();
+    
+    snapshotActivePreset();
+    
+    Q_EMIT presetModeChanged(true);
+    Q_EMIT presetsChanged();
+}
+
+void
+PBDataFlowGraphModel::
+disablePresetMode()
+{
+    if (!mbPresetMode)
+        return;
+    
+    mbPresetMode = false;
+    msActivePreset.clear();
+    mPresetOrder.clear();
+    mPresets.clear();
+    
+    Q_EMIT presetModeChanged(false);
+    Q_EMIT presetsChanged();
+}
+void
+PBDataFlowGraphModel::
+snapshotActivePreset()
+{
+    if (!mbPresetMode || msActivePreset.isEmpty())
+        return;
+        
+    QMap<QString, QJsonObject> presetData;
+    for (NodeId nodeId : allNodeIds()) {
+        auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(nodeId);
+        if (delegateModel) {
+            QJsonObject fullJson = delegateModel->save();
+            QJsonObject customParams = fullJson["cParams"].toObject();
+            if (!customParams.isEmpty()) {
+                presetData[QString::number(nodeId)] = customParams;
+            }
+        }
+    }
+    mPresets[msActivePreset] = presetData;
+}
+
+void
+PBDataFlowGraphModel::
+applyPreset(const QString& presetName)
+{
+    if (!mbPresetMode || !mPresetOrder.contains(presetName))
+        return;
+        
+    // Save current parameters first before switching
+    snapshotActivePreset();
+    
+    msActivePreset = presetName;
+    
+    const auto& presetData = mPresets[presetName];
+    for (NodeId nodeId : allNodeIds()) {
+        auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(nodeId);
+        if (delegateModel) {
+            QString idStr = QString::number(nodeId);
+            if (presetData.contains(idStr)) {
+                QJsonObject fullJson = delegateModel->save();
+                fullJson["cParams"] = presetData[idStr];
+                delegateModel->load(fullJson);
+                delegateModel->updateAllOutputPorts();
+            }
+        }
+    }
+    
+    Q_EMIT presetsChanged();
+}
+
+
+void
+PBDataFlowGraphModel::
+addPreset(const QString& name)
+{
+    if (!mbPresetMode || name.isEmpty() || mPresetOrder.contains(name))
+        return;
+        
+    snapshotActivePreset();
+    
+    // Copy the active preset's parameters to the new preset
+    if (!msActivePreset.isEmpty() && mPresets.contains(msActivePreset)) {
+        mPresets[name] = mPresets[msActivePreset];
+    } else {
+        mPresets[name] = QMap<QString, QJsonObject>();
+    }
+    
+    mPresetOrder << name;
+    msActivePreset = name;
+    
+    Q_EMIT presetsChanged();
+}
+
+void
+PBDataFlowGraphModel::
+renamePreset(const QString& oldName, const QString& newName)
+{
+    if (!mbPresetMode || oldName.isEmpty() || newName.isEmpty() || !mPresetOrder.contains(oldName) || mPresetOrder.contains(newName))
+        return;
+        
+    snapshotActivePreset();
+    
+    // Rename key in map
+    mPresets[newName] = mPresets.take(oldName);
+    
+    // Update list order
+    int idx = mPresetOrder.indexOf(oldName);
+    if (idx != -1) {
+        mPresetOrder[idx] = newName;
+    }
+    
+    if (msActivePreset == oldName) {
+        msActivePreset = newName;
+    }
+    
+    Q_EMIT presetsChanged();
+}
+
+void
+PBDataFlowGraphModel::
+deletePreset(const QString& name)
+{
+    if (!mbPresetMode || !mPresetOrder.contains(name))
+        return;
+        
+    // Prevent deleting the last preset
+    if (mPresetOrder.size() <= 1)
+        return;
+        
+    mPresets.remove(name);
+    mPresetOrder.removeAll(name);
+    
+    if (msActivePreset == name) {
+        msActivePreset = mPresetOrder.first();
+        // Load the new active preset's parameters
+        const auto& presetData = mPresets[msActivePreset];
+        for (NodeId nodeId : allNodeIds()) {
+            auto *delegateModel = this->delegateModel<PBNodeDelegateModel>(nodeId);
+            if (delegateModel) {
+                QString idStr = QString::number(nodeId);
+                if (presetData.contains(idStr)) {
+                    QJsonObject fullJson = delegateModel->save();
+                    fullJson["cParams"] = presetData[idStr];
+                    delegateModel->load(fullJson);
+                    delegateModel->updateAllOutputPorts();
+                }
+            }
+        }
+    }
+    
+    Q_EMIT presetsChanged();
 }
 

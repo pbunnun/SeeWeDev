@@ -784,3 +784,24 @@ updatePointPropertyBounds(const QString& propId, int maxWidth, int maxHeight)
         mParams.mCVPointRect2 = cv::Point(clampedX, clampedY);
     }
 }
+
+QString
+CVFloodFillModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+        else if (portIndex == 1)
+            return "Seed Mask: Mask image indicating seed point or area.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Filled Image: Output image after flood filling.";
+        else if (portIndex == 1)
+            return "Flood Fill Mask: Output mask of the filled area.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

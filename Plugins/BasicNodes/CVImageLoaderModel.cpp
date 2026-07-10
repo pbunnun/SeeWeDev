@@ -786,11 +786,23 @@ enable_changed(bool enable)
     }
     else {
         // Optionally resume playback if desired, or just update outputs
-        emitOutputPort(0);
-        emitOutputPort(1);
         QTimer::singleShot(0, this, [this]() {
             mpSyncData->data() = true;
+            emitOutputPort(0);
+            emitOutputPort(1);
             emitOutputPort(2);
         });
     }
+}
+
+QString
+CVImageLoaderModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Loaded Image: The image loaded from the configured file path.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
 }

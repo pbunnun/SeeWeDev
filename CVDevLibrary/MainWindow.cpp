@@ -28,6 +28,8 @@
 #include <QTabWidget>
 #include <QChar>
 #include <QClipboard>
+#include <algorithm>
+#include <functional>
 #include <QApplication>
 #include <QUuid>
 #include <QSysInfo>
@@ -37,7 +39,9 @@
 #include <QtNodes/internal/UndoCommands.hpp>
 #include <QtNodes/internal/StyleCollection.hpp>
 #include <QGraphicsScene>
+#include <QtWidgets/QGraphicsProxyWidget>
 #include <QVector>
+#include <QQueue>
 #include <QDebug>
 #include <QMessageBox>
 #include <QSettings>
@@ -56,6 +60,7 @@
 #include "PluginInterface.hpp"
 #include "PBDataFlowGraphicsScene.hpp"
 #include "PBFlowGraphicsView.hpp"
+#include "ViewTransformCommand.hpp"
 #include "PropertyChangeCommand.hpp"
 #include "GroupCommands.hpp"
 #include "CycloneDDSBridge.hpp"
@@ -92,9 +97,92 @@ MainWindow::MainWindow( QWidget *parent )
 {
     ui->setupUi( this );
 
+    mpReadOnlyStatusLabel = new QLabel(this);
+    mpReadOnlyStatusLabel->setObjectName("readOnlyStatusBadge");
+    statusBar()->addPermanentWidget(mpReadOnlyStatusLabel);
+
     mpTransportModeStatusLabel = new QLabel(this);
     mpTransportModeStatusLabel->setObjectName("transportModeStatusBadge");
     statusBar()->addPermanentWidget(mpTransportModeStatusLabel);
+
+    mpActionReadOnly = new QAction(tr("Read-Only Mode"), this);
+    mpActionReadOnly->setCheckable(true);
+    ui->menuSettings->addAction(mpActionReadOnly);
+    connect(mpActionReadOnly, &QAction::triggered, this, &MainWindow::toggleReadOnlyMode);
+
+    // Initialize Preset Status Badge
+    mpPresetStatusLabel = new QLabel(this);
+    mpPresetStatusLabel->setObjectName("presetStatusBadge");
+    statusBar()->addPermanentWidget(mpPresetStatusLabel);
+    mpPresetStatusLabel->hide();
+
+    // Initialize Preset Menu Action
+    mpActionPresetMode = new QAction(tr("Preset Parameters"), this);
+    mpActionPresetMode->setCheckable(true);
+    ui->menuSettings->addAction(mpActionPresetMode);
+    connect(mpActionPresetMode, &QAction::triggered, this, &MainWindow::togglePresetMode);
+
+    // Initialize Preset Toolbar
+    mpPresetToolbar = new QToolBar(tr("Preset Parameters"), this);
+    mpPresetToolbar->setObjectName("presetToolbar");
+    mpPresetToolbar->setMovable(false);
+    mpPresetToolbar->setFloatable(false);
+    mpPresetToolbar->setIconSize(QSize(16, 16));
+    
+    // Add Label
+    QLabel *presetLabel = new QLabel(tr(" Preset: "), this);
+    presetLabel->setStyleSheet("font-weight: bold;");
+    mpPresetToolbar->addWidget(presetLabel);
+
+    // Add ComboBox
+    mpPresetComboBox = new QComboBox(this);
+    mpPresetComboBox->setObjectName("presetComboBox");
+    mpPresetComboBox->setMinimumWidth(150);
+    mpPresetComboBox->setStyleSheet(
+        "QComboBox {"
+        "  border: 1px solid #5a5a5a;"
+        "  border-radius: 4px;"
+        "  padding: 2px 25px 2px 10px;"
+        "  background: #2b2b2b;"
+        "  color: #f0f0f0;"
+        "}"
+        "QComboBox::drop-down {"
+        "  subcontrol-origin: padding;"
+        "  subcontrol-position: top right;"
+        "  width: 15px;"
+        "  border-left-width: 1px;"
+        "  border-left-color: #5a5a5a;"
+        "  border-left-style: solid;"
+        "}"
+    );
+    mpPresetToolbar->addWidget(mpPresetComboBox);
+    connect(mpPresetComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::onPresetComboChanged);
+
+    mpPresetToolbar->addSeparator();
+
+    // Add New Action
+    mpActionPresetNew = new QAction(tr("New"), this);
+    mpActionPresetNew->setIcon(QIcon(":/icons/16x16/document-new.png"));
+    mpActionPresetNew->setToolTip(tr("Create a new preset parameter set"));
+    connect(mpActionPresetNew, &QAction::triggered, this, &MainWindow::onPresetNew);
+    mpPresetToolbar->addAction(mpActionPresetNew);
+
+    // Add Rename Action
+    mpActionPresetRename = new QAction(tr("Rename"), this);
+    mpActionPresetRename->setIcon(QIcon(":/icons/16x16/document-properties.png"));
+    mpActionPresetRename->setToolTip(tr("Rename current preset"));
+    connect(mpActionPresetRename, &QAction::triggered, this, &MainWindow::onPresetRename);
+    mpPresetToolbar->addAction(mpActionPresetRename);
+
+    // Add Delete Action
+    mpActionPresetDelete = new QAction(tr("Delete"), this);
+    mpActionPresetDelete->setIcon(QIcon(":/icons/16x16/edit-delete.png"));
+    mpActionPresetDelete->setToolTip(tr("Delete current preset"));
+    connect(mpActionPresetDelete, &QAction::triggered, this, &MainWindow::onPresetDelete);
+    mpPresetToolbar->addAction(mpActionPresetDelete);
+
+    addToolBar(Qt::TopToolBarArea, mpPresetToolbar);
+    mpPresetToolbar->hide();
 
     // Show a visual shortcut hint in the Edit menu for Copy/Cut/Paste/Delete
     // without assigning the actual shortcut to the menu action (to avoid duplicate triggers).
@@ -150,12 +238,22 @@ MainWindow::MainWindow( QWidget *parent )
     setupPropertyBrowserDockingWidget();
     setupNodeCategoriesDockingWidget();
     setupNodeListDockingWidget();
-
+    
     // Manual signal-slot connections for node tree and tabs
     connect( ui->mpNodeListTreeView, &QTreeWidget::itemClicked, this, &MainWindow::nodeListClicked );
     connect( ui->mpNodeListTreeView, &QTreeWidget::itemDoubleClicked, this, &MainWindow::nodeListDoubleClicked );
     connect( ui->mpTabWidget, &QTabWidget::currentChanged, this, &MainWindow::tabPageChanged );
     connect( ui->mpTabWidget, &QTabWidget::tabCloseRequested, this, &MainWindow::closeScene );
+
+    connect( ui->mpAvailableNodeCategoryDockWidget, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        onDockVisibilityChanged(CategoryVisible, visible);
+    } );
+    connect( ui->mpNodeListDockWidget, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        onDockVisibilityChanged(WorkspaceVisible, visible);
+    } );
+    connect( ui->mpPropertyBrowserDockWidget, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        onDockVisibilityChanged(PropertiesVisible, visible);
+    } );
 
     // Manual signal-slot connections for actions (instead of auto-connect)
     connect( ui->mpActionNew, &QAction::triggered, this, &MainWindow::actionNew_slot );
@@ -168,6 +266,8 @@ MainWindow::MainWindow( QWidget *parent )
     connect( ui->mpActionSceneOnly, &QAction::triggered, this, &MainWindow::actionSceneOnly_slot );
     connect( ui->mpActionAllPanels, &QAction::triggered, this, &MainWindow::actionAllPanels_slot );
     connect( ui->mpActionZoomReset, &QAction::triggered, this, &MainWindow::actionZoomReset_slot );
+    connect( ui->mpActionCenterScene, &QAction::triggered, this, &MainWindow::actionCenterScene_slot );
+    connect( ui->mpActionResetPan, &QAction::triggered, this, &MainWindow::actionResetPan_slot );
 
     // Copy action removed from main menu. Copy is provided by view-local action in GraphicsView.
     // Delegate Cut to the active view
@@ -200,6 +300,8 @@ MainWindow::MainWindow( QWidget *parent )
 
     connect( ui->mpActionDisableAll, &QAction::triggered, this, &MainWindow::actionDisableAll_slot );
     connect( ui->mpActionEnableAll, &QAction::triggered, this, &MainWindow::actionEnableAll_slot );
+    connect( ui->mpActionTriggerOutputPorts, &QAction::triggered, this, &MainWindow::actionTriggerOutputPorts_slot );
+    ui->mpActionTriggerOutputPorts->setEnabled( false );
 
     connect( ui->mpActionSnapToGrid, &QAction::toggled, this, &MainWindow::actionSnapToGrid_slot );
 
@@ -229,7 +331,6 @@ MainWindow::MainWindow( QWidget *parent )
     ui->mpActionModeCycloneDDS->setEnabled(false);
     ui->mpActionModeCycloneDDS->setToolTip(tr("CycloneDDS support was disabled at compile time because its library was missing."));
 #endif
-
 
     connect(mpOperationModeActionGroup,
         &QActionGroup::triggered,
@@ -472,12 +573,14 @@ nodeInSceneSelectionChanged()
 
                 // We prioritize group selection over node selection so return
                 // after handling the first found selected group.
+                ui->mpActionTriggerOutputPorts->setEnabled(false);
                 return;
             }
         }
     }
 
     auto selectedNodeIds = view->selectedNodes();
+    ui->mpActionTriggerOutputPorts->setEnabled(!selectedNodeIds.empty());
 
     if( selectedNodeIds.size() == 1 )
     {
@@ -519,9 +622,11 @@ nodeInSceneSelectionChanged()
                 this, SLOT( nodeInSceneSelectionChanged() ) );
 
         auto propertyVector = selectedNodeDelegateModel->getProperty();
-        const bool isReadOnlyScene = (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->bReadOnly);
-        auto setReadOnlyAttr = [isReadOnlyScene](QtVariantProperty *prop, bool propertyReadOnly) {
-            prop->setAttribute("readOnly", propertyReadOnly || isReadOnlyScene);
+        auto setReadOnlyAttr = [model](QtVariantProperty *prop, const QString& propId, bool propertyReadOnly) {
+            Q_UNUSED(model);
+            Q_UNUSED(propId);
+            bool finalReadOnly = propertyReadOnly;
+            prop->setAttribute("readOnly", finalReadOnly);
         };
 
         // Block signals while populating property browser to prevent spurious editorPropertyChanged() calls
@@ -552,7 +657,7 @@ nodeInSceneSelectionChanged()
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< QString > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( typedProp->getData() );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -563,7 +668,7 @@ nodeInSceneSelectionChanged()
                 IntPropertyType intPropType = typedProp->getData();
                 property->setAttribute( QLatin1String( "minimum" ), intPropType.miMin );
                 property->setAttribute( QLatin1String( "maximum" ), intPropType.miMax );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( intPropType.miValue );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -574,7 +679,7 @@ nodeInSceneSelectionChanged()
                 DoublePropertyType doublePropType = typedProp->getData();
                 property->setAttribute( QLatin1String( "minimum" ), doublePropType.mdMin );
                 property->setAttribute( QLatin1String( "maximum" ), doublePropType.mdMax );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( doublePropType.mdValue );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -583,7 +688,7 @@ nodeInSceneSelectionChanged()
                 auto typedProp = std::static_pointer_cast< TypedProperty< EnumPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
                 property->setAttribute( QLatin1String( "enumNames" ), typedProp->getData().mslEnumNames );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( typedProp->getData().miCurrentIndex );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -592,7 +697,7 @@ nodeInSceneSelectionChanged()
                 auto typedProp = std::static_pointer_cast< TypedProperty< bool >>( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
                 property->setAttribute( QLatin1String( "textVisible" ), false );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( typedProp->getData() );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -602,7 +707,7 @@ nodeInSceneSelectionChanged()
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
                 property->setAttribute( QLatin1String( "filter" ), typedProp->getData().msFilter );
                 property->setAttribute( QLatin1String( "mode" ), typedProp->getData().msMode );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( typedProp->getData().msFilename );
 
                 if( !typedProp->getData().msDescriptionToolTip.isEmpty() )
@@ -617,7 +722,7 @@ nodeInSceneSelectionChanged()
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< PathPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( typedProp->getData().msPath );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -625,7 +730,7 @@ nodeInSceneSelectionChanged()
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< SizePropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( QSize( typedProp->getData().miWidth, typedProp->getData().miHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -633,7 +738,7 @@ nodeInSceneSelectionChanged()
             {
                 auto typedProp = std::static_pointer_cast< TypedProperty< SizeFPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( QSizeF( typedProp->getData().mfWidth, typedProp->getData().mfHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -642,7 +747,7 @@ nodeInSceneSelectionChanged()
                 auto typedProp = std::static_pointer_cast< TypedProperty< RectPropertyType > >( *it );
                 property = mpVariantManager->addProperty( type, typedProp->getName() );
                 property->setAttribute( QLatin1String( "constraint" ), QRect(0, 0, INT_MAX, INT_MAX) );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( QRect( typedProp->getData().miXPosition, typedProp->getData().miYPosition, typedProp->getData().miWidth, typedProp->getData().miHeight ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -654,7 +759,7 @@ nodeInSceneSelectionChanged()
                 const auto& pointData = typedProp->getData();
                 property->setAttribute( QLatin1String( "minimum" ), QPoint(pointData.miXMin, pointData.miYMin) );
                 property->setAttribute( QLatin1String( "maximum" ), QPoint(pointData.miXMax, pointData.miYMax) );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( QPoint( pointData.miXPosition, pointData.miYPosition ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -666,7 +771,7 @@ nodeInSceneSelectionChanged()
                 const auto& pointData = typedProp->getData();
                 property->setAttribute( QLatin1String( "minimum" ), QPointF(pointData.mfXMin, pointData.mfYMin) );
                 property->setAttribute( QLatin1String( "maximum" ), QPointF(pointData.mfXMax, pointData.mfYMax) );
-                setReadOnlyAttr(property, typedProp->isReadOnly());
+                setReadOnlyAttr(property, typedProp->getID(), typedProp->isReadOnly());
                 property->setValue( QPointF( pointData.mfXPosition, pointData.mfYPosition ) );
                 addProperty( property, typedProp->getID(), typedProp->getSubPropertyText() );
             }
@@ -984,12 +1089,6 @@ editorPropertyChanged(QtProperty * property, const QVariant & value)
         return;
     }
 
-    if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->bReadOnly)
-    {
-        DEBUG_LOG_INFO() << "[editorPropertyChanged] Scene is read-only, skipping";
-        return;
-    }
-
     // Get the currently selected node at runtime instead of relying on stored selection
     // This prevents issues when undo/redo affects different nodes
     PBFlowGraphicsView* view = getCurrentView();
@@ -1055,9 +1154,8 @@ nodePropertyChanged( std::shared_ptr< Property > prop)
     DEBUG_LOG_INFO() << "[nodePropertyChanged] propertyId:" << prop->getID() 
             << "propertyName:" << prop->getName();
 
-    const bool isReadOnlyScene = (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->bReadOnly);
-    auto setReadOnlyAttr = [isReadOnlyScene](QtVariantProperty *property, bool propertyReadOnly) {
-        property->setAttribute("readOnly", propertyReadOnly || isReadOnlyScene);
+    auto setReadOnlyAttr = [](QtVariantProperty *property, bool propertyReadOnly) {
+        property->setAttribute("readOnly", propertyReadOnly);
     };
     
     // Block undo command creation while updating Property Browser from model changes
@@ -1184,6 +1282,10 @@ void
 MainWindow::
 nodeCreated( NodeId nodeId )
 {
+    if (sender() && sender() != getCurrentModel()) {
+        return;
+    }
+
     PBDataFlowGraphModel* model = getCurrentModel();
 
     auto* delegateModel = model ? model->delegateModel<PBNodeDelegateModel>(nodeId) : nullptr;
@@ -1263,6 +1365,19 @@ addToNodeTree( NodeId nodeId )
     mMapNodeIdToNodeDelegateModel[ nodeId ] = delegateModel;
     mMapNodeIdToNodeGraphicsObject[ nodeId ] = view ? view->getGraphicsObject(nodeId) : nullptr;
 
+    if (delegateModel && delegateModel->isMinimize()) {
+        if (auto* ngo = mMapNodeIdToNodeGraphicsObject[nodeId]) {
+            for (auto* childItem : ngo->childItems()) {
+                if (auto* proxy = dynamic_cast<QGraphicsProxyWidget*>(childItem)) {
+                    proxy->hide();
+                    if (auto* w = proxy->widget()) {
+                        w->hide();
+                    }
+                }
+            }
+        }
+    }
+
     ui->mpNodeListTreeView->expandItem( item );
 }
 
@@ -1270,6 +1385,10 @@ void
 MainWindow::
 nodeDeleted( NodeId nodeId )
 {
+    if (sender() && sender() != getCurrentModel()) {
+        return;
+    }
+
     // If the deleted node was the currently selected one, disconnect signals and clear selection
     auto result = getSelectedNodeId();
     auto* selectedNodeDelegateModel = getSelectedNodeDelegateModel();
@@ -1384,6 +1503,9 @@ void
 MainWindow::
 groupCreated( GroupId groupId )
 {
+    if (sender() && sender() != getCurrentModel()) {
+        return;
+    }
     // Only update tree for the current scene
     addToGroupTree(groupId);
 }
@@ -1392,6 +1514,9 @@ void
 MainWindow::
 groupDissolved( GroupId groupId )
 {
+    if (sender() && sender() != getCurrentModel()) {
+        return;
+    }
     removeFromGroupTree(groupId);
 }
 
@@ -1450,8 +1575,11 @@ onConnectionCreated( QtNodes::ConnectionId connectionId )
         return;
     }
 
-    // Get current model
-    PBDataFlowGraphModel* model = getCurrentModel();
+    // Get model from sender if called via signal, fallback to current active model
+    auto* model = qobject_cast<PBDataFlowGraphModel*>(sender());
+    if (!model) {
+        model = getCurrentModel();
+    }
     if (!model) {
         return;
     }
@@ -1603,8 +1731,11 @@ onConnectionDeleted( QtNodes::ConnectionId connectionId )
         return;
     }
 
-    // Get current model
-    PBDataFlowGraphModel* model = getCurrentModel();
+    // Get model from sender if called via signal, fallback to current active model
+    auto* model = qobject_cast<PBDataFlowGraphModel*>(sender());
+    if (!model) {
+        model = getCurrentModel();
+    }
     if (!model) {
         return;
     }
@@ -1886,6 +2017,76 @@ updateTransportModeStatusBadge()
 
 void
 MainWindow::
+updateReadOnlyStatusBadge()
+{
+    if (!mpReadOnlyStatusLabel) {
+        return;
+    }
+
+    if (mitSceneProperty == mlSceneProperty.end()) {
+        mpReadOnlyStatusLabel->hide();
+        return;
+    }
+
+    const bool isReadOnly = mitSceneProperty->bReadOnly;
+    if (isReadOnly) {
+        mpReadOnlyStatusLabel->setStyleSheet(
+            "QLabel#readOnlyStatusBadge {"
+            "padding: 2px 8px;"
+            "border: 1px solid #7f2f2f;"
+            "border-radius: 8px;"
+            "background: #441818;"
+            "color: #f0f0f0;"
+            "font-weight: 600;"
+            "}"
+        );
+        mpReadOnlyStatusLabel->setText("Read-Only");
+        mpReadOnlyStatusLabel->setToolTip("This scene is in Read-Only mode. Changes cannot be saved to the .flow file.");
+        mpReadOnlyStatusLabel->show();
+    } else {
+        mpReadOnlyStatusLabel->hide();
+    }
+}
+
+void
+MainWindow::
+toggleReadOnlyMode(bool checked)
+{
+    if (mitSceneProperty != mlSceneProperty.end()) {
+        mitSceneProperty->bReadOnly = checked;
+        PBDataFlowGraphModel* model = getCurrentModel();
+        if (model) {
+            model->setReadOnly(checked);
+        }
+
+        ui->mpActionSave->setEnabled(!checked);
+
+        nodeInSceneSelectionChanged();
+        updateReadOnlyStatusBadge();
+        nodeChanged();
+
+        // Immediately save the flag to file (if file exists) without asking permission
+        if (!mitSceneProperty->sFilename.isEmpty() && mitSceneProperty->sFilename != QString("Untitle.flow")) {
+            QFile file(mitSceneProperty->sFilename);
+            if (file.open(QIODevice::ReadOnly)) {
+                QByteArray data = file.readAll();
+                file.close();
+                QJsonDocument doc = QJsonDocument::fromJson(data);
+                if (doc.isObject()) {
+                    QJsonObject obj = doc.object();
+                    obj["readOnly"] = checked;
+                    if (file.open(QIODevice::WriteOnly)) {
+                        file.write(QJsonDocument(obj).toJson());
+                        file.close();
+                    }
+                }
+            }
+        }
+    }
+}
+
+void
+MainWindow::
 refreshCurrentTabTitle(bool dirty)
 {
     if (mitSceneProperty == mlSceneProperty.end())
@@ -1988,6 +2189,25 @@ createScene(QString const & _filename, std::shared_ptr<NodeDelegateModelRegistry
     connect( model, &PBDataFlowGraphModel::connectionCreated, this, &MainWindow::onConnectionCreated );
     connect( model, &PBDataFlowGraphModel::connectionDeleted, this, &MainWindow::onConnectionDeleted );
 
+    // Connect preset mode signals
+    connect( model, &PBDataFlowGraphModel::presetModeChanged, this, [this, model](bool enabled) {
+        if (model == getCurrentModel()) {
+            mpActionPresetMode->setChecked(enabled);
+            updatePresetToolbar();
+            updatePresetStatusBadge();
+            freezeSceneForPresetMode(enabled);
+            
+            // Update save action based on read-only status (presets can be saved if not read-only)
+            ui->mpActionSave->setEnabled(!mitSceneProperty->bReadOnly);
+            mpActionReadOnly->setEnabled(true);
+        }
+    });
+    connect( model, &PBDataFlowGraphModel::presetsChanged, this, [this, model]() {
+        if (model == getCurrentModel()) {
+            updatePresetToolbar();
+        }
+    });
+
     // Setup undo/redo integration
     QUndoStack* undoStack = &scene->undoStack();
 
@@ -2023,9 +2243,10 @@ createScene(QString const & _filename, std::shared_ptr<NodeDelegateModelRegistry
 
     ui->mpTabWidget->setCurrentIndex( tabIndex );
 
-    // Apply snap-to-grid setting to the newly created scene
+    // Apply snap-to-grid setting to the newly created scene and model
     // This ensures new scenes inherit the current snap-to-grid state
     scene->setSnapToGrid(ui->mpActionSnapToGrid->isChecked());
+    model->setSnapToGrid(ui->mpActionSnapToGrid->isChecked());
 }
 
 bool
@@ -2290,15 +2511,34 @@ void
 MainWindow::
 actionSave_slot()
 {
-    if (mitSceneProperty == mlSceneProperty.end() || mitSceneProperty->bReadOnly)
+    if (mitSceneProperty == mlSceneProperty.end())
         return;
 
     if( !mitSceneProperty->sFilename.isEmpty() && mitSceneProperty->sFilename != QString("Untitle.flow") )
     {
         PBDataFlowGraphModel* model = getCurrentModel();
         if (model) {
-            model->setTransportFlowFilename(mitSceneProperty->sFilename);
-            model->save_to_file( mitSceneProperty->sFilename );
+            if (mitSceneProperty->bReadOnly) {
+                // Selective Save: Read original file from disk, update readOnly key, and write back
+                QFile file(mitSceneProperty->sFilename);
+                if (file.open(QIODevice::ReadOnly)) {
+                    QByteArray data = file.readAll();
+                    file.close();
+                    QJsonDocument doc = QJsonDocument::fromJson(data);
+                    if (doc.isObject()) {
+                        QJsonObject obj = doc.object();
+                        obj["readOnly"] = true;
+                        if (file.open(QIODevice::WriteOnly)) {
+                            file.write(QJsonDocument(obj).toJson());
+                            file.close();
+                        }
+                    }
+                }
+            } else {
+                model->setTransportFlowFilename(mitSceneProperty->sFilename);
+                prepareModelForSaving(model);
+                model->save_to_file( mitSceneProperty->sFilename );
+            }
         }
 
         // Mark undo stack as clean (this will remove the * from tab title)
@@ -2328,7 +2568,7 @@ actionSaveAll_slot()
     {
         ui->mpTabWidget->setCurrentIndex(tab);
 
-        if (mitSceneProperty == mlSceneProperty.end() || mitSceneProperty->bReadOnly) {
+        if (mitSceneProperty == mlSceneProperty.end()) {
             continue;
         }
 
@@ -2453,7 +2693,7 @@ void
 MainWindow::
 actionSaveAs_slot()
 {
-    if (mitSceneProperty == mlSceneProperty.end() || mitSceneProperty->bReadOnly)
+    if (mitSceneProperty == mlSceneProperty.end())
         return;
 
     QString filename;
@@ -2480,22 +2720,26 @@ actionSaveAs_slot()
             filename += ".flow";
             
         PBDataFlowGraphModel* model = getCurrentModel();
-        if( model && model->save_to_file(filename) )
+        if( model )
         {
-            mitSceneProperty->sFilename = filename;
-            model->setTransportFlowFilename(filename);
-
-            // Mark undo stack as clean (this will remove the * from tab title)
-            if (mitSceneProperty->pDataFlowGraphicsScene)
+            prepareModelForSaving(model);
+            if( model->save_to_file(filename) )
             {
-                mitSceneProperty->pDataFlowGraphicsScene->undoStack().setClean();
-            }
+                mitSceneProperty->sFilename = filename;
+                model->setTransportFlowFilename(filename);
 
-            mitSceneProperty->sDisplayName = QFileInfo(filename).completeBaseName();
-            refreshCurrentTabTitle(false);
-            
-            // Add file to recent files list
-            addToRecentFiles(filename);
+                // Mark undo stack as clean (this will remove the * from tab title)
+                if (mitSceneProperty->pDataFlowGraphicsScene)
+                {
+                    mitSceneProperty->pDataFlowGraphicsScene->undoStack().setClean();
+                }
+
+                mitSceneProperty->sDisplayName = QFileInfo(filename).completeBaseName();
+                refreshCurrentTabTitle(false);
+                
+                // Add file to recent files list
+                addToRecentFiles(filename);
+            }
         }
         if( QFileInfo::exists(msSettingFilename) )
         {
@@ -2511,16 +2755,29 @@ actionSaveAs_slot()
 
 void
 MainWindow::
+prepareModelForSaving(PBDataFlowGraphModel* model)
+{
+    if (!model)
+        return;
+    if (auto* view = getCurrentView()) {
+        model->setViewportCenter(view->mapToScene(view->viewport()->rect().center()));
+        model->setZoomScale(view->transform().m11());
+    }
+    model->setHideCategory(ui->mpAvailableNodeCategoryDockWidget->isHidden());
+    model->setHideWorkspace(ui->mpNodeListDockWidget->isHidden());
+    model->setHideProperties(ui->mpPropertyBrowserDockWidget->isHidden());
+    model->setInFocusView(ui->mpActionFocusView->isChecked());
+    model->setInFullScreen(ui->mpActionFullScreen->isChecked());
+    model->setSnapToGrid(ui->mpActionSnapToGrid->isChecked());
+}
+
+void
+MainWindow::
 actionSceneOnly_slot()
 {
     ui->mpAvailableNodeCategoryDockWidget->hide();
     ui->mpNodeListDockWidget->hide();
     ui->mpPropertyBrowserDockWidget->hide();
-    
-    // Recenter view after layout changes
-    QTimer::singleShot(0, this, [this]() {
-        recenterCurrentView();
-    });
 }
 
 void
@@ -2530,57 +2787,6 @@ actionAllPanels_slot()
     ui->mpAvailableNodeCategoryDockWidget->show();
     ui->mpNodeListDockWidget->show();
     ui->mpPropertyBrowserDockWidget->show();
-    
-    // Recenter view after layout changes
-    QTimer::singleShot(0, this, [this]() {
-        recenterCurrentView();
-    });
-}
-
-void
-MainWindow::
-recenterCurrentView()
-{
-    PBFlowGraphicsView* view = getCurrentView();
-    PBDataFlowGraphModel* model = getCurrentModel();
-    
-    if (!view || !model)
-        return;
-    
-    // Get all nodes in the current scene
-    auto nodes = model->allNodeIds();
-    
-    // If there are nodes, center the view on them
-    if (nodes.size() > 0)
-    {
-        auto left_pos = std::numeric_limits<double>::max();
-        auto right_pos = std::numeric_limits<double>::min();
-        auto top_pos = std::numeric_limits<double>::max();
-        auto bottom_pos = std::numeric_limits<double>::min();
-
-        for (auto nodeId : nodes)
-        {
-            auto nodeGraphicsObject = mMapNodeIdToNodeGraphicsObject[nodeId];
-            if (nodeGraphicsObject)
-            {
-                auto nodeRect = nodeGraphicsObject->sceneBoundingRect();
-                if (nodeRect.x() < left_pos)
-                    left_pos = nodeRect.x();
-                if (nodeRect.y() < top_pos)
-                    top_pos = nodeRect.y();
-                if (nodeRect.x() + nodeRect.width() > right_pos)
-                    right_pos = nodeRect.x() + nodeRect.width();
-                if (nodeRect.y() + nodeRect.height() > bottom_pos)
-                    bottom_pos = nodeRect.y() + nodeRect.height();
-            }
-        }
-        
-        // Calculate the center position of all nodes
-        auto center_pos = QPointF((left_pos + right_pos) * 0.5, (top_pos + bottom_pos) * 0.5);
-        
-        // Center the view on this position
-        view->center_on(center_pos);
-    }
 }
 
 void
@@ -2593,11 +2799,69 @@ actionZoomReset_slot()
     if (!view || !model)
         return;
     
+    QPointF oldCenter = view->mapToScene(view->viewport()->rect().center());
+    double oldScale = view->transform().m11();
+
     // Reset the zoom transformation
     view->resetTransform();
+
+    QPointF newCenter = view->mapToScene(view->viewport()->rect().center());
+    double newScale = view->transform().m11();
+
+    if (auto* scene = view->scene()) {
+        if (auto* flowScene = qobject_cast<PBDataFlowGraphicsScene*>(scene)) {
+            flowScene->undoStack().push(new ViewTransformCommand(view, oldCenter, oldScale, newCenter, newScale));
+        }
+    }
+}
+
+void
+MainWindow::
+actionCenterScene_slot()
+{
+    PBFlowGraphicsView* view = getCurrentView();
+    PBDataFlowGraphModel* model = getCurrentModel();
     
+    if (!view || !model)
+        return;
+    
+    QPointF oldCenter = view->mapToScene(view->viewport()->rect().center());
+    double oldScale = view->transform().m11();
+
     // Recenter the view on all nodes
-    recenterCurrentView();
+    view->centerScene();
+
+    QPointF newCenter = view->mapToScene(view->viewport()->rect().center());
+    double newScale = view->transform().m11();
+
+    if (auto* scene = view->scene()) {
+        if (auto* flowScene = qobject_cast<PBDataFlowGraphicsScene*>(scene)) {
+            flowScene->undoStack().push(new ViewTransformCommand(view, oldCenter, oldScale, newCenter, newScale));
+        }
+    }
+}
+
+void
+MainWindow::
+actionResetPan_slot()
+{
+    PBFlowGraphicsView* view = getCurrentView();
+    if (view)
+    {
+        QPointF oldCenter = view->mapToScene(view->viewport()->rect().center());
+        double oldScale = view->transform().m11();
+
+        view->centerOn(0.0, 0.0);
+
+        QPointF newCenter = view->mapToScene(view->viewport()->rect().center());
+        double newScale = view->transform().m11();
+
+        if (auto* scene = view->scene()) {
+            if (auto* flowScene = qobject_cast<PBDataFlowGraphicsScene*>(scene)) {
+                flowScene->undoStack().push(new ViewTransformCommand(view, oldCenter, oldScale, newCenter, newScale));
+            }
+        }
+    }
 }
 
 void
@@ -2649,33 +2913,137 @@ enable_all_nodes(bool enable)
         return;
 
     auto nodeIds = model->allNodeIds();
-    
-    // Use macro to group all enable/disable operations into single undo step
-    scene->undoStack().beginMacro(enable ? tr("Enable All Nodes") : tr("Disable All Nodes"));
-    
-    for( auto nodeId : nodeIds )
-    {
-        auto* delegateModel = mMapNodeIdToNodeDelegateModel[nodeId];
-        if (!delegateModel)
-            continue;
-            
-        // Get current enable state
-        QVariant oldValue = delegateModel->isEnable();
-        QVariant newValue = enable;
-        
-        // Only create command if state is actually changing
-        if (oldValue.toBool() != newValue.toBool())
-        {
-            auto* cmd = new PropertyChangeCommand(scene,
-                                                  nodeId,
-                                                  delegateModel,
-                                                  "enable",
-                                                  oldValue,
-                                                  newValue);
-            scene->undoStack().push(cmd);
+
+    // 1. Build parents and children maps
+    QMap<NodeId, QSet<NodeId>> parentsMap;
+    QMap<NodeId, QSet<NodeId>> childrenMap;
+    QSet<NodeId> connectedNodes;
+    QList<NodeId> unconnectedNodes;
+
+    for (NodeId nodeId : nodeIds) {
+        parentsMap[nodeId] = QSet<NodeId>();
+        childrenMap[nodeId] = QSet<NodeId>();
+    }
+
+    for (NodeId nodeId : nodeIds) {
+        // Inputs
+        std::size_t const inPortCount = model->nodeData(nodeId, QtNodes::NodeRole::InPortCount).toUInt();
+        for (QtNodes::PortIndex portIndex = 0; portIndex < inPortCount; ++portIndex) {
+            auto connected = model->connections(nodeId, QtNodes::PortType::In, portIndex);
+            for (auto const &cn : connected) {
+                parentsMap[nodeId].insert(cn.outNodeId);
+                childrenMap[cn.outNodeId].insert(nodeId);
+                connectedNodes.insert(nodeId);
+                connectedNodes.insert(cn.outNodeId);
+            }
+        }
+
+        // Outputs
+        std::size_t const outPortCount = model->nodeData(nodeId, QtNodes::NodeRole::OutPortCount).toUInt();
+        for (QtNodes::PortIndex portIndex = 0; portIndex < outPortCount; ++portIndex) {
+            auto connected = model->connections(nodeId, QtNodes::PortType::Out, portIndex);
+            for (auto const &cn : connected) {
+                childrenMap[nodeId].insert(cn.inNodeId);
+                parentsMap[cn.inNodeId].insert(nodeId);
+                connectedNodes.insert(nodeId);
+                connectedNodes.insert(cn.inNodeId);
+            }
         }
     }
-    
+
+    // 2. Separate unconnected nodes
+    for (NodeId nodeId : nodeIds) {
+        if (!connectedNodes.contains(nodeId)) {
+            unconnectedNodes.append(nodeId);
+        }
+    }
+
+    // 3. Kahn's algorithm for topological sorting of the reversed graph (Child -> Parent dependencies)
+    // Leaf nodes (0 connected outputs / childrenMap[N] is empty) start with in-degree = 0.
+    QMap<NodeId, int> inDegree;
+    QQueue<NodeId> queue;
+    QList<NodeId> sortedSequence;
+
+    for (NodeId nodeId : connectedNodes) {
+        int childrenCount = childrenMap[nodeId].size();
+        inDegree[nodeId] = childrenCount;
+        if (childrenCount == 0) {
+            queue.enqueue(nodeId);
+        }
+    }
+
+    while (!queue.isEmpty()) {
+        NodeId curr = queue.dequeue();
+        sortedSequence.append(curr);
+
+        for (NodeId p : parentsMap[curr]) {
+            inDegree[p]--;
+            if (inDegree[p] == 0) {
+                queue.enqueue(p);
+            }
+        }
+    }
+
+    // Fallback for cycles: append any unprocessed connected nodes
+    QSet<NodeId> processedSet(sortedSequence.begin(), sortedSequence.end());
+    for (NodeId nodeId : connectedNodes) {
+        if (!processedSet.contains(nodeId)) {
+            sortedSequence.append(nodeId);
+        }
+    }
+
+    // Append unconnected nodes at the end
+    sortedSequence.append(unconnectedNodes);
+
+    // 4. Use macro to group all enable/disable operations into single undo step
+    scene->undoStack().beginMacro(enable ? tr("Enable All Nodes") : tr("Disable All Nodes"));
+
+    if (enable) {
+        // Enable sequentially: leaf nodes -> intermediates -> roots -> unconnected
+        for (int i = 0; i < sortedSequence.size(); ++i) {
+            NodeId nodeId = sortedSequence[i];
+            auto* delegateModel = mMapNodeIdToNodeDelegateModel[nodeId];
+            if (!delegateModel)
+                continue;
+                
+            QVariant oldValue = delegateModel->isEnable();
+            QVariant newValue = enable;
+            
+            if (oldValue.toBool() != newValue.toBool())
+            {
+                auto* cmd = new PropertyChangeCommand(scene,
+                                                      nodeId,
+                                                      delegateModel,
+                                                      "enable",
+                                                      oldValue,
+                                                      newValue);
+                scene->undoStack().push(cmd);
+            }
+        }
+    } else {
+        // Disable sequentially in opposite sequence: unconnected -> roots -> intermediates -> leaf nodes
+        for (int i = sortedSequence.size() - 1; i >= 0; --i) {
+            NodeId nodeId = sortedSequence[i];
+            auto* delegateModel = mMapNodeIdToNodeDelegateModel[nodeId];
+            if (!delegateModel)
+                continue;
+                
+            QVariant oldValue = delegateModel->isEnable();
+            QVariant newValue = enable;
+            
+            if (oldValue.toBool() != newValue.toBool())
+            {
+                auto* cmd = new PropertyChangeCommand(scene,
+                                                      nodeId,
+                                                      delegateModel,
+                                                      "enable",
+                                                      oldValue,
+                                                      newValue);
+                scene->undoStack().push(cmd);
+            }
+        }
+    }
+
     scene->undoStack().endMacro();
 }
 
@@ -2695,18 +3063,98 @@ actionDisableAll_slot()
 
 void
 MainWindow::
+actionTriggerOutputPorts_slot()
+{
+    PBFlowGraphicsView* view = getCurrentView();
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!view || !model)
+        return;
+
+    auto selectedNodeIds = view->selectedNodes();
+    if (selectedNodeIds.empty())
+        return;
+
+    std::unordered_set<NodeId> selectedSet(selectedNodeIds.begin(), selectedNodeIds.end());
+
+    // 1. Build adjacency list of the graph
+    std::unordered_map<NodeId, std::vector<NodeId>> adj;
+    for (NodeId u : model->allNodeIds()) {
+        adj[u] = std::vector<NodeId>();
+    }
+
+    for (NodeId u : model->allNodeIds()) {
+        for (const auto& conn : model->allConnectionIds(u)) {
+            if (conn.outNodeId == u) {
+                if (std::find(adj[u].begin(), adj[u].end(), conn.inNodeId) == adj[u].end()) {
+                    adj[u].push_back(conn.inNodeId);
+                }
+            }
+        }
+    }
+
+    // 2. Perform DFS post-order traversal
+    std::unordered_set<NodeId> visited;
+    std::vector<NodeId> order;
+    
+    std::function<void(NodeId)> dfs = [&](NodeId u) {
+        visited.insert(u);
+        for (NodeId v : adj[u]) {
+            if (visited.find(v) == visited.end()) {
+                dfs(v);
+            }
+        }
+        order.push_back(u);
+    };
+
+    for (NodeId u : model->allNodeIds()) {
+        if (visited.find(u) == visited.end()) {
+            dfs(u);
+        }
+    }
+
+    // 3. Reverse the order to go from root (sources) to leaf (sinks)
+    std::reverse(order.begin(), order.end());
+
+    // 4. Sequentially trigger the selected nodes in the sorted order
+    for (NodeId nodeId : order) {
+        if (selectedSet.find(nodeId) != selectedSet.end()) {
+            auto* delegateModel = model->delegateModel<PBNodeDelegateModel>(nodeId);
+            if (delegateModel) {
+                delegateModel->updateAllOutputPorts();
+            }
+        }
+    }
+}
+
+void
+MainWindow::
 actionSnapToGrid_slot(bool checked)
 {
+    PBDataFlowGraphModel* model = getCurrentModel();
+    bool oldVal = model ? model->snapToGrid() : false;
+    if (oldVal != checked && !mbBlockViewUndoCommands) {
+        if (auto* scene = getCurrentScene()) {
+            scene->undoStack().push(new ViewSettingsCommand(this, SnapToGrid, oldVal, checked));
+        }
+    }
+
+    if (model) {
+        model->setSnapToGrid(checked);
+    }
+
     // Set snap to grid for the current scene
     PBDataFlowGraphicsScene* scene = getCurrentScene();
     if (scene) {
         scene->setSnapToGrid(checked);
     }
     
-    // Also update all scenes in the list
+    // Also update all scenes and models in the list
     for (auto& sceneProperty : mlSceneProperty) {
         if (sceneProperty.pDataFlowGraphicsScene) {
             sceneProperty.pDataFlowGraphicsScene->setSnapToGrid(checked);
+        }
+        if (sceneProperty.pDataFlowGraphModel) {
+            sceneProperty.pDataFlowGraphModel->setSnapToGrid(checked);
         }
     }
 }
@@ -2719,13 +3167,25 @@ actionFocusView_slot(bool checked)
     PBFlowGraphicsView* view = getCurrentView();
     if (!model || !view)
         return;
+
+    bool oldVal = model->inFocusView();
+    if (oldVal != checked && !mbBlockViewUndoCommands) {
+        if (auto* scene = getCurrentScene()) {
+            scene->undoStack().push(new ViewSettingsCommand(this, FocusView, oldVal, checked));
+        }
+    }
+
+    model->setInFocusView(checked);
         
+    bool oldBlock = mbBlockViewUndoCommands;
+    mbBlockViewUndoCommands = true;
+
     if( checked )
     {
         auto nodeIds = model->allNodeIds();
         for( auto nodeId : nodeIds )
         {
-            if( ! mMapNodeIdToNodeDelegateModel[ nodeId ]->embeddedWidget() )
+            if( mMapNodeIdToNodeDelegateModel[ nodeId ]->isHideInFocusView() )
                 mMapNodeIdToNodeGraphicsObject[ nodeId ]->hide();
             else
             {
@@ -2750,7 +3210,7 @@ actionFocusView_slot(bool checked)
         auto nodeIds = model->allNodeIds();
         for( auto nodeId : nodeIds )
         {
-            if( ! mMapNodeIdToNodeDelegateModel[ nodeId ]->embeddedWidget() )
+            if( mMapNodeIdToNodeDelegateModel[ nodeId ]->isHideInFocusView() )
                 mMapNodeIdToNodeGraphicsObject[ nodeId ]->show();
             else
             {
@@ -2770,12 +3230,29 @@ actionFocusView_slot(bool checked)
 
         ui->mpTabWidget->setTabsClosable(true);
     }
+
+    mbBlockViewUndoCommands = oldBlock;
+
+    if (view->scene()) {
+        view->scene()->update();
+    }
 }
 
 void
 MainWindow::
 actionFullScreen_slot(bool checked)
 {
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (model) {
+        bool oldVal = model->inFullScreen();
+        if (oldVal != checked && !mbBlockViewUndoCommands) {
+            if (auto* scene = getCurrentScene()) {
+                scene->undoStack().push(new ViewSettingsCommand(this, FullScreen, oldVal, checked));
+            }
+        }
+        model->setInFullScreen(checked);
+    }
+
     if( checked )
         showFullScreen();
     else
@@ -2788,6 +3265,17 @@ tabPageChanged( int index )
 {
     if( index < 0 )
         return;
+
+    mbBlockViewUndoCommands = true;
+
+    // Disconnect from previously selected node and clear property browser
+    auto* prevSelectedNode = getSelectedNodeDelegateModel();
+    if (prevSelectedNode)
+    {
+        prevSelectedNode->setSelected(false);
+        disconnect(prevSelectedNode, nullptr, this, nullptr);
+    }
+    clearPropertyBrowser();
 
     // Clear node tree and group tree for the current view
     while( !mMapNodeIdToNodeGraphicsObject.empty() )
@@ -2840,6 +3328,62 @@ tabPageChanged( int index )
         ui->mpActionUndo->setEnabled(false);
         ui->mpActionRedo->setEnabled(false);
     }
+
+    if (mitSceneProperty != mlSceneProperty.end())
+    {
+        mpActionReadOnly->setEnabled(true);
+        mpActionReadOnly->setChecked(mitSceneProperty->bReadOnly);
+        ui->mpActionSave->setEnabled(!mitSceneProperty->bReadOnly);
+        updateReadOnlyStatusBadge();
+
+        // Update presets for current tab
+        if (model) {
+            mpActionPresetMode->setEnabled(true);
+            mpActionPresetMode->setChecked(model->isPresetMode());
+            updatePresetToolbar();
+            updatePresetStatusBadge();
+
+            // Update Snap to Grid for current tab
+            ui->mpActionSnapToGrid->blockSignals(true);
+            ui->mpActionSnapToGrid->setChecked(model->snapToGrid());
+            ui->mpActionSnapToGrid->blockSignals(false);
+            if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->pDataFlowGraphicsScene) {
+                mitSceneProperty->pDataFlowGraphicsScene->setSnapToGrid(model->snapToGrid());
+            }
+
+            // Update Focus View for current tab
+            ui->mpActionFocusView->setChecked(model->inFocusView());
+
+            // Update Full Screen for current tab
+            ui->mpActionFullScreen->setChecked(model->inFullScreen());
+
+            // Restore dock panel visibilities for the current tab
+            if (!model->inFocusView()) {
+                ui->mpAvailableNodeCategoryDockWidget->setVisible(!model->hideCategory());
+                ui->mpNodeListDockWidget->setVisible(!model->hideWorkspace());
+                ui->mpPropertyBrowserDockWidget->setVisible(!model->hideProperties());
+            }
+        } else {
+            mpActionPresetMode->setEnabled(false);
+            mpActionPresetMode->setChecked(false);
+            mpPresetToolbar->hide();
+            mpPresetStatusLabel->hide();
+        }
+    }
+    else
+    {
+        mpActionReadOnly->setEnabled(false);
+        mpActionReadOnly->setChecked(false);
+        ui->mpActionSave->setEnabled(false);
+        if (mpReadOnlyStatusLabel) {
+            mpReadOnlyStatusLabel->hide();
+        }
+        mpActionPresetMode->setEnabled(false);
+        mpActionPresetMode->setChecked(false);
+        mpPresetToolbar->hide();
+        mpPresetStatusLabel->hide();
+    }
+    mbBlockViewUndoCommands = false;
 }
 
 void
@@ -2848,12 +3392,6 @@ nodeChanged()
 {
     if (mitSceneProperty == mlSceneProperty.end())
         return;
-
-    // Read-only tabs must never show dirty marker or trigger save prompts.
-    if (mitSceneProperty->bReadOnly) {
-        refreshCurrentTabTitle(false);
-        return;
-    }
 
     bool isClean = false;
     if (mitSceneProperty->pDataFlowGraphicsScene)
@@ -2887,21 +3425,8 @@ loadSettings()
             QStringList openScenes = settings.value("Open Scenes", QStringList()).toStringList();
             if (!openScenes.isEmpty())
             {
-                // Load each scene that still exists
-                for (const QString& filename : openScenes)
-                {
-                    if (QFileInfo::exists(filename))
-                    {
-                        loadScene(const_cast<QString&>(filename));
-                    }
-                }
-
-                // Restore the active tab
                 int activeTab = settings.value("Active Tab", 0).toInt();
-                if (activeTab >= 0 && activeTab < ui->mpTabWidget->count())
-                {
-                    ui->mpTabWidget->setCurrentIndex(activeTab);
-                }
+                loadNextSceneFromQueue(openScenes, activeTab);
             }
             else
             {
@@ -2909,27 +3434,16 @@ loadSettings()
                 auto filename = settings.value("Open Scene", "").toString();
                 if( QFileInfo::exists(filename) )
                     loadScene(filename);
+                else // "Untitle.flow"
+                {
+                    actionResetPan_slot();
+                }
             }
         }
         
         // Load recent files list
         msRecentFiles = settings.value("Recent Files", QStringList()).toStringList();
         createRecentFilesMenu();
-        
-        if( settings.value("Hide Node Category", false).toBool() )
-            ui->mpAvailableNodeCategoryDockWidget->setHidden(true);
-        if( settings.value("Hide Workspace", false).toBool() )
-            ui->mpNodeListDockWidget->setHidden(true);
-        if( settings.value("Hide Properties", false).toBool() )
-            ui->mpPropertyBrowserDockWidget->setHidden(true);
-        if( settings.value("In Focus View", false).toBool() )
-            ui->mpActionFocusView->setChecked(true);
-        if( settings.value("In Full Screen", false).toBool() )
-            ui->mpActionFullScreen->setChecked(true);
-        // Recenter view after layout changes
-        QTimer::singleShot(0, this, [this]() {
-            recenterCurrentView();
-        });
     }
     else
     {
@@ -2967,12 +3481,10 @@ saveSettings()
             settings.setValue("Open Scene", "");
     }
     
-    settings.setValue("Hide Node Category", ui->mpAvailableNodeCategoryDockWidget->isHidden());
-    settings.setValue("Hide Workspace", ui->mpNodeListDockWidget->isHidden());
-    settings.setValue("Hide Properties", ui->mpPropertyBrowserDockWidget->isHidden());
-    settings.setValue("In Focus View", ui->mpActionFocusView->isChecked());
-    settings.setValue("In Full Screen", ui->mpActionFullScreen->isChecked());
-    
+    // By default, don't skip opening scenes on next startup,
+    // If something is wrong, set this to true to skip opening scenes on next startup.
+    // Note: This value will be reset to false after loading the scenes.
+    settings.setValue("Skip Open Scenes Once", false); 
     // Save recent files list
     settings.setValue("Recent Files", msRecentFiles);
 }
@@ -3008,52 +3520,87 @@ loadScene(QString & filename)
     if( model->load_from_file( filename ) )
     {
         mitSceneProperty->sDisplayName = QFileInfo(filename).completeBaseName();
-        mitSceneProperty->bReadOnly = false;
+        mitSceneProperty->bReadOnly = model->isReadOnly();
+        mpActionReadOnly->setChecked(mitSceneProperty->bReadOnly);
+        ui->mpActionSave->setEnabled(!mitSceneProperty->bReadOnly);
+        updateReadOnlyStatusBadge();
         refreshCurrentTabTitle(false);
         // Mark the undo stack as clean after loading the file
         if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->pDataFlowGraphicsScene)
             mitSceneProperty->pDataFlowGraphicsScene->undoStack().setClean();
         
-        // Center the view on all loaded nodes
-        PBFlowGraphicsView* view = getCurrentView();
-        auto nodes = model->allNodeIds();
-        if( view && nodes.size() > 0 )
-        {
-            auto left_pos = std::numeric_limits<double>::max();
-            auto right_pos = std::numeric_limits<double>::min();
-            auto top_pos = std::numeric_limits<double>::max();
-            auto bottom_pos = std::numeric_limits<double>::min();
-
-            for( auto nodeId : nodes )
-            {
-                auto nodeGraphicsObject = mMapNodeIdToNodeGraphicsObject[nodeId];
-                if (nodeGraphicsObject)
-                {
-                    auto nodeRect = nodeGraphicsObject->sceneBoundingRect();
-                    if( nodeRect.x() < left_pos )
-                        left_pos = nodeRect.x();
-                    if( nodeRect.y() < top_pos )
-                        top_pos = nodeRect.y();
-                    if( nodeRect.x() + nodeRect.width() > right_pos )
-                        right_pos = nodeRect.x() + nodeRect.width();
-                    if( nodeRect.y() + nodeRect.height() > bottom_pos )
-                        bottom_pos = nodeRect.y() + nodeRect.height();
-                }
-            }
-            auto center_pos = QPointF((left_pos+right_pos)*0.5, (top_pos+bottom_pos)*0.5);
-            view->center_on( center_pos );
-        }
-
         // Clear selection after loading
         if (mitSceneProperty != mlSceneProperty.end() && mitSceneProperty->pDataFlowGraphicsScene)
         {
             mitSceneProperty->pDataFlowGraphicsScene->clearSelection();
             mitSceneProperty->pDataFlowGraphicsScene->updateAllGroupVisuals();
         }
+
+        // Restore layout visibilities and checked actions
+        mbBlockViewUndoCommands = true;
+        
+        ui->mpActionFocusView->setChecked(model->inFocusView());
+        actionFocusView_slot(model->inFocusView());
+        
+        ui->mpActionFullScreen->setChecked(model->inFullScreen());
+        actionFullScreen_slot(model->inFullScreen());
+
+        ui->mpActionSnapToGrid->setChecked(model->snapToGrid());
+        actionSnapToGrid_slot(model->snapToGrid());
+
+        ui->mpAvailableNodeCategoryDockWidget->setHidden(model->hideCategory());
+        ui->mpNodeListDockWidget->setHidden(model->hideWorkspace());
+        ui->mpPropertyBrowserDockWidget->setHidden(model->hideProperties());
+
+        mbBlockViewUndoCommands = false;
+        
+        // Restore view center and zoom scale with a delay to allow Qt to compute layout geometry
+        PBFlowGraphicsView* targetView = mitSceneProperty->pFlowGraphicsView;
+        QTimer::singleShot(100, this, [this, model, targetView]() {
+            if (targetView) {
+                double scale = model->zoomScale();
+                if (scale < 0.1 || scale > 10.0) {
+                    scale = 1.0;
+                }
+                targetView->resetTransform();
+                targetView->scale(scale, scale);
+                targetView->centerOn(model->viewportCenter());
+            }
+        });
     }
     else
     {
         closeScene( ui->mpTabWidget->currentIndex() );
+    }
+}
+
+void
+MainWindow::
+loadNextSceneFromQueue(QStringList queue, int activeTabToRestore)
+{
+    if (queue.isEmpty())
+    {
+        // Restore the active tab after all scenes are loaded
+        if (activeTabToRestore >= 0 && activeTabToRestore < ui->mpTabWidget->count())
+        {
+            ui->mpTabWidget->setCurrentIndex(activeTabToRestore);
+        }
+        return;
+    }
+
+    QString filename = queue.takeFirst();
+    if (QFileInfo::exists(filename))
+    {
+        loadScene(filename);
+        // Delay the next scene load to allow 100ms viewport centering timer to fire first
+        QTimer::singleShot(150, this, [this, queue, activeTabToRestore]() {
+            loadNextSceneFromQueue(queue, activeTabToRestore);
+        });
+    }
+    else
+    {
+        // Skip file if it doesn't exist, proceed immediately
+        loadNextSceneFromQueue(queue, activeTabToRestore);
     }
 }
 
@@ -3226,20 +3773,14 @@ actionUngroupSelectedNodes_slot()
         }
     }
     
-    // Get group name for confirmation
+    // Get group name for status bar message
     const PBNodeGroup* group = model->getGroup(groupId);
     QString groupName = group ? group->name() : QString("Group %1").arg(groupId);
     
-    // Confirm dissolution
-    auto reply = QMessageBox::question(this, "Ungroup Nodes",
-                                      QString("Dissolve group '%1'?").arg(groupName),
-                                      QMessageBox::Yes | QMessageBox::No);
-    
-    if (reply == QMessageBox::Yes) {
-        if (scene) {
-            scene->undoStack().push(new GroupDissolveCommand(scene, model, *group));
+    if (scene) {
+        if (scene->onUngroupRequested(groupId)) {
+            statusBar()->showMessage(QString("Dissolved group '%1'").arg(groupName), 3000);
         }
-        statusBar()->showMessage(QString("Dissolved group '%1'").arg(groupName), 3000);
     }
 }
 
@@ -3442,4 +3983,280 @@ onClearRecentFiles()
     saveSettings();
     createRecentFilesMenu();
 }
+
+void
+MainWindow::
+togglePresetMode(bool checked)
+{
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model) {
+        mpActionPresetMode->setChecked(false);
+        return;
+    }
+
+    if (checked) {
+        // Prompt for the first preset name
+        bool ok = false;
+        QString name = QInputDialog::getText(this, tr("Enable Preset Parameters"),
+                                             tr("Enter a name for the current parameter set:"),
+                                             QLineEdit::Normal, tr("Default"), &ok);
+        if (!ok || name.isEmpty()) {
+            mpActionPresetMode->setChecked(false);
+            return;
+        }
+
+        model->enablePresetMode(name);
+        freezeSceneForPresetMode(true);
+        updatePresetToolbar();
+        updatePresetStatusBadge();
+        
+        // Update save action based on read-only status (presets can be saved if not read-only)
+        ui->mpActionSave->setEnabled(!mitSceneProperty->bReadOnly);
+        mpActionReadOnly->setEnabled(true);
+        
+        // Clear selection to avoid group actions, etc.
+        if (auto* scene = getCurrentScene()) {
+            scene->clearSelection();
+        }
+    } else {
+        // Warn the user before disabling
+        QMessageBox::StandardButton reply = QMessageBox::warning(this, tr("Warning"),
+            tr("Disabling preset parameters will permanently delete all saved presets. Do you want to continue?"),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            
+        if (reply != QMessageBox::Yes) {
+            mpActionPresetMode->setChecked(true);
+            return;
+        }
+
+        model->disablePresetMode();
+        freezeSceneForPresetMode(false);
+        updatePresetToolbar();
+        updatePresetStatusBadge();
+        
+        // Restore save/read-only menu options based on scene status
+        if (mitSceneProperty != mlSceneProperty.end()) {
+            ui->mpActionSave->setEnabled(!mitSceneProperty->bReadOnly);
+            mpActionReadOnly->setEnabled(true);
+        }
+    }
+}
+
+void
+MainWindow::
+freezeSceneForPresetMode(bool freeze)
+{
+    Q_UNUSED(freeze);
+    // Relaxed locking: Keep nodes movable at all times in preset mode.
+}
+
+void
+MainWindow::
+onPresetComboChanged(int index)
+{
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model || index < 0 || index >= mpPresetComboBox->count())
+        return;
+
+    QString selectedPreset = mpPresetComboBox->itemText(index);
+    if (selectedPreset == model->activePresetName())
+        return;
+
+    model->applyPreset(selectedPreset);
+    
+    // Refresh property browser for selected node
+    nodeInSceneSelectionChanged();
+}
+
+void
+MainWindow::
+onPresetNew()
+{
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model)
+        return;
+
+    bool ok = false;
+    QString name = QInputDialog::getText(this, tr("New Preset"),
+                                         tr("Enter a name for the new preset:"),
+                                         QLineEdit::Normal, tr("New Preset"), &ok);
+    if (!ok || name.isEmpty())
+        return;
+
+    if (model->presetNames().contains(name)) {
+        QMessageBox::warning(this, tr("Duplicate Name"),
+                             tr("A preset with the name '%1' already exists.").arg(name));
+        return;
+    }
+
+    model->addPreset(name);
+    updatePresetToolbar();
+}
+
+void
+MainWindow::
+onPresetRename()
+{
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model)
+        return;
+
+    QString currentName = model->activePresetName();
+    if (currentName.isEmpty())
+        return;
+
+    bool ok = false;
+    QString name = QInputDialog::getText(this, tr("Rename Preset"),
+                                         tr("Enter a new name for the preset:"),
+                                         QLineEdit::Normal, currentName, &ok);
+    if (!ok || name.isEmpty() || name == currentName)
+        return;
+
+    if (model->presetNames().contains(name)) {
+        QMessageBox::warning(this, tr("Duplicate Name"),
+                             tr("A preset with the name '%1' already exists.").arg(name));
+        return;
+    }
+
+    model->renamePreset(currentName, name);
+    updatePresetToolbar();
+}
+
+void
+MainWindow::
+onPresetDelete()
+{
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model)
+        return;
+
+    QString currentName = model->activePresetName();
+    if (currentName.isEmpty())
+        return;
+
+    if (model->presetNames().size() <= 1) {
+        QMessageBox::warning(this, tr("Delete Preset"),
+                             tr("Cannot delete the only remaining preset parameter set."));
+        return;
+    }
+
+    QMessageBox::StandardButton reply = QMessageBox::question(this, tr("Confirm Delete"),
+        tr("Are you sure you want to delete the preset '%1'?").arg(currentName),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        model->deletePreset(currentName);
+        updatePresetToolbar();
+    }
+}
+
+void
+MainWindow::
+updatePresetToolbar()
+{
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model || !model->isPresetMode()) {
+        mpPresetToolbar->hide();
+        return;
+    }
+
+    mpPresetComboBox->blockSignals(true);
+    mpPresetComboBox->clear();
+    
+    QStringList names = model->presetNames();
+    mpPresetComboBox->addItems(names);
+    
+    int activeIdx = names.indexOf(model->activePresetName());
+    if (activeIdx != -1) {
+        mpPresetComboBox->setCurrentIndex(activeIdx);
+    }
+    
+    mpPresetComboBox->blockSignals(false);
+    mpPresetToolbar->show();
+}
+
+void
+MainWindow::
+updatePresetStatusBadge()
+{
+    PBDataFlowGraphModel* model = getCurrentModel();
+    if (!model || !model->isPresetMode()) {
+        mpPresetStatusLabel->hide();
+        return;
+    }
+
+    mpPresetStatusLabel->setStyleSheet(
+        "QLabel#presetStatusBadge {"
+        "padding: 2px 8px;"
+        "border: 1px solid #2f7f2f;"
+        "border-radius: 8px;"
+        "background: #184418;"
+        "color: #f0f0f0;"
+        "font-weight: 600;"
+        "}"
+    );
+    mpPresetStatusLabel->setText(tr("Preset Mode"));
+    mpPresetStatusLabel->setToolTip(tr("This scene is in Preset Parameters mode. Structure is frozen."));
+    mpPresetStatusLabel->show();
+}
+
+void MainWindow::applyViewSetting(ViewSettingType type, bool value)
+{
+    mbBlockViewUndoCommands = true;
+    PBDataFlowGraphModel* model = getCurrentModel();
+    switch (type) {
+        case CategoryVisible:
+            ui->mpAvailableNodeCategoryDockWidget->setVisible(value);
+            if (model) model->setHideCategory(!value);
+            break;
+        case WorkspaceVisible:
+            ui->mpNodeListDockWidget->setVisible(value);
+            if (model) model->setHideWorkspace(!value);
+            break;
+        case PropertiesVisible:
+            ui->mpPropertyBrowserDockWidget->setVisible(value);
+            if (model) model->setHideProperties(!value);
+            break;
+        case FocusView:
+            ui->mpActionFocusView->setChecked(value);
+            actionFocusView_slot(value);
+            break;
+        case FullScreen:
+            ui->mpActionFullScreen->setChecked(value);
+            actionFullScreen_slot(value);
+            break;
+        case SnapToGrid:
+            ui->mpActionSnapToGrid->setChecked(value);
+            actionSnapToGrid_slot(value);
+            break;
+    }
+    mbBlockViewUndoCommands = false;
+}
+
+void MainWindow::onDockVisibilityChanged(ViewSettingType type, bool visible)
+{
+    if (mbBlockViewUndoCommands)
+        return;
+    
+    PBDataFlowGraphModel* model = getCurrentModel();
+    PBDataFlowGraphicsScene* scene = getCurrentScene();
+    if (!model || !scene)
+        return;
+        
+    bool oldVal = false;
+    if (type == CategoryVisible) oldVal = !model->hideCategory();
+    else if (type == WorkspaceVisible) oldVal = !model->hideWorkspace();
+    else if (type == PropertiesVisible) oldVal = !model->hideProperties();
+    
+    if (oldVal == visible)
+        return;
+        
+    // Update model state first
+    if (type == CategoryVisible) model->setHideCategory(!visible);
+    else if (type == WorkspaceVisible) model->setHideWorkspace(!visible);
+    else if (type == PropertiesVisible) model->setHideProperties(!visible);
+    
+    scene->undoStack().push(new ViewSettingsCommand(this, type, oldVal, visible));
+}
+
 

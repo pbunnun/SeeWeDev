@@ -388,4 +388,19 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageDa
     typedProp->getData() = QString("%1 px x %2 px").arg(props.mCVSizeOutput.height).arg(props.mCVSizeOutput.width);
 }
 
-
+QString
+CVMakeBorderModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Bordered Image: Output image with added padding borders.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -899,3 +899,20 @@ void PythonEditorModel::executePythonCode()
                                Q_ARG( QString, inputsJson ),
                                Q_ARG( int, miNumOutputs ) );
 }
+
+QString
+PythonEditorModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        return QString("Input %1: Generic Python input payload.").arg(portIndex);
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == static_cast<QtNodes::PortIndex>(miNumOutputs))
+            return "Execution Info: Python stdout and tracebacks.";
+        return QString("Output %1: Generic Python output payload.").arg(portIndex);
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

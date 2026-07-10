@@ -215,6 +215,9 @@ public:
     NodeDataType
     dataType(PortType portType, PortIndex portIndex) const override;
 
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     /**
      * @brief Sets input data and updates LCD display.
      * @param nodeData IntegerData to display.

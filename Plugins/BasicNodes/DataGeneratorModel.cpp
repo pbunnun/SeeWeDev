@@ -570,3 +570,15 @@ match(std::string text, std::vector<std::string>& matched, const bool ignore_gap
     }
     return;
 }
+
+QString
+DataGeneratorModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Generated Info: A text payload of generated data.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

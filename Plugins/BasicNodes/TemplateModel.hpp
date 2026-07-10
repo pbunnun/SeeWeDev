@@ -187,6 +187,9 @@ public:
     NodeDataType
     dataType(PortType portType, PortIndex portIndex) const override;
 
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     /**
      * @brief Returns the output data.
      * @param port Port index (0=image, 1=vector, 2=info).

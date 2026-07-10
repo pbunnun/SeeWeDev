@@ -225,5 +225,19 @@ late_constructor()
     }
 }
 
-
-
+QString
+CVImageROINewModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image to extract ROI from.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "ROI Crop: Cropped image of the selected region of interest.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

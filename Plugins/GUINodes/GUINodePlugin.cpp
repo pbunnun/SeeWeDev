@@ -17,6 +17,12 @@
 #include "LCDNumberModel.hpp"
 #include "ActivateAllNodesModel.hpp"
 #include "DisplayTextModel.hpp"
+#include "RGBLedModel.hpp"
+#include "ToggleButtonModel.hpp"
+#include "IntSpinButtonModel.hpp"
+#include "FloatSpinButtonModel.hpp"
+#include "DoubleSpinButtonModel.hpp"
+#include "TableViewModel.hpp"
 
 QStringList GUINodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModelRegistry > model_regs )
 {
@@ -26,6 +32,12 @@ QStringList GUINodePlugin::registerDataModel( std::shared_ptr< NodeDelegateModel
     registerModel< LCDNumberModel >( model_regs, duplicate_model_names );
     registerModel< ActivateAllNodesModel >( model_regs, duplicate_model_names );
     registerModel< DisplayTextModel >( model_regs, duplicate_model_names );
+    registerModel< RGBLedModel >( model_regs, duplicate_model_names );
+    registerModel< ToggleButtonModel >( model_regs, duplicate_model_names );
+    registerModel< IntSpinButtonModel >( model_regs, duplicate_model_names );
+    registerModel< FloatSpinButtonModel >( model_regs, duplicate_model_names );
+    registerModel< DoubleSpinButtonModel >( model_regs, duplicate_model_names );
+    registerModel< TableViewModel >( model_regs, duplicate_model_names );
 
     return duplicate_model_names;
 }

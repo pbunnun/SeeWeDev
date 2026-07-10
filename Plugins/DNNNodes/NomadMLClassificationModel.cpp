@@ -514,3 +514,23 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpNomadMLClassificationThread->detect(in_image);
 }
 
+QString
+NomadMLClassificationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input frame to classify using NomadML classification.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: The input frame with class labels overlayed.";
+        else if (portIndex == 1)
+            return "Classification Report: Text report containing prediction scores and classes.";
+        else if (portIndex == 2)
+            return "Sync Out: Emitted when classification completes.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

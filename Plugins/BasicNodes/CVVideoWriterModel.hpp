@@ -338,6 +338,9 @@ public:
     NodeDataType
     dataType( PortType portType, PortIndex portIndex ) const override;
 
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     /**
      * @brief Sets input frame data and enqueues for writing if recording.
      * @param nodeData Input CVImageData (video frame).

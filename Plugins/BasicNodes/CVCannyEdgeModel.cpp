@@ -339,3 +339,20 @@ void CVCannyEdgeModel::
                                   Q_ARG(QString, producerId));
     }
 }
+
+QString
+CVCannyEdgeModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input image (grayscale or color).";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Edge Map: Output binary image showing detected edges.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -505,4 +505,19 @@ processData( const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVImageDat
     }
 }
 
-
+QString
+CVCreateHistogramModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image to calculate histogram for.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Histogram Image: Rendered histogram chart.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

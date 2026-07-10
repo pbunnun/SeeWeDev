@@ -492,4 +492,23 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpNecMLClassificationThread->detect( in_image );
 }
 
-
+QString
+NecMLClassificationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input frame to classify using NEC ML model.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: The input frame with predicted class label drawn as text.";
+        else if (portIndex == 1)
+            return "Classification Report: Text list of predicted class labels and scores.";
+        else if (portIndex == 2)
+            return "Sync Out: Emitted when classification completes.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

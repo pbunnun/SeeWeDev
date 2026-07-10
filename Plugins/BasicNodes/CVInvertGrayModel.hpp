@@ -305,6 +305,10 @@ public:
 
 protected:
     QObject* createWorker() override;
+    
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     void connectWorker(QObject* worker) override;
     void dispatchPendingWork() override;
     void process_cached_input() override;

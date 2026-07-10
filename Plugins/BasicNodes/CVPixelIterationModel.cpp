@@ -554,3 +554,19 @@ overwrite(std::shared_ptr<CVScalarData> &in, PixelIterationParameters &params)
     in.reset();
 }
 
+QString
+CVPixelIterationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Result Image: Processed image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

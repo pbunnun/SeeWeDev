@@ -323,4 +323,21 @@ void CVDrawContourModel::processData(const std::shared_ptr<CVImageData> &in, std
                      params.miLineThickness,params.miLineType);
 }
 
-
+QString
+CVDrawContourModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input background image to draw contours on.";
+        else if (portIndex == 1)
+            return "Contours Data: List of contours to draw.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: Image with the contours rendered on it.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

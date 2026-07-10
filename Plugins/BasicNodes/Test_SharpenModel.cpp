@@ -111,3 +111,9 @@ void Test_SharpenModel::setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
     emitOutputPort(0);
 }
 
+QString
+Test_SharpenModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

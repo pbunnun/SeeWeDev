@@ -152,4 +152,14 @@ enable_changed(bool enable)
     mpEmbeddedWidget->setEnabled(enable);
 }
 
-
+QString
+LCDNumberModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Value: The input integer to display on the digital LCD.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

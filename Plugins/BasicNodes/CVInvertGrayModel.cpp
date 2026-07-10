@@ -87,5 +87,19 @@ void CVInvertGrayModel::process_cached_input()
     }
 }
 
-
-
+QString
+CVInvertGrayModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Grayscale input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Inverted Image: Inverted grayscale output image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

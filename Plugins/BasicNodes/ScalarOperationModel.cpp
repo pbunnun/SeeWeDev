@@ -270,4 +270,21 @@ processData(std::shared_ptr< InformationData > (&in)[2], std::shared_ptr<Informa
     }
 }
 
-
+QString
+ScalarOperationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Operand 1: The first scalar operand.";
+        else if (portIndex == 1)
+            return "Operand 2: The second scalar operand.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Result Info: The calculated scalar result.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

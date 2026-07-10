@@ -167,4 +167,23 @@ inputConnectionDeleted(QtNodes::ConnectionId const& conx)
         mbUseSyncSignal = false;
 }
 
-
+QString
+InfoConcatenateModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Info 0: First text input to concatenate.";
+        else if (portIndex == 1)
+            return "Info 1: Second text input to concatenate.";
+        else if (portIndex == 2)
+            return "Trigger Sync: Optional trigger input.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Concatenated Info: The combined text output.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

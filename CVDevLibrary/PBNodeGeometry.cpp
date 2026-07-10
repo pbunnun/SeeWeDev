@@ -128,7 +128,7 @@ QPointF PBNodeGeometry::widgetPosition(NodeId const nodeId) const
         if (delegateModel && !delegateModel->isDrawEntries()) {
             // When entries are hidden, position widget with symmetric margins
             QSize size = _graphModel.nodeData<QSize>(nodeId, NodeRole::Size);
-            unsigned int captionHeight = delegateModel->captionVisible() ? captionRect(nodeId).height() : 0;
+            double captionHeight = delegateModel->captionVisible() ? static_cast<double>(captionRect(nodeId).height()) : 0.0;
 
             if (auto w = _graphModel.nodeData<QWidget *>(nodeId, NodeRole::Widget)) {
                 // Use reduced spacing when caption is hidden (4px to match checkbox margin)
@@ -148,6 +148,20 @@ QPointF PBNodeGeometry::widgetPosition(NodeId const nodeId) const
         }
     }
     
-    // Use default positioning (with port label spacing)
-    return DefaultHorizontalNodeGeometry::widgetPosition(nodeId);
+    // Otherwise, call the default base class implementation
+    QPointF pos = DefaultHorizontalNodeGeometry::widgetPosition(nodeId);
+    
+    // If the base class calculation underflowed due to unsigned integer arithmetic, correct the Y coordinate
+    if (pos.y() > 1e9) {
+        if (auto w = _graphModel.nodeData<QWidget *>(nodeId, NodeRole::Widget)) {
+            if (!(w->sizePolicy().verticalPolicy() & QSizePolicy::ExpandFlag)) {
+                QSize size = _graphModel.nodeData<QSize>(nodeId, NodeRole::Size);
+                double captionHeight = static_cast<double>(captionRect(nodeId).height());
+                // Recalculate safely in double to avoid unsigned underflow
+                pos.setY((captionHeight + size.height() - w->height()) / 2.0);
+            }
+        }
+    }
+    
+    return pos;
 }

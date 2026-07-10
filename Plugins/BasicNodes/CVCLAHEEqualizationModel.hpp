@@ -289,6 +289,9 @@ protected:
      * @return New CVCLAHEEqualizationWorker instance.
      */
     QObject* createWorker() override;
+    
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
 
     /**
      * @brief Connects worker signals to model slots.

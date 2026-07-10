@@ -188,4 +188,21 @@ void CVFaceDetectionModel::em_button_clicked( int button ) {
     }
 }
 
-
+QString
+CVFaceDetectionModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image to detect faces in.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: Image overlaying bounding boxes on detected faces.";
+        else if (portIndex == 1)
+            return "Faces Info: Text report containing number of detected faces and their coordinates.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -483,4 +483,19 @@ void CVMorphologicalTransformationModel::process_cached_input()
     }
 }
 
-
+QString
+CVMorphologicalTransformationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Morph Result: Resulting morphed image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

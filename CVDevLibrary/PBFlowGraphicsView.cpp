@@ -30,7 +30,11 @@
 #include <QTreeWidget>
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QTimer>
+#include <QWheelEvent>
+#include <QMouseEvent>
 #include <set>
+#include <cmath>
 #include "PBFlowGraphicsView.hpp"
 #include "PBNodeDelegateModel.hpp"
 #include "PBDataFlowGraphicsScene.hpp"
@@ -47,6 +51,9 @@ PBFlowGraphicsView::PBFlowGraphicsView(QtNodes::BasicGraphicsScene *scene, QWidg
 {
     mpDataFlowGraphicsScene = dynamic_cast<QtNodes::DataFlowGraphicsScene*>(mpGraphicsScene);
     setAcceptDrops(true);
+
+    mZoomTimer = new QTimer(this);
+    connect(mZoomTimer, &QTimer::timeout, this, &PBFlowGraphicsView::onZoomFinished);
 }
 
 void
@@ -69,6 +76,12 @@ dropEvent(QDropEvent *event)
     }
 
     auto& graphModel = dataFlowScene->graphModel();
+    auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel);
+    if (pbModel && pbModel->isPresetMode()) {
+        event->ignore();
+        return;
+    }
+
     auto registry = dynamic_cast<QtNodes::DataFlowGraphModel&>(graphModel).dataModelRegistry();
     
     auto type = registry->create(event->mimeData()->text());
@@ -98,6 +111,7 @@ contextMenuEvent(QContextMenuEvent *event)
         return;
 
     auto& graphModel = mpDataFlowGraphicsScene->graphModel();
+    auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel);
     
     // Check if clicking on a node or connection
     QGraphicsItem* item = itemAt(event->pos());
@@ -122,6 +136,8 @@ contextMenuEvent(QContextMenuEvent *event)
                 groupItem->setSelected(true);
             }
 
+            bool const isPreset = (pbModel && pbModel->isPresetMode());
+
             // Context menu for group: Copy/Cut/Delete above Expand/Minimize
             QMenu groupMenu;
 
@@ -129,31 +145,39 @@ contextMenuEvent(QContextMenuEvent *event)
             copyAction->setIcon(QIcon(":/icons/tango/16x16/edit-copy.png"));
             copyAction->setIconVisibleInMenu(true);
 
-            QAction* cutAction = groupMenu.addAction("Cut");
-            cutAction->setIcon(QIcon(":/icons/tango/16x16/edit-cut.png"));
-            cutAction->setIconVisibleInMenu(true);
+            QAction* cutAction = nullptr;
+            QAction* deleteAction = nullptr;
+            if (!isPreset) {
+                cutAction = groupMenu.addAction("Cut");
+                cutAction->setIcon(QIcon(":/icons/tango/16x16/edit-cut.png"));
+                cutAction->setIconVisibleInMenu(true);
 
-            QAction* deleteAction = groupMenu.addAction("Delete");
-            deleteAction->setIcon(QIcon(":/icons/tango/16x16/edit-delete.png"));
-            deleteAction->setIconVisibleInMenu(true);
-            groupMenu.addSeparator();
+                deleteAction = groupMenu.addAction("Delete");
+                deleteAction->setIcon(QIcon(":/icons/tango/16x16/edit-delete.png"));
+                deleteAction->setIconVisibleInMenu(true);
+                groupMenu.addSeparator();
+            }
 
             QAction* minimizeAction = groupMenu.addAction(groupItem->isMinimized() ? "Expand Group" : "Minimize Group");
             groupMenu.addSeparator();
             QAction* renameAction = groupMenu.addAction("Rename Group...");
             QAction* colorAction = groupMenu.addAction("Change Color...");
             QAction* labelColorAction = groupMenu.addAction("Change Label Color...");
-            groupMenu.addSeparator();
-            QAction* ungroupAction = groupMenu.addAction("Ungroup");
+            
+            QAction* ungroupAction = nullptr;
+            if (!isPreset) {
+                groupMenu.addSeparator();
+                ungroupAction = groupMenu.addAction("Ungroup");
+            }
 
             QAction* selectedAction = groupMenu.exec(event->globalPos());
 
             if (selectedAction == copyAction) {
                 // Use view-level handler to perform group-aware copy
                 this->triggerCopy();
-            } else if (selectedAction == cutAction) {
+            } else if (cutAction && selectedAction == cutAction) {
                 this->triggerCut();
-            } else if (selectedAction == deleteAction) {
+            } else if (deleteAction && selectedAction == deleteAction) {
                 this->triggerDelete();
             } else if (selectedAction == minimizeAction) {
                 groupItem->toggleMinimizeRequested(groupItem->groupId());
@@ -163,7 +187,7 @@ contextMenuEvent(QContextMenuEvent *event)
                 groupItem->changeColorRequested(groupItem->groupId());
             } else if (selectedAction == labelColorAction) {
                 groupItem->changeLabelColorRequested(groupItem->groupId());
-            } else if (selectedAction == ungroupAction) {
+            } else if (ungroupAction && selectedAction == ungroupAction) {
                 groupItem->ungroupRequested(groupItem->groupId());
             }
 
@@ -175,6 +199,11 @@ contextMenuEvent(QContextMenuEvent *event)
     auto* connectionItem = dynamic_cast<QtNodes::ConnectionGraphicsObject*>(item);
     if (connectionItem)
     {
+        if (pbModel && pbModel->isPresetMode()) {
+            event->accept();
+            return;
+        }
+        
         // Select the connection if it's not already selected
         if (!connectionItem->isSelected())
         {
@@ -193,9 +222,9 @@ contextMenuEvent(QContextMenuEvent *event)
         
         if (selectedAction == deleteAction)
         {
-            // Delete the connection using the graph model
+            // Delete the connection using DisconnectCommand on the undo stack
             QtNodes::ConnectionId connectionId = connectionItem->connectionId();
-            graphModel.deleteConnection(connectionId);
+            mpDataFlowGraphicsScene->undoStack().push(new QtNodes::DisconnectCommand(mpDataFlowGraphicsScene, connectionId));
         }
         
         return;
@@ -214,6 +243,8 @@ contextMenuEvent(QContextMenuEvent *event)
             nodeItem->setSelected(true);
         }
         
+        bool const isPreset = (pbModel && pbModel->isPresetMode());
+
         // Context menu for node: Copy, Cut, Delete
         QMenu nodeMenu;
         
@@ -222,17 +253,21 @@ contextMenuEvent(QContextMenuEvent *event)
         copyAction->setIconVisibleInMenu(true);  // Force icon to show on macOS
         nodeMenu.addAction(copyAction);
         
-        QAction* cutAction = new QAction("Cut", &nodeMenu);
-        cutAction->setIcon(QIcon(":/icons/tango/16x16/edit-cut.png"));
-        cutAction->setIconVisibleInMenu(true);  // Force icon to show on macOS
-        nodeMenu.addAction(cutAction);
-        
-        nodeMenu.addSeparator();
-        
-        QAction* deleteAction = new QAction("Delete", &nodeMenu);
-        deleteAction->setIcon(QIcon(":/icons/tango/16x16/edit-delete.png"));
-        deleteAction->setIconVisibleInMenu(true);  // Force icon to show on macOS
-        nodeMenu.addAction(deleteAction);
+        QAction* cutAction = nullptr;
+        QAction* deleteAction = nullptr;
+        if (!isPreset) {
+            cutAction = new QAction("Cut", &nodeMenu);
+            cutAction->setIcon(QIcon(":/icons/tango/16x16/edit-cut.png"));
+            cutAction->setIconVisibleInMenu(true);  // Force icon to show on macOS
+            nodeMenu.addAction(cutAction);
+            
+            nodeMenu.addSeparator();
+            
+            deleteAction = new QAction("Delete", &nodeMenu);
+            deleteAction->setIcon(QIcon(":/icons/tango/16x16/edit-delete.png"));
+            deleteAction->setIconVisibleInMenu(true);  // Force icon to show on macOS
+            nodeMenu.addAction(deleteAction);
+        }
 
         // Bring to Front / Send to Back actions
         QAction* bringToFrontAction = new QAction("Bring to Front", &nodeMenu);
@@ -247,13 +282,13 @@ contextMenuEvent(QContextMenuEvent *event)
             // Use NodeEditor v3's built-in CopyCommand
             mpDataFlowGraphicsScene->undoStack().push(new QtNodes::CopyCommand(mpDataFlowGraphicsScene));
         }
-        else if (selectedAction == cutAction)
+        else if (cutAction && selectedAction == cutAction)
         {
             // Copy then delete using undo commands
             mpDataFlowGraphicsScene->undoStack().push(new QtNodes::CopyCommand(mpDataFlowGraphicsScene));
             mpDataFlowGraphicsScene->undoStack().push(new PBDeleteCommand(dynamic_cast<PBDataFlowGraphicsScene*>(mpDataFlowGraphicsScene)));
         }
-        else if (selectedAction == deleteAction)
+        else if (deleteAction && selectedAction == deleteAction)
         {
             // Use CVDev's PBDeleteCommand which preserves group membership on undo
             mpDataFlowGraphicsScene->undoStack().push(new PBDeleteCommand(dynamic_cast<PBDataFlowGraphicsScene*>(mpDataFlowGraphicsScene)));
@@ -305,6 +340,10 @@ contextMenuEvent(QContextMenuEvent *event)
             }
         }
         
+        return;
+    }
+    if (pbModel && pbModel->isPresetMode()) {
+        event->accept();
         return;
     }
     
@@ -480,6 +519,27 @@ center_on( QPointF const & center_pos )
     centerOn(center_pos);
 }
 
+void
+PBFlowGraphicsView::
+centerScene()
+{
+    if (scene()) {
+        QRectF sceneRect = scene()->itemsBoundingRect();
+
+        if (sceneRect.isEmpty()) {
+            sceneRect = QRectF(-100, -100, 200, 200);
+        }
+
+        scene()->setSceneRect(sceneRect);
+
+        if (sceneRect.width() > this->rect().width() || sceneRect.height() > this->rect().height()) {
+            fitInView(sceneRect, Qt::KeepAspectRatio);
+        }
+
+        centerOn(sceneRect.center());
+    }
+}
+
 std::vector<NodeId>
 PBFlowGraphicsView::
 selectedNodes()
@@ -548,6 +608,12 @@ void
 PBFlowGraphicsView::
 keyPressEvent(QKeyEvent *event)
 {
+    if (event->key() == Qt::Key_Shift) {
+        setDragMode(QGraphicsView::RubberBandDrag);
+        QGraphicsView::keyPressEvent(event);
+        return;
+    }
+
     if (!mpDataFlowGraphicsScene)
     {
         QtNodes::GraphicsView::keyPressEvent(event);
@@ -555,6 +621,13 @@ keyPressEvent(QKeyEvent *event)
     }
     
     auto& graphModel = mpDataFlowGraphicsScene->graphModel();
+    auto* pbModel = dynamic_cast<PBDataFlowGraphModel*>(&graphModel);
+    if (pbModel && pbModel->isPresetMode()) {
+        if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
+            event->accept();
+            return;
+        }
+    }
     
     // Check for Delete key (Windows/Linux) or Backspace key (Mac)
     if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace)
@@ -639,6 +712,22 @@ keyPressEvent(QKeyEvent *event)
     
     // If not handled, pass to base class
     QtNodes::GraphicsView::keyPressEvent(event);
+}
+
+void
+PBFlowGraphicsView::
+keyReleaseEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Shift) {
+        if (QGuiApplication::mouseButtons() == Qt::NoButton) {
+            setDragMode(QGraphicsView::ScrollHandDrag);
+        } else {
+            mRestoreScrollHandDragOnMouseRelease = true;
+        }
+        QGraphicsView::keyReleaseEvent(event);
+        return;
+    }
+    QtNodes::GraphicsView::keyReleaseEvent(event);
 }
 
 void
@@ -965,4 +1054,179 @@ triggerDelete()
 
     // Fallback: default deletion for ordinary selections
     mpDataFlowGraphicsScene->undoStack().push(new PBDeleteCommand(dynamic_cast<PBDataFlowGraphicsScene*>(mpDataFlowGraphicsScene)));
+}
+
+void
+PBFlowGraphicsView::
+drawBackground(QPainter* painter, const QRectF& r)
+{
+    double scale = transform().m11();
+    double gridStep = 15.0;
+    double screenStep = gridStep * scale;
+    
+    // Safety check: if view size is 0 or scale is invalid/too dense, draw standard background color and return.
+    if (this->rect().width() <= 0 || this->rect().height() <= 0 || 
+        std::isnan(scale) || std::isinf(scale) || screenStep < 4.0)
+    {
+        QBrush brush = backgroundBrush();
+        if (brush.style() != Qt::NoBrush) {
+            painter->fillRect(r, brush);
+        } else {
+            painter->fillRect(r, palette().brush(QPalette::Window));
+        }
+        return;
+    }
+    
+    // Safety check: calculate grid bounds, if we are about to draw too many lines, return early.
+    QRect windowRect = rect();
+    QPointF tl = mapToScene(windowRect.topLeft());
+    QPointF br = mapToScene(windowRect.bottomRight());
+
+    double left = std::floor(tl.x() / gridStep - 0.5);
+    double right = std::floor(br.x() / gridStep + 1.0);
+    double bottom = std::floor(tl.y() / gridStep - 0.5);
+    double top = std::floor(br.y() / gridStep + 1.0);
+
+    if (std::isnan(left) || std::isnan(right) || std::isnan(bottom) || std::isnan(top) ||
+        std::isinf(left) || std::isinf(right) || std::isinf(bottom) || std::isinf(top)) {
+        QBrush brush = backgroundBrush();
+        if (brush.style() != Qt::NoBrush) {
+            painter->fillRect(r, brush);
+        } else {
+            painter->fillRect(r, palette().brush(QPalette::Window));
+        }
+        return;
+    }
+
+    double numX = right - left;
+    double numY = top - bottom;
+    if (numX <= 0 || numY <= 0 || numX > 1000 || numY > 1000) {
+        QBrush brush = backgroundBrush();
+        if (brush.style() != Qt::NoBrush) {
+            painter->fillRect(r, brush);
+        } else {
+            painter->fillRect(r, palette().brush(QPalette::Window));
+        }
+        return;
+    }
+    
+    // Otherwise, delegate safely to 3rd party drawBackground
+    GraphicsView::drawBackground(painter, r);
+    
+    // Draw X and Y axes in a deep blue color, slightly wider
+    painter->save();
+    QPen axesPen(QColor(30, 80, 150, 220), 2.0);
+    painter->setPen(axesPen);
+    
+    // Y-axis (X = 0)
+    if (r.left() <= 0.0 && r.right() >= 0.0) {
+        painter->drawLine(QPointF(0.0, r.top()), QPointF(0.0, r.bottom()));
+    }
+    // X-axis (Y = 0)
+    if (r.top() <= 0.0 && r.bottom() >= 0.0) {
+        painter->drawLine(QPointF(r.left(), 0.0), QPointF(r.right(), 0.0));
+    }
+    painter->restore();
+}
+
+void
+PBFlowGraphicsView::
+showEvent(QShowEvent* event)
+{
+    // Bypass QtNodes::GraphicsView::showEvent to prevent calling centerScene() automatically
+    QGraphicsView::showEvent(event);
+    
+    if (width() > 100 && height() > 100) {
+        if (!property("sceneCentered").toBool()) {
+            centerScene();
+            setProperty("sceneCentered", true);
+        }
+    }
+}
+
+void
+PBFlowGraphicsView::
+resizeEvent(QResizeEvent* event)
+{
+    QGraphicsView::resizeEvent(event);
+    
+    if (width() > 100 && height() > 100) {
+        if (!property("sceneCentered").toBool()) {
+            centerScene();
+            setProperty("sceneCentered", true);
+        }
+    }
+}
+
+void
+PBFlowGraphicsView::
+mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton || event->button() == Qt::RightButton || event->button() == Qt::MiddleButton) {
+        if (!property("isUndoingRedoing").toBool()) {
+            mStartCenter = mapToScene(viewport()->rect().center());
+            mStartScale = transform().m11();
+            mIsTransforming = true;
+        }
+    }
+    QtNodes::GraphicsView::mousePressEvent(event);
+}
+
+void
+PBFlowGraphicsView::
+mouseReleaseEvent(QMouseEvent *event)
+{
+    QtNodes::GraphicsView::mouseReleaseEvent(event);
+    if (mIsTransforming) {
+        mIsTransforming = false;
+        finishViewportTracking();
+    }
+    if (mRestoreScrollHandDragOnMouseRelease && QGuiApplication::mouseButtons() == Qt::NoButton) {
+        setDragMode(QGraphicsView::ScrollHandDrag);
+        mRestoreScrollHandDragOnMouseRelease = false;
+    }
+}
+
+void
+PBFlowGraphicsView::
+wheelEvent(QWheelEvent *event)
+{
+    if (!property("isUndoingRedoing").toBool()) {
+        if (!mZoomTimer->isActive()) {
+            mStartCenter = mapToScene(viewport()->rect().center());
+            mStartScale = transform().m11();
+        }
+        mZoomTimer->start(500);
+    }
+    QtNodes::GraphicsView::wheelEvent(event);
+}
+
+void
+PBFlowGraphicsView::
+finishViewportTracking()
+{
+    if (property("isUndoingRedoing").toBool())
+        return;
+
+    QPointF newCenter = mapToScene(viewport()->rect().center());
+    double newScale = transform().m11();
+
+    double scaleDiff = std::abs(mStartScale - newScale);
+    double dx = std::abs(mStartCenter.x() - newCenter.x());
+    double dy = std::abs(mStartCenter.y() - newCenter.y());
+    if (scaleDiff < 1e-5 && dx < 1e-3 && dy < 1e-3) {
+        return;
+    }
+
+    if (mpDataFlowGraphicsScene) {
+        mpDataFlowGraphicsScene->undoStack().push(new ViewTransformCommand(this, mStartCenter, mStartScale, newCenter, newScale));
+    }
+}
+
+void
+PBFlowGraphicsView::
+onZoomFinished()
+{
+    mZoomTimer->stop();
+    finishViewportTracking();
 }

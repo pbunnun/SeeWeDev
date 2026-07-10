@@ -279,3 +279,19 @@ processData(const std::shared_ptr< CVImageData > &in, std::shared_ptr<CVImageDat
     }
 }
 
+QString
+CVColorMapModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input grayscale image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Colormapped Image: Output color-mapped pseudocolor image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

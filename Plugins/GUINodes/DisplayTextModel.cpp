@@ -462,3 +462,19 @@ apply_styling()
     visibleCursor.clearSelection();
     mpEmbeddedWidget->setTextCursor(visibleCursor);
 }
+
+QString
+DisplayTextModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        return QString("Text to Display %1: Input text payload %1 to display.").arg(portIndex);
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Forwarded Text: The input text forwarded downstream.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -440,4 +440,17 @@ processData(const std::shared_ptr<SyncData> (&inSync)[2], const std::shared_ptr<
     }
 }
 
-
+QString
+SyncGateModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        return QString("Sync/Bool %1: Input sync gate channel %1.").arg(portIndex);
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        return QString("Sync/Bool %1: Output sync gate channel %1.").arg(portIndex);
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

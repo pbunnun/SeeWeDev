@@ -285,6 +285,11 @@ public:
      */
     FrameHandle acquire(size_t consumerCount, FrameMetadata metadata);
 
+    /**
+     * @brief Mark the pool as shutting down to abort any pending acquire blocks.
+     */
+    void shutdown() { mShuttingDown.store(true, std::memory_order_release); }
+
 private:
     /**
      * @brief Internal helper: releases a slot back to the pool.
@@ -309,6 +314,7 @@ private:
     mutable QMutex mMutex;               ///< Mutex for thread-safe access to the free list
     std::vector<PooledFrame*> mFreeSlots;///< List of available slots
     std::atomic<FrameSharingMode> mMode{FrameSharingMode::PoolMode}; ///< Current mode
+    std::atomic<bool> mShuttingDown{false}; ///< True if the pool is shutting down
 };
 
 // ========================================================================
@@ -399,6 +405,11 @@ inline void CVImagePool::setMode(FrameSharingMode mode)
 inline CVImagePool::FrameHandle CVImagePool::acquire(size_t consumerCount,
                                                    FrameMetadata metadata)
 {
+    if (mShuttingDown.load(std::memory_order_acquire))
+    {
+        return FrameHandle();
+    }
+
     FrameSharingMode currentMode = mode();
     if (currentMode == FrameSharingMode::BroadcastMode)
     {
@@ -409,6 +420,11 @@ inline CVImagePool::FrameHandle CVImagePool::acquire(size_t consumerCount,
     PooledFrame* slot = nullptr;
     while (true)
     {
+        if (mShuttingDown.load(std::memory_order_acquire))
+        {
+            return FrameHandle();
+        }
+
         if (currentMode != FrameSharingMode::PoolMode)
         {
             logBroadcastFallback();

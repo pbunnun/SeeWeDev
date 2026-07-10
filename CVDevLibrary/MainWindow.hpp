@@ -43,8 +43,12 @@
 #include "PBDataFlowGraphModel.hpp"
 #include "PBFlowGraphicsView.hpp"
 #include "PBDataFlowGraphicsScene.hpp"
+#include "ViewSettingsCommand.hpp"
 #include "qtpropertymanager_p.h"
 #include <QMap>
+#include <QComboBox>
+#include <QToolBar>
+#include <QLabel>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -140,6 +144,7 @@ struct SelectedNodeResult
 class CVDEVSHAREDLIB_EXPORT MainWindow : public QMainWindow
 {
     Q_OBJECT
+    friend class ViewSettingsCommand;
 
 public:
     /**
@@ -360,6 +365,8 @@ private Q_SLOTS:
      */
     void actionChangeGroupColor_slot();
     void actionZoomReset_slot();    ///< Resets the view transformation to default
+    void actionCenterScene_slot();   ///< Centers the view on all nodes in the scene
+    void actionResetPan_slot();      ///< Moves coordinate (0,0) to the center of the program
 
     // Edit menu action slots
     
@@ -370,6 +377,7 @@ private Q_SLOTS:
     
     void actionDisableAll_slot();   ///< Disables all nodes in current scene
     void actionEnableAll_slot();    ///< Enables all nodes in current scene
+    void actionTriggerOutputPorts_slot(); ///< Triggers output ports of selected nodes downstream
 
     // Settings menu action slots
     
@@ -518,17 +526,8 @@ private:
      * Persists window state, dock widget visibility, and current scene path.
      */
     void saveSettings();
-    
-    /**
-     * @brief Recenters the current view to show all nodes centered
-     * 
-     * Calculates the bounding box of all nodes and centers the viewport on it.
-     * Used after layout changes (e.g., showing/hiding dock widgets).
-     */
-    void recenterCurrentView();
-    
+
     // Recent files management methods
-    
     /**
      * @brief Updates the recent files list and rebuilds the menu
      * @param filename Path to the file that was just loaded
@@ -630,7 +629,22 @@ private:
     void updateTransportModeStatusBadge();
     void syncOperationModeMenu(TransportMode mode);
 
+    void updateReadOnlyStatusBadge();
+    void toggleReadOnlyMode(bool checked);
+
+    // Preset Parameters
+    void togglePresetMode(bool checked);
+    void onPresetComboChanged(int index);
+    void onPresetNew();
+    void onPresetRename();
+    void onPresetDelete();
+    void updatePresetToolbar();
+    void updatePresetStatusBadge();
+    void freezeSceneForPresetMode(bool freeze);
+
     void refreshCurrentTabTitle(bool dirty);
+    void applyViewSetting(ViewSettingType type, bool value);
+    void onDockVisibilityChanged(ViewSettingType type, bool visible);
 
     QString makeTransportSourceKey(const QString& sourceNodeId, PortIndex outPortIndex) const;
     void removeZenohRoutesForModel(PBDataFlowGraphModel* model);
@@ -646,6 +660,15 @@ private:
     
     Ui::MainWindow *ui;  ///< Auto-generated UI components
     QLabel *mpTransportModeStatusLabel{nullptr};  ///< Permanent status-bar badge showing active node data transport mode
+    QLabel *mpReadOnlyStatusLabel{nullptr};       ///< Permanent status-bar badge showing read-only state
+    QAction *mpActionReadOnly{nullptr};           ///< Settings menu action for Read-Only mode
+    QAction *mpActionPresetMode{nullptr};         ///< Settings menu action for Preset mode
+    QToolBar *mpPresetToolbar{nullptr};           ///< Toolbar containing preset widgets
+    QComboBox *mpPresetComboBox{nullptr};         ///< Dropdown for selecting presets
+    QAction *mpActionPresetNew{nullptr};          ///< Action to create a new preset
+    QAction *mpActionPresetRename{nullptr};       ///< Action to rename current preset
+    QAction *mpActionPresetDelete{nullptr};       ///< Action to delete current preset
+    QLabel *mpPresetStatusLabel{nullptr};         ///< Status badge for preset mode
     QActionGroup *mpOperationModeActionGroup{nullptr};
     
     /// Shared registry of all available node types (from plugins and built-ins)
@@ -672,6 +695,7 @@ private:
     /// Property browser updates trigger editorPropertyChanged(), but during undo/redo
     /// we don't want to create new undo commands for those programmatic changes
     bool mbApplyingUndoRedo{ false };
+    bool mbBlockViewUndoCommands{ false };
 
     // Node tree management maps
     
@@ -760,4 +784,6 @@ private:
      * Called when selection changes or nodes are deleted.
      */
     void clearPropertyBrowser();
+    void prepareModelForSaving(PBDataFlowGraphModel* model);
+    void loadNextSceneFromQueue(QStringList queue, int activeTabToRestore);
 };

@@ -405,4 +405,19 @@ void CVSobelAndScharrModel::processData(const std::shared_ptr<CVImageData> &in, 
     cv::addWeighted(out[1]->data(),0.5,out[2]->data(),0.5,0,out[0]->data());
 }
 
-
+QString
+CVSobelAndScharrModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Derivative Image: Output image containing Sobel or Scharr derivatives.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

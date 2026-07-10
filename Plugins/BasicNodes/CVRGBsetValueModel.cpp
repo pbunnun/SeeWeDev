@@ -217,4 +217,19 @@ void CVRGBsetValueModel::processData(std::shared_ptr<CVImageData> &out, const CV
     }
 }
 
-
+QString
+CVRGBsetValueModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input color image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Modified Image: Image with modified channel value.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

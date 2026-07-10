@@ -255,4 +255,19 @@ processData(const std::shared_ptr< CVImageData > & in, CVImagePropertiesProperti
     typedProp->getData() = QString("%1").arg(isContinuous);
 }
 
-
+QString
+CVImagePropertiesModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Properties Info: Text report containing image dimensions, channels, depth, and memory size.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

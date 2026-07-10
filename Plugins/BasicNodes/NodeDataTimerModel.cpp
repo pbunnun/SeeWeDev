@@ -192,5 +192,19 @@ void NodeDataTimerModel::em_timeout()
     emitOutputPort(0);
 }
 
-
-
+QString
+NodeDataTimerModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Trigger Sync: Input trigger to measure time intervals from.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Time Info: String containing measured elapsed time.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

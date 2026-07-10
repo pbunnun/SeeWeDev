@@ -196,4 +196,9 @@ em_button_clicked(bool check)
         this->setEnable(true);
 }
 
-
+QString
+ActivateAllNodesModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -136,4 +136,19 @@ processData( const std::shared_ptr<CVImageData> & in, std::shared_ptr<CVPointDat
     }
 }
 
-
+QString
+CVMinMaxLocationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Location Info: Text report of the minimum and maximum pixel values and locations.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

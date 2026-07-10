@@ -220,4 +220,19 @@ processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr<CVIma
     }
 }
 
-
+QString
+CVMatrixOperationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Result Image: Image modified by arithmetic matrix operation.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -199,4 +199,23 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr< CVImageD
     }
 }
 
-
+QString
+CVSplitImageModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input multi-channel image (e.g. RGB).";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Channel 0: First color channel (e.g., Blue).";
+        else if (portIndex == 1)
+            return "Channel 1: Second color channel (e.g., Green).";
+        else if (portIndex == 2)
+            return "Channel 2: Third color channel (e.g., Red).";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

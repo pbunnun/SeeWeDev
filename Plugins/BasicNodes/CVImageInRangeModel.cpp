@@ -292,4 +292,19 @@ processData(const std::shared_ptr< CVImageData > & in, std::shared_ptr<CVImageDa
     outInt->data() = 0;
 }
 
-
+QString
+CVImageInRangeModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input multi-channel image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Binary Mask: Output mask indicating pixels within specified bounds.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

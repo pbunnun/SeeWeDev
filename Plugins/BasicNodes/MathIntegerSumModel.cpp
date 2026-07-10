@@ -116,4 +116,23 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     }
 }
 
-
+QString
+MathIntegerSumModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Integer 0: First input integer to add.";
+        else if (portIndex == 1)
+            return "Integer 1: Second input integer to add.";
+        else if (portIndex == 2)
+            return "Trigger Sync: Optional trigger input.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Sum Out: Resulting sum integer payload.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

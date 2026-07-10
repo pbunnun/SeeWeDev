@@ -103,4 +103,19 @@ setInData( std::shared_ptr< NodeData > nodeData, PortIndex portIndex)
     }
 }
 
-
+QString
+MathConvertToIntModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Info Value: String/Text input representation of integer.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Integer Out: Output integer payload.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

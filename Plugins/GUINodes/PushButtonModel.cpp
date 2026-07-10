@@ -266,4 +266,16 @@ em_button_clicked( )
     updateAllOutputPorts();
 }
 
-
+QString
+PushButtonModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Button Trigger: Emitted when the button is clicked.";
+        else if (portIndex == 1)
+            return "Button Click Count: Cumulative number of times the button has been clicked.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

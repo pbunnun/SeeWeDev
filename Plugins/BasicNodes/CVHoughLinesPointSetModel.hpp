@@ -82,6 +82,10 @@ public:
 
     unsigned int nPorts(PortType portType) const override;
     NodeDataType dataType(PortType portType, PortIndex portIndex) const override;
+    
+    QString
+    portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const override;
+
     std::shared_ptr<NodeData> outData(PortIndex port) override;
 
     static const QString _category;

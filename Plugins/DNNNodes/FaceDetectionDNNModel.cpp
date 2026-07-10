@@ -321,4 +321,21 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpFaceDetectorThread->detect( in_image );
 }
 
-
+QString
+FaceDetectionDNNModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input frame to detect faces on.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: The input frame with bounding boxes drawn on detected faces.";
+        else if (portIndex == 1)
+            return "Sync Out: Emitted when face detection completes.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

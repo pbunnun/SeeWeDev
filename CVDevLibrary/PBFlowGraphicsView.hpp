@@ -80,6 +80,9 @@
 #include <QtNodes/DataFlowGraphicsScene>
 #include <QDragMoveEvent>
 #include <unordered_set>
+#include <QUndoCommand>
+#include <QPointF>
+#include "ViewTransformCommand.hpp"
 
 using QtNodes::NodeId;
 using QtNodes::NodeGraphicsObject;
@@ -317,6 +320,15 @@ public:
     void center_on( QPointF const & center_pos );
 
     /**
+     * @brief Centers the viewport on all items in the scene.
+     *
+     * Overrides the base class centerScene() implementation to calculate the
+     * tight bounding rectangle of current items using itemsBoundingRect(), preventing
+     * stale/expanded scene bounds from affecting the zoom/pan behavior.
+     */
+    void centerScene();
+
+    /**
      * @brief Retrieves the graphics object for a specific node.
      *
      * Returns the NodeGraphicsObject that renders and handles events for
@@ -510,6 +522,7 @@ protected:
      * @see QGraphicsView::keyPressEvent() for base key handling
      */
     void keyPressEvent( QKeyEvent *event ) override;
+    void keyReleaseEvent( QKeyEvent *event ) override;
 
     /**
      * @brief Handles mouse move events with resize-aware panning suppression.
@@ -517,7 +530,15 @@ protected:
      * Prevents scene panning while a node resize gesture is active.
      */
     void mouseMoveEvent(QMouseEvent *event) override;
-    
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
+
+protected:
+    void drawBackground(QPainter* painter, const QRectF& r) override;
+    void showEvent(QShowEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+
 private:
     /**
      * @brief Pointer to the base graphics scene managing items.
@@ -533,4 +554,16 @@ private:
      * connection management, and node creation from drag-drop.
      */
     QtNodes::DataFlowGraphicsScene* mpDataFlowGraphicsScene {nullptr};
+
+    // View transform/navigation undo-redo tracking
+    QPointF mStartCenter;
+    double mStartScale{1.0};
+    bool mIsTransforming{false};
+    QTimer* mZoomTimer{nullptr};
+    bool mRestoreScrollHandDragOnMouseRelease{false};
+    
+    void finishViewportTracking();
+
+private Q_SLOTS:
+    void onZoomFinished();
 };

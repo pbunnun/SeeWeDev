@@ -288,3 +288,19 @@ void CVBilateralFilterModel::process_cached_input()
                              Q_ARG(QString, producerId));
 }
 
+QString
+CVBilateralFilterModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image to filter.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Bilateral Result: Filtered image preserving sharp edges.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -479,4 +479,19 @@ void CVErodeAndDilateModel::process_cached_input()
     }
 }
 
-
+QString
+CVErodeAndDilateModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input image to apply morphological erosion or dilation on.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Morphological Result: Output image after applying the operations.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -165,3 +165,20 @@ process_cached_input()
             Q_ARG(QString, producerId));
     }
 }
+
+QString
+CVRGBtoGrayModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "RGB Image: Input color image (typically 3 channels).";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Grayscale Image: Output single-channel grayscale image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

@@ -420,4 +420,19 @@ float CVFindAndDrawContourModel::get_stddev(const std::vector<float> &vec, float
     return sqrt(std::accumulate(vec.begin(), vec.end(), 0.0, variance_func));
 }
 
-
+QString
+CVFindAndDrawContourModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: Image with detected contours drawn.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

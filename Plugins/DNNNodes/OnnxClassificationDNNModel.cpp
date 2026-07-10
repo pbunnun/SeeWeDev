@@ -557,4 +557,21 @@ processData(const std::shared_ptr< CVImageData > & in)
         mpOnnxClassificationDNNThread->detect( in_image );
 }
 
-
+QString
+OnnxClassificationDNNModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input frame to classify using custom ONNX model.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Annotated Image: The input frame with top predicted class label drawn as text.";
+        else if (portIndex == 1)
+            return "Sync Out: Emitted when classification completes.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

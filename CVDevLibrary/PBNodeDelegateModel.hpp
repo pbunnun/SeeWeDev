@@ -80,12 +80,14 @@ public:
     void setLockPosition( bool lock ) { mbLockPosition = lock; }
     void setDrawEntries( bool draw ) { mbDrawEntries = draw; }
     void setDrawConnectionPoints( bool draw ) { mbDrawConnectionPoint = draw; }
+    void setHideInFocusView( bool hide ) { mbHideInFocusView = hide; }
 
     bool isEnable() const { return mbEnable; }
     bool isMinimize() const { return mbMinimize; }
     bool isLockPosition() const { return mbLockPosition; }
     bool isDrawEntries() const { return mbDrawEntries; }
     bool isDrawConnectionPoints() const { return mbDrawConnectionPoint; }
+    bool isHideInFocusView() const { return mbHideInFocusView; }
 
     // Override from NodeDelegateModel to control caption visibility
     bool captionVisible() const override { return mbCaptionVisible; }
@@ -94,6 +96,9 @@ public:
     // Default is true so most nodes support dynamic resizing unless
     // a derived model explicitly returns false.
     virtual bool resizable() const override { return true; }
+
+    /// Returns true if headless mode has been activated.
+    static bool isHeadlessMode() { return msHeadlessMode; }
 
     // Virtual method to check if node can be minimized
     virtual bool canMinimize() const { return true; }
@@ -110,14 +115,12 @@ public:
 
     virtual QString portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const;
 
-protected:
     void
     emitOutputPort(PortIndex portIndex);
 
+public:
     void
     updateAllOutputPorts();
-
-public:
     virtual
     void
     setSelected( bool selected ) { mbSelected = selected; }
@@ -285,6 +288,7 @@ private:
     bool mbDrawEntries{true};
     bool mbDrawConnectionPoint{true};
     bool mbCaptionVisible{true};
+    bool mbHideInFocusView{false};
     bool mbEditableEmbeddedWidgetSelected{false};
     NodeId miRuntimeNodeId{0};
     QString msFlowFilename{"Untitle"};
@@ -295,4 +299,6 @@ private:
     virtual void minimized( bool );
     void locked_position( bool );
     void draw_entries( bool );
+
+    static bool msHeadlessMode;
 };

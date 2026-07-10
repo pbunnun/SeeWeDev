@@ -156,4 +156,14 @@ enable_changed( bool enable )
         mpTimer->stop();
 }
 
-
+QString
+TimerModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Periodic Sync: Synchronization signal emitted periodically based on the timer interval.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

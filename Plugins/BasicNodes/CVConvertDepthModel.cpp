@@ -256,4 +256,19 @@ overwrite(std::shared_ptr<IntegerData> &in, CVConvertDepthParameters &params)
     in.reset();
 }
 
-
+QString
+CVConvertDepthModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Converted Depth: Output image converted to target depth (e.g., 8U to 32F).";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

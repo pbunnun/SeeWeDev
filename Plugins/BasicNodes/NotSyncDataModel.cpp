@@ -115,4 +115,19 @@ setInData(std::shared_ptr<NodeData> nodeData, PortIndex)
     }
 }
 
-
+QString
+NotSyncDataModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Sync In: Input synchronization signal to invert.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Inverted Sync: Output inverted synchronization signal.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

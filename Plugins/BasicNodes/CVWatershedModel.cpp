@@ -119,4 +119,19 @@ processData(const std::shared_ptr< CVImageData > (&in)[2], std::shared_ptr< CVIm
     }
 }
 
-
+QString
+CVWatershedModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Watershed Result: Segmented label image.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

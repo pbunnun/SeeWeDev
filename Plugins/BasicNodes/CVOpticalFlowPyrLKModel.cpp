@@ -690,4 +690,19 @@ void CVOpticalFlowPyrLKModel::load(const QJsonObject& json)
 
     }
 
-
+QString
+CVOpticalFlowPyrLKModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: Input image stream.";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Flow Visualization: Image showing tracked feature point vectors.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}

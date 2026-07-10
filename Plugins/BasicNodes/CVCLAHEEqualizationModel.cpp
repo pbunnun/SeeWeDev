@@ -253,3 +253,20 @@ void CVCLAHEEqualizationModel::process_cached_input()
                                   Q_ARG(QString, producerId));
     }
 }
+
+QString
+CVCLAHEEqualizationModel::
+portToolTip(QtNodes::PortType portType, QtNodes::PortIndex portIndex) const
+{
+    if (portType == QtNodes::PortType::In)
+    {
+        if (portIndex == 0)
+            return "Source Image: The input image (grayscale or color).";
+    }
+    else if (portType == QtNodes::PortType::Out)
+    {
+        if (portIndex == 0)
+            return "Equalized Image: Output image after CLAHE equalization.";
+    }
+    return PBNodeDelegateModel::portToolTip(portType, portIndex);
+}
